@@ -158,6 +158,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   onUpdateProductPrice,
   onImportProducts,
 }) => {
+  // Inject noindex meta — admin must never be indexed by search engines
+  React.useEffect(() => {
+    const meta = document.createElement('meta')
+    meta.name = 'robots'
+    meta.content = 'noindex, nofollow, noarchive'
+    document.head.appendChild(meta)
+    return () => {
+      document.head.removeChild(meta)
+    }
+  }, [])
+
   // Navigation & Sub-views
   const [activeNav, setActiveNav] = useState<string>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)

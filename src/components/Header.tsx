@@ -11,7 +11,6 @@ import {
   FolderLock,
   Settings,
   LogOut,
-  Sparkles,
   Zap,
   ShieldCheck,
 } from 'lucide-react'
@@ -30,7 +29,6 @@ interface HeaderProps {
   onOpenWishlist: () => void
   onSelectCategory: (category: string) => void
   selectedCategory: string
-  onOpenAdmin?: () => void
   onOpenAuth: () => void
   onOpenAccountTab: (tab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings') => void
   user: { name: string; email: string } | null
@@ -49,7 +47,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWishlist,
   onSelectCategory,
   selectedCategory,
-  onOpenAdmin,
   onOpenAuth,
   onOpenAccountTab,
   user,
@@ -153,16 +150,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Support
           </button>
-          {onOpenAdmin && (
-            <button
-              id="header-admin-nav-btn"
-              onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border border-amber-400/30 text-amber-300 hover:text-white hover:border-amber-400/60 font-semibold text-xs transition shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin Console</span>
-            </button>
-          )}
         </nav>
 
         {/* Live Search Input (Matching Search Bar with Hotkey) */}
@@ -266,25 +253,33 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={profileDropdownRef}>
             <button
               id="header-profile-btn"
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              onClick={() => {
+                if (!user) {
+                  onOpenAuth()
+                  return
+                }
+                setProfileDropdownOpen(!profileDropdownOpen)
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0B1536] border border-slate-400/20 hover:border-yellow-400/50 text-slate-200 text-xs font-semibold transition"
             >
               <div className="w-6 h-6 rounded-full bg-yellow-400/20 border border-yellow-400/50 flex items-center justify-center text-yellow-400 font-mono text-[11px] font-bold">
                 {user ? user.name.charAt(0).toUpperCase() : 'A'}
               </div>
-              <span className="hidden sm:inline text-xs font-medium">Profile</span>
+              <span className="hidden sm:inline text-xs font-medium">
+                {user ? 'Profile' : 'Sign In'}
+              </span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
             {/* Profile Dropdown Menu (Exact 7 items from Screenshot 2) */}
-            {profileDropdownOpen && (
+            {profileDropdownOpen && user && (
               <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-[#091330] border border-slate-400/20 shadow-2xl backdrop-blur-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-4 py-2 border-b border-slate-400/10 mb-1">
                   <div className="text-xs font-bold text-white truncate">
-                    {user ? user.name : 'PlayBeat Account'}
+                    {user.name}
                   </div>
                   <div className="text-[10px] text-slate-400 font-mono truncate">
-                    {user ? user.email : 'member@playbeat.com'}
+                    {user.email}
                   </div>
                 </div>
 
@@ -358,19 +353,6 @@ export const Header: React.FC<HeaderProps> = ({
                   <Settings className="w-4 h-4 text-slate-400" />
                   <span>Account Settings</span>
                 </button>
-
-                {onOpenAdmin && (
-                  <button
-                    onClick={() => {
-                      onOpenAdmin()
-                      setProfileDropdownOpen(false)
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-yellow-400 hover:bg-yellow-400/10 transition border-t border-slate-400/10 mt-1"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Admin Insights</span>
-                  </button>
-                )}
 
                 {user && (
                   <button

@@ -16,7 +16,7 @@ const MONGODB_URI =
   "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@playbeat.digital";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeatAdmin2026!";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeat1122";
 const SESSION_SECRET = process.env.SESSION_SECRET || "playbeat-jwt-super-secret-key-2026";
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || "https://playbeat.digital";
 
@@ -81,7 +81,10 @@ async function initDatabase() {
     await productsCol.createIndex({ category: 1 });
     await productsCol.createIndex({ isFeatured: 1, active: 1 });
     await usersCol.createIndex({ email: 1 }, { unique: true, sparse: true });
+    await usersCol.createIndex({ staffId: 1 }, { unique: true, sparse: true });
+    await usersCol.createIndex({ role: 1 });
     await ordersCol.createIndex({ orderNumber: 1 }, { unique: true, sparse: true });
+    await ordersCol.createIndex({ userId: 1 });
 
     console.log("MongoDB indexes verified successfully.");
   } catch (err: any) {
@@ -567,6 +570,11 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Password must be at least 6 characters long." });
       }
 
+      // Block registration using the reserved admin env email
+      if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim()) {
+        return res.status(403).json({ success: false, error: "This email is reserved and cannot be registered." });
+      }
+
       const db = await getDb();
       const usersCol = db.collection("users");
 
@@ -621,6 +629,14 @@ async function startServer() {
         return res.status(400).json({ success: false, error: "Email and password are required." });
       }
 
+      // Block admin env account from authenticating via the public user login endpoint
+      if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim()) {
+        return res.status(403).json({
+          success: false,
+          error: "This account is restricted. Administrative access is via the dedicated admin login only.",
+        });
+      }
+
       const db = await getDb();
       const usersCol = db.collection("users");
 
@@ -673,6 +689,11 @@ async function startServer() {
         profile?.email?.toLowerCase().trim() ||
         `${provider.toLowerCase()}.${Date.now().toString().slice(-4)}@playbeat.digital`;
       const name = profile?.name || `${provider} Member`;
+
+      // Block any attempt to register/claim the admin env account via social
+      if (email === ADMIN_EMAIL.toLowerCase().trim()) {
+        return res.status(403).json({ success: false, error: "This email is reserved and cannot be claimed." });
+      }
 
       const db = await getDb();
       const usersCol = db.collection("users");
@@ -798,6 +819,145 @@ async function startServer() {
     });
   });
 
+  // POST /api/auth/admin/logout (Clear admin cookie)
+  app.post("/api/auth/admin/logout", (req, res) => {
+    res.clearCookie("adminToken");
+    res.json({ success: true, message: "Admin session terminated." });
+  });
+
+  // ==========================================
+  // 3.1 STAFF MANAGEMENT (Super Admin Only)
+  //   - Super admin (env ADMIN_EMAIL) can promote normal users to "staff"
+  //   - Staff users get a managed staffId assigned by the super admin
+  //   - Only ONE super admin exists — there is no escalation path beyond it
+  // ==========================================
+
+  // GET /api/admin/staff (List all staff accounts)
+  app.get("/api/admin/staff", verifyAdmin, async (req: AuthRequest, res) => {
+    try {
+      const db = await getDb();
+      const usersCol = db.collection("users");
+      const staff = await usersCol
+        .find({ role: { $in: ["staff", "admin"] } })
+        .project({ password: 0 })
+        .toArray();
+      res.json({
+        success: true,
+        staff: staff.map((s) => ({
+          id: s._id.toString(),
+          name: s.name,
+          email: s.email,
+          role: s.role,
+          staffId: s.staffId || null,
+          provider: s.provider || "local",
+          createdAt: s.createdAt,
+        })),
+        superAdmin: { email: ADMIN_EMAIL, role: "super_admin" },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST /api/admin/staff/promote (Set a staff ID for an existing normal user)
+  app.post("/api/admin/staff/promote", verifyAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { userId, staffId } = req.body;
+      if (!userId || !staffId) {
+        return res.status(400).json({ success: false, error: "userId and staffId are required." });
+      }
+
+      const db = await getDb();
+      const usersCol = db.collection("users");
+
+      // Never allow promoting the super admin env account
+      const target = await usersCol.findOne({ _id: new ObjectId(userId) });
+      if (!target) {
+        return res.status(404).json({ success: false, error: "User not found." });
+      }
+      if (target.email && target.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: "Cannot modify the super administrator account." });
+      }
+
+      // Ensure staffId is unique
+      const existingStaffId = await usersCol.findOne({ staffId });
+      if (existingStaffId && existingStaffId._id.toString() !== userId) {
+        return res.status(409).json({ success: false, error: "Staff ID is already assigned to another user." });
+      }
+
+      await usersCol.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { role: "staff", staffId: staffId.trim(), promotedAt: new Date() } }
+      );
+
+      res.json({
+        success: true,
+        message: `User promoted to staff with Staff ID ${staffId}.`,
+        staff: { id: userId, name: target.name, email: target.email, role: "staff", staffId: staffId.trim() },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // POST /api/admin/staff/demote (Remove staff role from a user)
+  app.post("/api/admin/staff/demote", verifyAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ success: false, error: "userId is required." });
+      }
+
+      const db = await getDb();
+      const usersCol = db.collection("users");
+
+      const target = await usersCol.findOne({ _id: new ObjectId(userId) });
+      if (!target) {
+        return res.status(404).json({ success: false, error: "User not found." });
+      }
+      if (target.email && target.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: "Cannot demote the super administrator account." });
+      }
+
+      await usersCol.updateOne(
+        { _id: new ObjectId(userId) },
+        { $set: { role: "user" }, $unset: { staffId: "" } }
+      );
+
+      res.json({ success: true, message: "Staff privileges revoked. User reverted to normal account." });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // GET /api/admin/users (List all users for staff management)
+  app.get("/api/admin/users", verifyAdmin, async (req: AuthRequest, res) => {
+    try {
+      const db = await getDb();
+      const usersCol = db.collection("users");
+      const users = await usersCol
+        .find({})
+        .project({ password: 0 })
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .toArray();
+      res.json({
+        success: true,
+        users: users.map((u) => ({
+          id: u._id.toString(),
+          name: u.name,
+          email: u.email,
+          role: u.role || "user",
+          staffId: u.staffId || null,
+          provider: u.provider || "local",
+          createdAt: u.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // POST /api/auth/forgot-password
   app.post("/api/auth/forgot-password", (req, res) => {
     const { email } = req.body;
@@ -815,14 +975,25 @@ async function startServer() {
   // 4. ORDERS & CHECKOUT API
   // ==========================================
 
-  // POST /api/orders (Create Order & Instant License Allocation)
-  app.post("/api/orders", async (req, res) => {
+  // POST /api/orders (Create Order & Instant License Allocation) — requires signed-in user (no guest checkout)
+  app.post("/api/orders", verifyToken, async (req: AuthRequest, res) => {
     try {
       const { items, customerName, customerEmail, totalAmount, currency = "PKR", paymentMethod = "Credit Card" } = req.body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ success: false, error: "Cart items are required to create an order." });
       }
+
+      // Use the authenticated user's identity (no guest checkout)
+      const db = await getDb();
+      const usersCol = db.collection("users");
+      const authedUser = await usersCol.findOne({ _id: new ObjectId(req.user.id) });
+      if (!authedUser) {
+        return res.status(401).json({ success: false, error: "Authentication required to place an order." });
+      }
+
+      const finalCustomerName = customerName || authedUser.name || "PlayBeat Customer";
+      const finalCustomerEmail = customerEmail || authedUser.email || "customer@playbeat.digital";
 
       const orderNumber = `PB-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -852,8 +1023,9 @@ async function startServer() {
 
       const orderDoc = {
         orderNumber,
-        customerName: customerName || "PlayBeat Customer",
-        customerEmail: customerEmail || "customer@playbeat.digital",
+        userId: req.user.id,
+        customerName: finalCustomerName,
+        customerEmail: finalCustomerEmail,
         items: processedItems,
         totalAmount: Number(totalAmount) || 0,
         currency,
@@ -863,7 +1035,6 @@ async function startServer() {
         createdAt: new Date(),
       };
 
-      const db = await getDb();
       const ordersCol = db.collection("orders");
       const insertResult = await ordersCol.insertOne(orderDoc);
 
@@ -877,6 +1048,22 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error("Order Creation Error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // GET /api/orders/me (List orders for current signed-in user)
+  app.get("/api/orders/me", verifyToken, async (req: AuthRequest, res) => {
+    try {
+      const db = await getDb();
+      const ordersCol = db.collection("orders");
+      const orders = await ordersCol
+        .find({ userId: req.user.id })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray();
+      res.json({ success: true, orders });
+    } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
   });
@@ -920,7 +1107,7 @@ async function startServer() {
   // 6. DYNAMIC SITEMAP.XML & ROBOTS.TXT (SEO)
   // ==========================================
 
-  // GET /sitemap.xml
+  // GET /sitemap.xml — only storefront & product pages (admin is noindex)
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const db = await getDb();
@@ -928,38 +1115,36 @@ async function startServer() {
       const activeProducts = await col.find({ active: { $ne: false } }).project({ slug: 1, updatedAt: 1 }).toArray();
 
       const staticUrls = [
-        "",
-        "/storefront",
-        "/privacy",
-        "/terms",
-        "/refund-policy",
-        "/shipping-policy",
-        "/contact",
+        { path: "", priority: "1.0", changefreq: "daily" },
+        { path: "/#/storefront", priority: "1.0", changefreq: "daily" },
+        { path: "/privacy", priority: "0.7", changefreq: "monthly" },
+        { path: "/terms", priority: "0.7", changefreq: "monthly" },
+        { path: "/refund-policy", priority: "0.7", changefreq: "monthly" },
+        { path: "/shipping-policy", priority: "0.7", changefreq: "monthly" },
+        { path: "/contact", priority: "0.7", changefreq: "monthly" },
       ];
 
       const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  ${staticUrls
-    .map(
-      (path) => `
-  <url>
-    <loc>${PUBLIC_SITE_URL}${path}</loc>
-    <changefreq>daily</changefreq>
-    <priority>${path === "" || path === "/storefront" ? "1.0" : "0.7"}</priority>
+${staticUrls
+  .map(
+    (u) => `  <url>
+    <loc>${PUBLIC_SITE_URL}${u.path}</loc>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>
   </url>`
-    )
-    .join("")}
-  ${activeProducts
-    .map(
-      (p) => `
-  <url>
-    <loc>${PUBLIC_SITE_URL}/storefront/product/${p.slug || p._id}</loc>
+  )
+  .join("\n")}
+${activeProducts
+  .map(
+    (p) => `  <url>
+    <loc>${PUBLIC_SITE_URL}/#/storefront/product/${p.slug || p._id}</loc>
     <lastmod>${(p.updatedAt ? new Date(p.updatedAt) : new Date()).toISOString().split("T")[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>`
-    )
-    .join("")}
+  )
+  .join("\n")}
 </urlset>`;
 
       res.header("Content-Type", "application/xml");
@@ -969,20 +1154,25 @@ async function startServer() {
     }
   });
 
-  // GET /robots.txt
+  // GET /robots.txt — admin & API routes are disallowed; storefront is allowed
   app.get("/robots.txt", (req, res) => {
     const robots = `User-agent: *
 Allow: /
-Allow: /storefront
-Allow: /storefront/*
+Allow: /$
+Allow: /#/storefront
+Allow: /#/storefront/
 Allow: /privacy
 Allow: /terms
 Allow: /refund-policy
 Allow: /shipping-policy
 Allow: /contact
 
+# Admin is password-protected & private — never index
+Disallow: /#/admin
+Disallow: /#/admin/
 Disallow: /admin
-Disallow: /admin/*
+Disallow: /admin/
+Disallow: /api/
 Disallow: /api/*
 Disallow: /login
 Disallow: /signup

@@ -28,6 +28,8 @@ interface CartDrawerProps {
   onUpdateQty: (productId: string, variantId: string | undefined, newQty: number) => void
   onRemoveItem: (productId: string, variantId: string | undefined) => void
   onClearCart: () => void
+  user?: { name: string; email: string } | null
+  onRequireAuth?: () => void
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -38,6 +40,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onUpdateQty,
   onRemoveItem,
   onClearCart,
+  user,
+  onRequireAuth,
 }) => {
   const [couponInput, setCouponInput] = useState('')
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0)
@@ -81,6 +85,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const handleCompleteOrder = (e: React.FormEvent) => {
     e.preventDefault()
     if (!checkoutEmail) return
+    // Final auth guard — no guest checkout
+    if (!user) {
+      onRequireAuth?.()
+      return
+    }
 
     // Generate simulated digital license keys
     const generatedKeys = cart.map((item) => {
@@ -430,15 +439,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                   </div>
 
-                  {/* Proceed to Checkout Button */}
-                  <button
-                    id="cart-proceed-checkout-btn"
-                    onClick={() => setIsCheckingOut(true)}
-                    className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2"
-                  >
-                    <span>Proceed to Checkout</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {/* Proceed to Checkout Button — sign-in required (no guest checkout) */}
+                  {!user ? (
+                    <button
+                      id="cart-proceed-checkout-btn"
+                      onClick={() => onRequireAuth?.()}
+                      className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Sign In to Checkout</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      id="cart-proceed-checkout-btn"
+                      onClick={() => {
+                        // pre-populate checkout form with user's profile
+                        if (!checkoutEmail && user.email) setCheckoutEmail(user.email)
+                        if (!checkoutName && user.name) setCheckoutName(user.name)
+                        setIsCheckingOut(true)
+                      }}
+                      className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2"
+                    >
+                      <span>Proceed to Checkout</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               )}
             </>

@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
-import { X, Mail, Lock, User, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react'
+import { X, Mail, Lock, User, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
   initialMode?: 'signin' | 'signup'
-  onSuccess: (user: { name: string; email: string }) => void
+  onSuccess: (user: { name: string; email: string }, token?: string) => void
 }
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -19,20 +21,103 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    if (!email.trim() || !password) {
+      setError('Email and password are required.')
+      return
+    }
+
+    if (mode === 'signup' && !name.trim()) {
+      setError('Please enter your full name.')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.')
+      return
+    }
+
     setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-      onSuccess({
-        name: name.trim() || (email.split('@')[0] ? email.split('@')[0] : 'PlayBeat Member'),
-        email: email.trim() || 'member@playbeat.com',
+    try {
+      const endpoint = mode === 'signup' ? '/api/auth/register' : '/api/auth/login'
+      const payload =
+        mode === 'signup'
+          ? { name: name.trim(), email: email.trim(), password }
+          : { email: email.trim(), password }
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
       })
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setError(data.error || 'Authentication failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      onSuccess(
+        {
+          name: data.user?.name || (email.split('@')[0] || 'PlayBeat Member'),
+          email: data.user?.email || email.trim(),
+        },
+        data.token,
+      )
+      // reset form
+      setName('')
+      setEmail('')
+      setPassword('')
       onClose()
-    }, 600)
+    } catch (err: any) {
+      setError(err.message || 'Network error during authentication.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSocialAuth = async (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/social`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          provider,
+          profile: { name: `${provider} Member`, email: `${provider.toLowerCase()}.member@playbeat.digital` },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setError(data.error || `${provider} sign-in failed.`)
+        setLoading(false)
+        return
+      }
+      onSuccess(
+        {
+          name: data.user?.name || `${provider} Member`,
+          email: data.user?.email || `${provider.toLowerCase()}@playbeat.digital`,
+        },
+        data.token,
+      )
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Network error during social sign-in.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -69,6 +154,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </p>
         </div>
 
+        {error && (
+          <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-medium">{error}</span>
+          </div>
+        )}
+
         {/* 4 Social Sign In / Sign Up Buttons */}
         <div className="space-y-2 mb-5">
           <div className="grid grid-cols-2 gap-2">
@@ -76,14 +168,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => {
-                setLoading(true)
-                setTimeout(() => {
-                  setLoading(false)
-                  onSuccess({ name: 'Google Member', email: 'user@gmail.com' })
-                  onClose()
-                }, 500)
-              }}
+              onClick={() => handleSocialAuth('Google')}
               className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-blue-400/60 hover:bg-[#0E1A38] text-white text-xs font-semibold transition group shadow-sm"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -111,14 +196,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => {
-                setLoading(true)
-                setTimeout(() => {
-                  setLoading(false)
-                  onSuccess({ name: 'Facebook Member', email: 'fb.user@facebook.com' })
-                  onClose()
-                }, 500)
-              }}
+              onClick={() => handleSocialAuth('Facebook')}
               className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-[#1877F2]/60 hover:bg-[#0C1838] text-white text-xs font-semibold transition group shadow-sm"
             >
               <svg className="w-4 h-4 fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
@@ -131,14 +209,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => {
-                setLoading(true)
-                setTimeout(() => {
-                  setLoading(false)
-                  onSuccess({ name: 'TikTok Creator', email: 'creator@tiktok.com' })
-                  onClose()
-                }, 500)
-              }}
+              onClick={() => handleSocialAuth('TikTok')}
               className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-pink-500/60 hover:bg-[#161226] text-white text-xs font-semibold transition group shadow-sm"
             >
               <div className="relative w-4 h-4 shrink-0 flex items-center justify-center">
@@ -154,14 +225,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => {
-                setLoading(true)
-                setTimeout(() => {
-                  setLoading(false)
-                  onSuccess({ name: 'Instagram Member', email: 'insta@instagram.com' })
-                  onClose()
-                }, 500)
-              }}
+              onClick={() => handleSocialAuth('Instagram')}
               className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-pink-500/60 hover:bg-[#1A1028] text-white text-xs font-semibold transition group shadow-sm"
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
@@ -192,7 +256,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleEmailSubmit} className="space-y-4">
           {mode === 'signup' && (
             <div>
               <label className="block text-[11px] font-mono uppercase text-slate-300 mb-1.5 tracking-wider">
@@ -236,13 +300,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
+                className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -251,7 +322,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+              className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70"
             >
               {loading ? (
                 <span className="inline-block w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
@@ -272,7 +343,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => setMode('signin')}
+                onClick={() => {
+                  setMode('signin')
+                  setError('')
+                }}
                 className="text-yellow-400 hover:text-yellow-300 font-semibold underline underline-offset-2 ml-1"
               >
                 Sign In
@@ -283,7 +357,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               New to PlayBeat?{' '}
               <button
                 type="button"
-                onClick={() => setMode('signup')}
+                onClick={() => {
+                  setMode('signup')
+                  setError('')
+                }}
                 className="text-yellow-400 hover:text-yellow-300 font-semibold underline underline-offset-2 ml-1"
               >
                 Sign Up Free

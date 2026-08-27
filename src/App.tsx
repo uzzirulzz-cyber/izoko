@@ -13,60 +13,137 @@ import { AuthModal } from './components/AuthModal'
 import { AccountDrawer } from './components/AccountDrawer'
 import { Footer } from './components/Footer'
 import { AdminInsightsView } from './components/AdminInsightsView'
+import { AdminLogin } from './components/AdminLogin'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
-import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles, LayoutDashboard, Store } from 'lucide-react'
+import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+
+type Route = 'storefront' | 'admin-login' | 'admin'
+
+// Hash router: #/storefront, #/admin (will trigger login wall if not authed), #/admin/login
+function parseHashRoute(): Route {
+  if (typeof window === 'undefined') return 'storefront'
+  const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
+  if (hash.startsWith('admin/login')) return 'admin-login'
+  if (hash.startsWith('admin')) return 'admin'
+  return 'storefront'
+}
+
+function setHashRoute(route: Route) {
+  let h = '#/storefront'
+  if (route === 'admin') h = '#/admin'
+  if (route === 'admin-login') h = '#/admin/login'
+  if (window.location.hash !== h) {
+    window.history.replaceState(null, '', h)
+  }
+}
+
+// Verify persisted admin token against backend
+async function verifyAdminSession(): Promise<boolean> {
+  const token = localStorage.getItem('playbeat_admin_token')
+  if (!token) return false
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/admin/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+function clearAdminSession() {
+  localStorage.removeItem('playbeat_admin_token')
+  localStorage.removeItem('playbeat_admin_session')
+}
 
 export function App() {
-  // Navigation & View Mode
-  const [viewMode, setViewMode] = useState<'storefront' | 'admin'>(() => {
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash.toLowerCase()
-      if (hash.includes('admin')) return 'admin'
-    }
-    return 'storefront'
-  })
+  // ============================================
+  // ROUTING: hash-based, separates /admin & /storefront
+  // ============================================
+  const [route, setRoute] = useState<Route>(() => parseHashRoute())
 
-  // Keyboard shortcut (Alt+A for Admin, Alt+S for Storefront)
+  // Admin auth state — only true after explicit login. NEVER auto-login.
+  const [adminAuthed, setAdminAuthed] = useState<boolean>(false)
+  const [adminChecking, setAdminChecking] = useState<boolean>(false)
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.altKey || (e.ctrlKey && e.shiftKey)) && (e.key === 'a' || e.key === 'A')) {
-        e.preventDefault()
-        setViewMode((prev) => (prev === 'admin' ? 'storefront' : 'admin'))
-      } else if ((e.altKey || (e.ctrlKey && e.shiftKey)) && (e.key === 's' || e.key === 'S')) {
-        e.preventDefault()
-        setViewMode('storefront')
-      }
+    const onHashChange = () => {
+      const r = parseHashRoute()
+      setRoute(r)
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  // Sync hash with view mode
+  // Persist route in hash
   useEffect(() => {
-    if (viewMode === 'admin') {
-      if (window.location.hash !== '#admin') {
-        window.history.replaceState(null, '', '#admin')
-      }
-    } else {
-      if (window.location.hash === '#admin') {
-        window.history.replaceState(null, '', '#storefront')
-      }
-    }
-  }, [viewMode])
+    setHashRoute(route)
+  }, [route])
 
-  // User State
-  const [user, setUser] = useState<{ name: string; email: string } | null>(() => {
-    const saved = localStorage.getItem('playbeat_user')
-    if (saved) {
+  // When navigating to admin, check if a stored admin session is still valid.
+  // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
+  useEffect(() => {
+    let cancelled = false
+    if (route === 'admin' && !adminAuthed) {
+      setAdminChecking(true)
+      verifyAdminSession()
+        .then((ok) => {
+          if (cancelled) return
+          if (ok) {
+            setAdminAuthed(true)
+          } else {
+            clearAdminSession()
+            setRoute('admin-login')
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setAdminChecking(false)
+        })
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [route, adminAuthed])
+
+  // User State — NO auto-login. User must explicitly sign in.
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+
+  // On mount, verify a stored user token against backend. If invalid, drop it.
+  useEffect(() => {
+    const savedToken = localStorage.getItem('playbeat_user_token')
+    const savedUser = localStorage.getItem('playbeat_user')
+    if (savedToken && savedUser) {
       try {
-        return JSON.parse(saved)
+        const parsed = JSON.parse(savedUser)
+        // Quick backend verify
+        fetch(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${savedToken}` },
+          credentials: 'include',
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data?.success && data?.user) {
+              setUser({ name: data.user.name, email: data.user.email })
+            } else {
+              localStorage.removeItem('playbeat_user_token')
+              localStorage.removeItem('playbeat_user')
+            }
+          })
+          .catch(() => {
+            // network error — keep local copy but don't trust it implicitly
+            setUser(parsed)
+          })
       } catch {
-        return { name: 'Ali Khan', email: 'playbeat575@gmail.com' }
+        localStorage.removeItem('playbeat_user_token')
+        localStorage.removeItem('playbeat_user')
       }
     }
-    return { name: 'Ali Khan', email: 'playbeat575@gmail.com' }
-  })
+    // If no token, user stays null — must explicitly sign in.
+  }, [])
 
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
@@ -110,19 +187,7 @@ export function App() {
         return []
       }
     }
-    // Default initial mock cart item with count = 3 (as shown in screenshot badge '3')
-    return [
-      {
-        product: INITIAL_PRODUCTS[1], // PlayStation Gift Card
-        quantity: 1,
-        unitPrice: 24000,
-      },
-      {
-        product: INITIAL_PRODUCTS[0], // Netflix Premium
-        quantity: 2,
-        unitPrice: 6800,
-      },
-    ]
+    return []
   })
 
   const [wishlist, setWishlist] = useState<Product[]>(() => {
@@ -357,12 +422,43 @@ export function App() {
     return cart.reduce((acc, item) => acc + item.quantity, 0)
   }, [cart])
 
+  // Sign out helper — clears user token + state
+  const handleUserSignOut = () => {
+    localStorage.removeItem('playbeat_user_token')
+    localStorage.removeItem('playbeat_user')
+    setUser(null)
+    setIsAccountOpen(false)
+    showToast('Signed out of PlayBeat')
+  }
+
   const handleOpenAccountTab = (tab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings') => {
+    if (!user) {
+      setIsAuthOpen(true)
+      return
+    }
     if (tab === 'wishlist') {
       setIsWishlistOpen(true)
     } else {
       setAccountTab(tab)
       setIsAccountOpen(true)
+    }
+  }
+
+  // Cart open must require auth (no guest checkout)
+  const handleOpenCart = () => {
+    if (!user) {
+      setIsAuthOpen(true)
+      showToast('Please sign in to access your cart and checkout')
+      return
+    }
+    setIsCartOpen(true)
+  }
+
+  // Proceed-to-checkout requires auth — CartDrawer will also enforce
+  const handleAddToCartAuth = (product: Product, variant?: ProductVariant) => {
+    handleAddToCart(product, variant)
+    if (!user) {
+      showToast('Added to cart — sign in to checkout')
     }
   }
 
@@ -378,42 +474,73 @@ export function App() {
         </div>
       )}
 
-      {/* Main App Header */}
-      {viewMode === 'storefront' && (
-        <Header
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          selectedCurrency={selectedCurrency}
-          onCurrencyChange={setSelectedCurrency}
-          cartCount={cartCount}
-          cartTotal={cartTotal}
-          onOpenCart={() => setIsCartOpen(true)}
-          wishlistCount={wishlist.length}
-          onOpenWishlist={() => setIsWishlistOpen(true)}
-          onSelectCategory={setSelectedCategory}
-          selectedCategory={selectedCategory}
-          onOpenAdmin={() => setViewMode('admin')}
-          onOpenAuth={() => setIsAuthOpen(true)}
-          onOpenAccountTab={handleOpenAccountTab}
-          user={user}
-          onSignOut={() => {
-            setUser(null)
-            showToast('Signed out of PlayBeat')
-          }}
-        />
-      )}
-
-      {viewMode === 'admin' ? (
+      {/* ============================================
+          ROUTING — separate /admin and /storefront
+          ============================================ */}
+      {route === 'admin' && adminAuthed && (
         <AdminInsightsView
           products={products}
           selectedCurrency={selectedCurrency}
-          onBackToStorefront={() => setViewMode('storefront')}
+          onBackToStorefront={() => {
+            setAdminAuthed(false) // require re-auth next visit (no auto-login)
+            clearAdminSession()
+            setRoute('storefront')
+          }}
           onQuickViewProduct={(p) => setQuickViewProduct(p)}
           onUpdateProductStock={handleUpdateProductStock}
           onImportProducts={handleImportProducts}
         />
-      ) : (
+      )}
+
+      {route === 'admin' && !adminAuthed && (
+        // Verifying or being redirected to admin-login — show a small loader
+        <div className="min-h-screen flex items-center justify-center bg-[#07090E] text-zinc-300">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-mono">Verifying administrative session…</span>
+          </div>
+        </div>
+      )}
+
+      {route === 'admin-login' && (
+        <AdminLogin
+          onSuccess={() => {
+            setAdminAuthed(true)
+            setRoute('admin')
+          }}
+          onCancel={() => setRoute('storefront')}
+        />
+      )}
+
+      {/* STOREFRONT — completely separate from admin */}
+      {route === 'storefront' && (
         <>
+          {/* Main App Header — NO admin link exposed to public users */}
+          <Header
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedCurrency={selectedCurrency}
+            onCurrencyChange={setSelectedCurrency}
+            cartCount={cartCount}
+            cartTotal={cartTotal}
+            onOpenCart={handleOpenCart}
+            wishlistCount={wishlist.length}
+            onOpenWishlist={() => {
+              if (!user) {
+                setIsAuthOpen(true)
+                showToast('Please sign in to view your wishlist')
+                return
+              }
+              setIsWishlistOpen(true)
+            }}
+            onSelectCategory={setSelectedCategory}
+            selectedCategory={selectedCategory}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenAccountTab={handleOpenAccountTab}
+            user={user}
+            onSignOut={handleUserSignOut}
+          />
+
           {/* Hero Section (Matching Screenshot 1) */}
           {selectedCategory === 'all' && !searchQuery && (
             <HeroBanner
@@ -594,6 +721,8 @@ export function App() {
               <SocialSignUpSection
                 user={user}
                 onSocialAuth={(provider, newUser) => {
+                  // Token persistence handled inside SocialSignUpSection
+                  localStorage.setItem('playbeat_user', JSON.stringify(newUser))
                   setUser(newUser)
                   showToast(`Successfully signed up via ${provider}! Welcome to PlayBeat.`)
                 }}
@@ -616,103 +745,76 @@ export function App() {
 
           {/* Footer */}
           <Footer />
+
+          {/* Quick View Modal — storefront only */}
+          <QuickViewModal
+            product={quickViewProduct}
+            currency={selectedCurrency}
+            isOpen={!!quickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
+            onAddToCart={handleAddToCart}
+            onInstantBuy={handleInstantBuy}
+            isWishlisted={quickViewProduct ? isWishlisted(quickViewProduct.id) : false}
+            onToggleWishlist={handleToggleWishlist}
+          />
+
+          {/* Cart Drawer — requires signed-in user (no guest checkout) */}
+          <CartDrawer
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            cart={cart}
+            currency={selectedCurrency}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveFromCart}
+            onClearCart={handleClearCart}
+            user={user}
+            onRequireAuth={() => {
+              setIsCartOpen(false)
+              setIsAuthOpen(true)
+              showToast('Please sign in to complete checkout')
+            }}
+          />
+
+          {/* Wishlist Drawer */}
+          <WishlistDrawer
+            isOpen={isWishlistOpen}
+            onClose={() => setIsWishlistOpen(false)}
+            wishlist={wishlist}
+            currency={selectedCurrency}
+            onAddToCart={handleAddToCart}
+            onRemoveWishlist={handleToggleWishlist}
+          />
+
+          {/* Sign Up / Sign In Modal — wired to backend /api/auth/* */}
+          <AuthModal
+            isOpen={isAuthOpen}
+            onClose={() => setIsAuthOpen(false)}
+            onSuccess={(u, token) => {
+              if (token) localStorage.setItem('playbeat_user_token', token)
+              localStorage.setItem('playbeat_user', JSON.stringify(u))
+              setUser(u)
+              showToast(`Welcome to PlayBeat, ${u.name}!`)
+            }}
+          />
+
+          {/* Account Profile Drawer — only when signed in */}
+          {user && (
+            <AccountDrawer
+              isOpen={isAccountOpen}
+              onClose={() => setIsAccountOpen(false)}
+              activeTab={accountTab}
+              onSelectTab={setAccountTab}
+              user={user}
+              currency={selectedCurrency}
+              onSignOut={handleUserSignOut}
+              onOpenWishlist={() => {
+                setIsAccountOpen(false)
+                setIsWishlistOpen(true)
+              }}
+            />
+          )}
         </>
       )}
-
-      {/* Quick View Modal */}
-      <QuickViewModal
-        product={quickViewProduct}
-        currency={selectedCurrency}
-        isOpen={!!quickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-        onAddToCart={handleAddToCart}
-        onInstantBuy={handleInstantBuy}
-        isWishlisted={quickViewProduct ? isWishlisted(quickViewProduct.id) : false}
-        onToggleWishlist={handleToggleWishlist}
-      />
-
-      {/* Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        cart={cart}
-        currency={selectedCurrency}
-        onUpdateQty={handleUpdateQty}
-        onRemoveItem={handleRemoveFromCart}
-        onClearCart={handleClearCart}
-      />
-
-      {/* Wishlist Drawer */}
-      <WishlistDrawer
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        wishlist={wishlist}
-        currency={selectedCurrency}
-        onAddToCart={handleAddToCart}
-        onRemoveWishlist={handleToggleWishlist}
-      />
-
-      {/* Sign Up / Sign In Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onSuccess={(u) => {
-          setUser(u)
-          showToast(`Welcome to PlayBeat, ${u.name}!`)
-        }}
-      />
-
-      {/* Account Profile Drawer */}
-      {user && (
-        <AccountDrawer
-          isOpen={isAccountOpen}
-          onClose={() => setIsAccountOpen(false)}
-          activeTab={accountTab}
-          onSelectTab={setAccountTab}
-          user={user}
-          currency={selectedCurrency}
-          onSignOut={() => {
-            setUser(null)
-            setIsAccountOpen(false)
-            showToast('Signed out of PlayBeat')
-          }}
-          onOpenWishlist={() => {
-            setIsAccountOpen(false)
-            setIsWishlistOpen(true)
-          }}
-        />
-      )}
-      {/* Floating Quick Mode Switcher Dock */}
-      <aside aria-label="View mode switcher" className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 rounded-full bg-[#060B1E]/90 backdrop-blur-xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
-        <button
-          id="mode-switch-storefront-btn"
-          onClick={() => setViewMode('storefront')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            viewMode === 'storefront'
-              ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-md scale-105'
-              : 'text-zinc-400 hover:text-white hover:bg-white/5'
-          }`}
-          title="Switch to Storefront (Alt+S)"
-        >
-          <Store className="w-3.5 h-3.5" />
-          <span>Storefront</span>
-        </button>
-
-        <button
-          id="mode-switch-admin-btn"
-          onClick={() => setViewMode('admin')}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            viewMode === 'admin'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md scale-105'
-              : 'text-zinc-400 hover:text-white hover:bg-white/5'
-          }`}
-          title="Switch to Admin Insights & Importer (Alt+A)"
-        >
-          <LayoutDashboard className="w-3.5 h-3.5" />
-          <span>Admin Console</span>
-          <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        </button>
-      </aside>
     </div>
   )
 }

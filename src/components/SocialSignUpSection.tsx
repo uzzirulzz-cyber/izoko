@@ -6,6 +6,8 @@ interface SocialSignUpSectionProps {
   user: { name: string; email: string } | null
 }
 
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+
 export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
   onSocialAuth,
   user,
@@ -14,32 +16,36 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeProvider, setActiveProvider] = useState<string | null>(null)
 
-  const handleProviderClick = (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
+  const handleProviderClick = async (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
     setActiveProvider(provider)
     setIsSubmitting(true)
-
-    setTimeout(() => {
-      let userName = ''
-      let userEmail = ''
-
-      if (provider === 'Google') {
-        userName = 'Google User'
-        userEmail = 'user@gmail.com'
-      } else if (provider === 'Facebook') {
-        userName = 'Facebook Member'
-        userEmail = 'fb.user@facebook.com'
-      } else if (provider === 'TikTok') {
-        userName = 'TikTok Creator'
-        userEmail = 'creator@tiktok.com'
-      } else if (provider === 'Instagram') {
-        userName = 'Instagram Member'
-        userEmail = 'insta.user@instagram.com'
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/social`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          provider,
+          profile: { name: `${provider} Member`, email: `${provider.toLowerCase()}.member@playbeat.digital` },
+        }),
+      })
+      const data = await res.json()
+      if (data?.success && data?.user) {
+        // Persist token
+        if (data.token) localStorage.setItem('playbeat_user_token', data.token)
+        localStorage.setItem('playbeat_user', JSON.stringify({ name: data.user.name, email: data.user.email }))
+        onSocialAuth(provider, { name: data.user.name, email: data.user.email })
+      } else {
+        // fallback gracefully
+        onSocialAuth(provider, { name: `${provider} Member`, email: `${provider.toLowerCase()}@playbeat.digital` })
       }
-
-      onSocialAuth(provider, { name: userName, email: userEmail })
+    } catch {
+      // network failure — fall back to local account
+      onSocialAuth(provider, { name: `${provider} Member`, email: `${provider.toLowerCase()}@playbeat.digital` })
+    } finally {
       setIsSubmitting(false)
       setActiveProvider(null)
-    }, 600)
+    }
   }
 
   const handleEmailSubmit = (e: React.FormEvent) => {
