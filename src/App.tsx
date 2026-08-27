@@ -22,21 +22,36 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 type Route = 'storefront' | 'admin-login' | 'admin'
 
-// Hash router: #/storefront, #/admin (will trigger login wall if not authed), #/admin/login
-function parseHashRoute(): Route {
+// Pathname-based router (works on Vercel via vercel.json SPA rewrites).
+// Also falls back to legacy hash routing so old bookmarks still work.
+function parseRoute(): Route {
   if (typeof window === 'undefined') return 'storefront'
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '').replace(/^\//, '')
+  if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
+  if (path === 'admin' || path.startsWith('admin/')) return 'admin'
+  // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
   if (hash.startsWith('admin')) return 'admin'
   return 'storefront'
 }
 
-function setHashRoute(route: Route) {
-  let h = '#/storefront'
-  if (route === 'admin') h = '#/admin'
-  if (route === 'admin-login') h = '#/admin/login'
-  if (window.location.hash !== h) {
-    window.history.replaceState(null, '', h)
+function routeToPath(route: Route): string {
+  if (route === 'admin') return '/admin'
+  if (route === 'admin-login') return '/admin/login'
+  return '/storefront'
+}
+
+function navigate(route: Route, replace = false) {
+  const path = routeToPath(route)
+  if (window.location.pathname !== path) {
+    if (replace) {
+      window.history.replaceState({}, '', path)
+    } else {
+      window.history.pushState({}, '', path)
+    }
+    // Dispatch a popstate so the route listener picks it up
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }
 }
 
@@ -62,26 +77,32 @@ function clearAdminSession() {
 
 export function App() {
   // ============================================
-  // ROUTING: hash-based, separates /admin & /storefront
+  // ROUTING: pathname-based (with hash fallback for legacy bookmarks)
   // ============================================
-  const [route, setRoute] = useState<Route>(() => parseHashRoute())
+  const [route, setRoute] = useState<Route>(() => parseRoute())
 
   // Admin auth state — only true after explicit login. NEVER auto-login.
   const [adminAuthed, setAdminAuthed] = useState<boolean>(false)
   const [adminChecking, setAdminChecking] = useState<boolean>(false)
 
   useEffect(() => {
-    const onHashChange = () => {
-      const r = parseHashRoute()
-      setRoute(r)
+    const onPop = () => {
+      setRoute(parseRoute())
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    window.addEventListener('popstate', onPop)
+    window.addEventListener('hashchange', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('hashchange', onPop)
+    }
   }, [])
 
-  // Persist route in hash
+  // Keep URL in sync with route state (replace, not push, to avoid double history entries)
   useEffect(() => {
-    setHashRoute(route)
+    const expectedPath = routeToPath(route)
+    if (window.location.pathname !== expectedPath) {
+      window.history.replaceState({}, '', expectedPath)
+    }
   }, [route])
 
   // When navigating to admin, check if a stored admin session is still valid.
@@ -97,7 +118,7 @@ export function App() {
             setAdminAuthed(true)
           } else {
             clearAdminSession()
-            setRoute('admin-login')
+            navigate('admin-login', true)
           }
         })
         .finally(() => {
@@ -484,7 +505,7 @@ export function App() {
           onBackToStorefront={() => {
             setAdminAuthed(false) // require re-auth next visit (no auto-login)
             clearAdminSession()
-            setRoute('storefront')
+            navigate('storefront')
           }}
           onQuickViewProduct={(p) => setQuickViewProduct(p)}
           onUpdateProductStock={handleUpdateProductStock}
@@ -506,9 +527,9 @@ export function App() {
         <AdminLogin
           onSuccess={() => {
             setAdminAuthed(true)
-            setRoute('admin')
+            navigate('admin')
           }}
-          onCancel={() => setRoute('storefront')}
+          onCancel={() => navigate('storefront')}
         />
       )}
 
