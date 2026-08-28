@@ -4,6 +4,7 @@ import { HeroBanner } from './components/HeroBanner'
 import { CategoryNav } from './components/CategoryNav'
 import { ProductCard } from './components/ProductCard'
 import { ProjectorSpecMatrix } from './components/ProjectorSpecMatrix'
+import { SmartProjectorShowcase } from './components/SmartProjectorShowcase'
 import { TrustFeatures } from './components/TrustFeatures'
 import { SocialSignUpSection } from './components/SocialSignUpSection'
 import { QuickViewModal } from './components/QuickViewModal'
@@ -579,6 +580,17 @@ export function App() {
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               onViewAll={() => setSelectedCategory('all')}
+            />
+          )}
+
+          {/* Smart Projector Showcase Section (right under Browse Top Categories) */}
+          {selectedCategory === 'all' && !searchQuery && (
+            <SmartProjectorShowcase
+              projectors={projectorProducts}
+              currency={selectedCurrency}
+              onAddToCart={handleAddToCart}
+              onQuickView={(p) => setQuickViewProduct(p)}
+              onExploreAll={() => setSelectedCategory('Smart Projectors')}
             />
           )}
 
