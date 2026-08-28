@@ -1,5 +1,5 @@
 // Shared product formatting helper
-import { slugify } from "./config";
+import { slugify } from "./config.js";
 
 export function formatProduct(doc: any) {
   if (!doc) return null;

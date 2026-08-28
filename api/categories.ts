@@ -1,8 +1,8 @@
 // GET /api/categories
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDb } from "./_lib/mongo";
-import { slugify } from "./_lib/config";
-import { handleOptions, jsonOk, jsonError } from "./_lib/auth";
+import { getDb } from "./_lib/mongo.js";
+import { slugify } from "./_lib/config.js";
+import { handleOptions, jsonOk, jsonError } from "./_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;

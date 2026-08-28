@@ -1,7 +1,7 @@
 // MongoDB singleton client for Vercel serverless functions
 // Uses global to preserve client across warm invocations
 import { MongoClient, ServerApiVersion, Db } from "mongodb";
-import { MONGODB_URI, MONGODB_DB_NAME, cleanMongoUri } from "./config";
+import { MONGODB_URI, MONGODB_DB_NAME, cleanMongoUri } from "./config.js";
 
 declare global {
   // eslint-disable-next-line no-var

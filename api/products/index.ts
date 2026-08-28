@@ -1,9 +1,13 @@
-// GET /api/products (list with filtering & pagination)
+// /api/products/* — consolidated products router
+// Routes:
+//   GET /api/products          (list with filtering & pagination)
+//   GET /api/products/:slug    (single product by slug, sku, or id)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDb } from "../_lib/mongo";
-import { formatProduct } from "../_lib/product";
-import { slugify } from "../_lib/config";
-import { handleOptions, jsonOk, jsonError } from "../_lib/auth";
+import { ObjectId } from "mongodb";
+import { getDb } from "../_lib/mongo.js";
+import { formatProduct } from "../_lib/product.js";
+import { slugify } from "../_lib/config.js";
+import { handleOptions, jsonOk, jsonError } from "../_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
@@ -13,15 +17,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const db = await getDb();
     const col = db.collection("products");
 
+    // Extract sub-path from req.url (Vercel rewrites /api/auth/:path* → /api/auth)
+  // So we parse the ORIGINAL path from req.url to get the sub-route
+  const url = new URL(req.url || '', 'http://localhost');
+  const parts = url.pathname.split('/').filter(Boolean);
+  // Drop the first 2 segments ("api", "auth" or "products" etc.)
+  const pathSegments = parts.slice(2);
+    const slug = pathSegments[0];
+
+    // ============ GET /api/products/:slug ============
+    if (slug) {
+      let productDoc: any = await col.findOne({ slug });
+      if (!productDoc) productDoc = await col.findOne({ sku: slug });
+      if (!productDoc && ObjectId.isValid(slug)) {
+        productDoc = await col.findOne({ _id: new ObjectId(slug) });
+      }
+      if (!productDoc) productDoc = await col.findOne({ id: slug });
+      if (!productDoc) return jsonError(res, "Product not found", 404);
+      return jsonOk(res, { success: true, product: formatProduct(productDoc) });
+    }
+
+    // ============ GET /api/products (list) ============
     const {
-      category,
-      search,
-      featured,
-      isHot,
-      active,
-      limit = "100",
-      page = "1",
-      sort,
+      category, search, featured, isHot, active,
+      limit = "100", page = "1", sort,
     } = req.query as Record<string, string>;
 
     const query: any = {};
@@ -36,11 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (search && search.trim().length > 0) {
       const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
-        { name: searchRegex },
-        { title: searchRegex },
-        { description: searchRegex },
-        { tags: searchRegex },
-        { sku: searchRegex },
+        { name: searchRegex }, { title: searchRegex }, { description: searchRegex },
+        { tags: searchRegex }, { sku: searchRegex },
       ];
     }
 

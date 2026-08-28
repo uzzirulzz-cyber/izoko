@@ -4,7 +4,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD } from "./config";
+import { SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD } from "./config.js";
 
 export interface AuthenticatedRequest extends VercelRequest {
   user?: any;

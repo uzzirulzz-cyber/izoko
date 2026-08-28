@@ -1,7 +1,7 @@
 // POST /api/contact
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getDb } from "./_lib/mongo";
-import { handleOptions, jsonOk, jsonError } from "./_lib/auth";
+import { getDb } from "./_lib/mongo.js";
+import { handleOptions, jsonOk, jsonError } from "./_lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;

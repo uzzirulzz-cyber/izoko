@@ -4,6 +4,10 @@
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/auth/:path*", "destination": "/api/auth" },
+    { "source": "/api/products/:path*", "destination": "/api/products" },
+    { "source": "/api/admin/:path*", "destination": "/api/admin" },
+    { "source": "/api/orders/:path*", "destination": "/api/orders" },
     { "source": "/admin", "destination": "/index.html" },
     { "source": "/admin/login", "destination": "/index.html" },
     { "source": "/admin/:path*", "destination": "/index.html" },
