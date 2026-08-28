@@ -52,15 +52,149 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           { $group: { _id: null, total: { $sum: "$totalAmount" } } },
         ])
         .toArray();
-      const totalRevenue = revenueAgg[0]?.total || 4890000;
+      const totalRevenue = revenueAgg[0]?.total || 0;
+      // Low stock = stock <= 5
+      const lowStock = await productsCol.countDocuments({ stock: { $lte: 5 } });
+      // Recent orders count (last 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentOrders = await ordersCol.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
       return jsonOk(res, {
         success: true,
         stats: {
           totalProducts, activeProducts,
-          totalOrders: totalOrders || 48,
+          totalOrders: totalOrders || 0,
           totalRevenue,
+          lowStock,
+          recentOrders,
           systemHealth: "100% Operational",
           database: MONGODB_DB_NAME,
+        },
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/orders (recent orders list) ============
+  if (route === "orders" && req.method === "GET") {
+    try {
+      const ordersCol = db.collection("orders");
+      const limit = Math.min(parseInt((req.query.limit as string) || "20", 10) || 20, 100);
+      const recentOrders = await ordersCol
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        orders: recentOrders.map((o: any) => ({
+          id: o._id.toString(),
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerEmail: o.customerEmail,
+          totalAmount: o.totalAmount,
+          currency: o.currency || "PKR",
+          status: o.status,
+          paymentMethod: o.paymentMethod,
+          itemCount: (o.items || []).length,
+          items: (o.items || []).map((i: any) => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+          })),
+          createdAt: o.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/top-products (aggregated best sellers) ============
+  if (route === "top-products" && req.method === "GET") {
+    try {
+      const ordersCol = db.collection("orders");
+      // Unwind items, group by product name, sum quantity and revenue
+      const topProductsAgg = await ordersCol
+        .aggregate([
+          { $match: { status: "completed" } },
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: "$items.name",
+              totalSold: { $sum: "$items.quantity" },
+              totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+              orderCount: { $sum: 1 },
+            },
+          },
+          { $sort: { totalSold: -1 } },
+          { $limit: 10 },
+        ])
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        topProducts: topProductsAgg.map((p: any, idx: number) => ({
+          rank: idx + 1,
+          name: p._id,
+          totalSold: p.totalSold,
+          totalRevenue: p.totalRevenue,
+          orderCount: p.orderCount,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/revenue-chart (14-day daily revenue) ============
+  if (route === "revenue-chart" && req.method === "GET") {
+    try {
+      const ordersCol = db.collection("orders");
+      const days = parseInt((req.query.days as string) || "14", 10) || 14;
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const dailyAgg = await ordersCol
+        .aggregate([
+          { $match: { status: "completed", createdAt: { $gte: startDate } } },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+              },
+              revenue: { $sum: "$totalAmount" },
+              orders: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ])
+        .toArray();
+      // Build complete date series (fill missing days with 0)
+      const series: { date: string; revenue: number; orders: number }[] = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const key = d.toISOString().split("T")[0];
+        const found = dailyAgg.find((a: any) => a._id === key);
+        series.push({
+          date: key,
+          revenue: found?.revenue || 0,
+          orders: found?.orders || 0,
+        });
+      }
+      const totalRevenue = series.reduce((a, s) => a + s.revenue, 0);
+      const totalOrders = series.reduce((a, s) => a + s.orders, 0);
+      const avgDaily = series.length > 0 ? Math.round(totalRevenue / series.length) : 0;
+      const bestDay = series.reduce(
+        (best, s) => (s.revenue > best.revenue ? s : best),
+        { date: "", revenue: 0, orders: 0 }
+      );
+      return jsonOk(res, {
+        success: true,
+        chart: {
+          series,
+          totalRevenue,
+          totalOrders,
+          avgDailyRevenue: avgDaily,
+          bestDay: bestDay.date ? bestDay : null,
+          days,
         },
       });
     } catch (err: any) {

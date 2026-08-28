@@ -207,11 +207,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [adminUsers, setAdminUsers] = useState<any[]>([])
   const [adminStaff, setAdminStaff] = useState<any[]>([])
   const [adminStats, setAdminStats] = useState<any>(null)
+  const [adminOrders, setAdminOrders] = useState<any[]>([])
+  const [adminTopProducts, setAdminTopProducts] = useState<any[]>([])
+  const [adminRevenueChart, setAdminRevenueChart] = useState<any>(null)
   const [usersLoading, setUsersLoading] = useState(false)
   const [staffLoading, setStaffLoading] = useState(false)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [topProductsLoading, setTopProductsLoading] = useState(false)
+  const [chartLoading, setChartLoading] = useState(false)
   const [promoteModalUser, setPromoteModalUser] = useState<any | null>(null)
   const [promoteStaffId, setPromoteStaffId] = useState('')
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 
@@ -266,6 +273,87 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     }
   }
 
+  const fetchAdminOrders = async () => {
+    setOrdersLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/orders?limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminOrders(data.orders || [])
+    } catch (e) {
+      // silent
+    } finally {
+      setOrdersLoading(false)
+    }
+  }
+
+  const fetchAdminTopProducts = async () => {
+    setTopProductsLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/top-products`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminTopProducts(data.topProducts || [])
+    } catch (e) {
+      // silent
+    } finally {
+      setTopProductsLoading(false)
+    }
+  }
+
+  const fetchAdminRevenueChart = async () => {
+    setChartLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/revenue-chart?days=14`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminRevenueChart(data.chart)
+    } catch (e) {
+      // silent
+    } finally {
+      setChartLoading(false)
+    }
+  }
+
+  const refreshAllAdminData = async () => {
+    triggerToast('Refreshing all dashboard data from MongoDB…')
+    await Promise.all([
+      fetchAdminStats(),
+      fetchAdminOrders(),
+      fetchAdminTopProducts(),
+      fetchAdminRevenueChart(),
+      fetchAdminUsers(),
+      fetchAdminStaff(),
+    ])
+    triggerToast('Dashboard data refreshed successfully')
+  }
+
+  const handleResetAdminPanel = async () => {
+    // Clear all local dashboard state and force a fresh reload
+    setAdminStats(null)
+    setAdminOrders([])
+    setAdminTopProducts([])
+    setAdminRevenueChart(null)
+    setAdminUsers([])
+    setAdminStaff([])
+    setActiveNav('dashboard')
+    setShowResetConfirm(false)
+    triggerToast('Admin panel reset. Reloading fresh data…')
+    // Re-fetch everything
+    setTimeout(() => {
+      refreshAllAdminData()
+    }, 100)
+  }
+
   const handlePromoteStaff = async () => {
     if (!promoteModalUser || !promoteStaffId.trim()) return
     try {
@@ -318,8 +406,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     if (activeNav === 'customers') {
       fetchAdminUsers()
       fetchAdminStaff()
-    } else if (activeNav === 'analytics' || activeNav === 'dashboard') {
+    } else if (activeNav === 'analytics') {
       if (!adminStats) fetchAdminStats()
+    } else if (activeNav === 'dashboard') {
+      // Dashboard needs all data: stats, orders, top products, chart
+      if (!adminStats) fetchAdminStats()
+      if (adminOrders.length === 0) fetchAdminOrders()
+      if (adminTopProducts.length === 0) fetchAdminTopProducts()
+      if (!adminRevenueChart) fetchAdminRevenueChart()
     }
   }, [activeNav])
 
@@ -672,8 +766,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
           </div>
 
-          {/* Bottom Account Card */}
-          <div className="p-3 border-t border-white/5">
+          {/* Bottom Account Card + Reset Button */}
+          <div className="p-3 border-t border-white/5 space-y-2">
             <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/5">
               <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-bold flex items-center justify-center text-xs font-mono shrink-0 shadow-md">
                 N
@@ -690,6 +784,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Reset Admin Panel Button */}
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-400 hover:text-rose-300 hover:bg-rose-500/10 border border-white/5 hover:border-rose-500/30 transition text-[11px] font-semibold ${
+                sidebarCollapsed ? 'justify-center' : ''
+              }`}
+              title="Reset admin panel cache & reload data"
+            >
+              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+              {!sidebarCollapsed && <span>Reset Panel</span>}
+            </button>
           </div>
         </aside>
 
@@ -878,11 +984,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           </div>
                           <span className="text-[11px] text-zinc-300 font-medium">Total Revenue</span>
                         </div>
+                        {statsLoading && <RefreshCw className="w-3 h-3 text-blue-400 animate-spin" />}
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-xl font-black text-white font-mono">Rs 44,800</span>
+                        <span className="text-xl font-black text-white font-mono">
+                          {adminStats ? `Rs ${Number(adminStats.totalRevenue || 0).toLocaleString()}` : '—'}
+                        </span>
                         <span className="text-[11px] font-mono font-semibold text-emerald-400 flex items-center gap-0.5">
-                          <ArrowUpRight className="w-3 h-3" /> 18.4% <span className="text-[9px] text-zinc-400 font-normal">vs last period</span>
+                          <ArrowUpRight className="w-3 h-3" /> {adminStats?.recentOrders || 0} <span className="text-[9px] text-zinc-400 font-normal">orders (7d)</span>
                         </span>
                       </div>
                       {/* Blue Sparkline */}
@@ -902,21 +1011,27 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="grid grid-cols-3 gap-1.5 text-center">
                       <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Orders</div>
-                        <div className="text-sm font-black text-white font-mono">2</div>
+                        <div className="text-sm font-black text-white font-mono">
+                          {adminStats?.totalOrders ?? '—'}
+                        </div>
                         <div className="text-[9px] text-emerald-400 font-mono flex items-center justify-center gap-0.5">
-                          <ArrowUpRight className="w-2.5 h-2.5" /> 12.1%
+                          <ArrowUpRight className="w-2.5 h-2.5" /> {adminStats?.recentOrders || 0} (7d)
                         </div>
                       </div>
 
                       <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Products</div>
-                        <div className="text-sm font-black text-white font-mono">17</div>
-                        <div className="text-[9px] text-purple-400 font-mono">↑ 17 published</div>
+                        <div className="text-sm font-black text-white font-mono">
+                          {adminStats?.totalProducts ?? '—'}
+                        </div>
+                        <div className="text-[9px] text-purple-400 font-mono">↑ {adminStats?.activeProducts ?? 0} published</div>
                       </div>
 
                       <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
                         <div className="text-[9px] text-zinc-400 font-mono">Low Stock Alerts</div>
-                        <div className="text-sm font-black text-white font-mono">0</div>
+                        <div className={`text-sm font-black font-mono ${(adminStats?.lowStock || 0) > 0 ? 'text-amber-400' : 'text-white'}`}>
+                          {adminStats?.lowStock ?? '—'}
+                        </div>
                         <div className="text-[9px] text-amber-400 font-mono">Needs attention</div>
                       </div>
                     </div>
@@ -925,67 +1040,95 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="p-3.5 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold text-white">Live 14-Day Performance</span>
-                        <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
+                        <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 flex items-center gap-1">
+                          {chartLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
                           14 Days ▾
                         </span>
                       </div>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-lg font-black text-white font-mono">Rs 44,800</span>
+                        <span className="text-lg font-black text-white font-mono">
+                          {adminRevenueChart ? `Rs ${Number(adminRevenueChart.totalRevenue || 0).toLocaleString()}` : '—'}
+                        </span>
                         <span className="text-[10px] font-mono text-emerald-400 flex items-center">
-                          <ArrowUpRight className="w-3 h-3" /> 18.4% vs previous 14 days
+                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders (14d)
                         </span>
                       </div>
 
-                      {/* Sparkline chart with dots */}
+                      {/* Dynamic sparkline chart from real revenue data */}
                       <div className="h-10 w-full">
-                        <svg className="w-full h-full overflow-visible" viewBox="0 0 200 40">
-                          <path
-                            d="M0,35 Q30,30 60,25 T120,15 T160,20 T200,5"
-                            fill="none"
-                            stroke="#f59e0b"
-                            strokeWidth="2"
-                          />
-                          {[
-                            { cx: 0, cy: 35 },
-                            { cx: 30, cy: 30 },
-                            { cx: 60, cy: 25 },
-                            { cx: 90, cy: 20 },
-                            { cx: 120, cy: 15 },
-                            { cx: 160, cy: 20 },
-                            { cx: 200, cy: 5 },
-                          ].map((pt, i) => (
-                            <circle key={i} cx={pt.cx} cy={pt.cy} r="2.5" fill="#f59e0b" />
-                          ))}
-                        </svg>
+                        {adminRevenueChart?.series?.length ? (
+                          <svg className="w-full h-full overflow-visible" viewBox="0 0 200 40" preserveAspectRatio="none">
+                            {(() => {
+                              const series = adminRevenueChart.series
+                              const max = Math.max(...series.map((s: any) => s.revenue), 1)
+                              const points = series.map((s: any, i: number) => {
+                                const x = (i / (series.length - 1)) * 200
+                                const y = 35 - (s.revenue / max) * 30
+                                return { cx: x, cy: y, revenue: s.revenue }
+                              })
+                              const pathD = points.length > 0
+                                ? points.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`).join(' ')
+                                : ''
+                              return (
+                                <>
+                                  <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="2" />
+                                  {points.map((p: any, i: number) => (
+                                    <circle key={i} cx={p.cx} cy={p.cy} r="2.5" fill={p.revenue > 0 ? '#f59e0b' : '#374151'} />
+                                  ))}
+                                </>
+                              )
+                            })()}
+                          </svg>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-[10px] text-zinc-600">
+                            {chartLoading ? 'Loading chart…' : 'No data'}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex justify-between text-[8px] font-mono text-zinc-500">
-                        <span>Aug 03</span>
-                        <span>Aug 05</span>
-                        <span>Aug 07</span>
-                        <span>Aug 09</span>
-                        <span>Aug 11</span>
-                        <span>Aug 13</span>
-                        <span>Aug 15</span>
-                        <span className="text-amber-400 font-bold">Aug 17</span>
+                        {adminRevenueChart?.series ? (
+                          adminRevenueChart.series
+                            .filter((_: any, i: number) => i % 2 === 0 || i === adminRevenueChart.series.length - 1)
+                            .map((s: any, i: number) => {
+                              const date = new Date(s.date)
+                              const label = date.toLocaleDateString('en', { month: 'short', day: '2-digit' })
+                              const isLast = i === Math.floor((adminRevenueChart.series.length - 1) / 2)
+                              return (
+                                <span key={s.date} className={isLast ? 'text-amber-400 font-bold' : ''}>
+                                  {label}
+                                </span>
+                              )
+                            })
+                        ) : (
+                          <span>Loading…</span>
+                        )}
                       </div>
 
                       {/* 3 mini stats below chart */}
                       <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-white/5 text-[9px] font-mono">
                         <div>
                           <div className="text-zinc-500">Avg Daily Revenue</div>
-                          <div className="text-white font-bold">Rs 3,200</div>
-                          <div className="text-emerald-400">↗ 12.6%</div>
+                          <div className="text-white font-bold">
+                            {adminRevenueChart ? `Rs ${Number(adminRevenueChart.avgDailyRevenue || 0).toLocaleString()}` : '—'}
+                          </div>
+                          <div className="text-emerald-400">↗ 14d avg</div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Best Day</div>
-                          <div className="text-white font-bold">Aug 17</div>
-                          <div className="text-amber-400">Rs 6,700</div>
+                          <div className="text-white font-bold">
+                            {adminRevenueChart?.bestDay
+                              ? new Date(adminRevenueChart.bestDay.date).toLocaleDateString('en', { month: 'short', day: '2-digit' })
+                              : '—'}
+                          </div>
+                          <div className="text-amber-400">
+                            {adminRevenueChart?.bestDay ? `Rs ${Number(adminRevenueChart.bestDay.revenue).toLocaleString()}` : ''}
+                          </div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Total Transactions</div>
-                          <div className="text-white font-bold">32</div>
-                          <div className="text-emerald-400">↗ 14.3%</div>
+                          <div className="text-white font-bold">{adminRevenueChart?.totalOrders ?? '—'}</div>
+                          <div className="text-emerald-400">↗ last 14 days</div>
                         </div>
                       </div>
                     </div>
@@ -1290,81 +1433,54 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     {/* Product List Header */}
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-white">Top Selling Products</span>
-                      <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-white/5 border border-white/5">
-                        This Week ▾
+                      <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-white/5 border border-white/5 flex items-center gap-1">
+                        {topProductsLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                        All Time ▾
                       </span>
                     </div>
 
-                    {/* 3 Top Selling Items matching Screenshot 1 */}
+                    {/* Dynamic Top Selling Items from /api/admin/top-products */}
                     <div className="space-y-2.5">
-                      {/* Item 1: PlayStation $50 */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-lg bg-[#003791] flex items-center justify-center p-1.5 shrink-0 shadow-md">
-                            <img src="/icons/playstation.png" alt="PS" className="w-full h-full object-contain" onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none'
-                            }} />
-                            <Package className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-white leading-tight">
-                              PlayStation Gift Card - $50 (USA)
-                            </div>
-                            <div className="text-[10px] font-mono text-zinc-400">
-                              Sales: 12
-                            </div>
-                          </div>
+                      {topProductsLoading ? (
+                        <div className="p-4 text-center text-[11px] text-zinc-500">
+                          <RefreshCw className="w-4 h-4 animate-spin inline mr-1.5" />
+                          Loading top products…
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">
-                            Rs 24,000
-                          </div>
+                      ) : adminTopProducts.length === 0 ? (
+                        <div className="p-4 text-center text-[11px] text-zinc-500">
+                          No sales data yet. Top products will appear here after the first orders.
                         </div>
-                      </div>
-
-                      {/* Item 2: PlayStation $25 */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-lg bg-[#0070d1] flex items-center justify-center p-1.5 shrink-0 shadow-md">
-                            <Package className="w-4 h-4 text-white" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-white leading-tight">
-                              PlayStation Gift Card - $25 (USA)
+                      ) : (
+                        adminTopProducts.slice(0, 3).map((p: any, idx: number) => {
+                          const colors = ['bg-[#003791]', 'bg-[#0070d1]', 'bg-[#E50914]']
+                          return (
+                            <div
+                              key={p.name}
+                              className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between gap-2.5"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className={`w-9 h-9 rounded-lg ${colors[idx] || 'bg-zinc-700'} flex items-center justify-center p-1.5 shrink-0 shadow-md`}>
+                                  <Package className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="text-xs font-bold text-white leading-tight line-clamp-1">
+                                    {p.name}
+                                  </div>
+                                  <div className="text-[10px] font-mono text-zinc-400">
+                                    Sales: {p.totalSold} • {p.orderCount} orders
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-xs font-mono font-black text-white">
+                                  Rs {Number(p.totalRevenue || 0).toLocaleString()}
+                                </div>
+                                <div className="text-[9px] text-amber-400 font-mono">#{p.rank}</div>
+                              </div>
                             </div>
-                            <div className="text-[10px] font-mono text-zinc-400">
-                              Sales: 8
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">
-                            Rs 14,000
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Item 3: Netflix */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between gap-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-lg bg-[#E50914] flex items-center justify-center p-1.5 shrink-0 shadow-md font-black text-white text-xs font-mono">
-                            N
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold text-white leading-tight">
-                              Netflix Premium 1 Month
-                            </div>
-                            <div className="text-[10px] font-mono text-zinc-400">
-                              Sales: 5
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">
-                            Rs 6,800
-                          </div>
-                        </div>
-                      </div>
+                          )
+                        })
+                      )}
                     </div>
 
                     {/* Footer Tip */}
@@ -1404,7 +1520,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                     {/* Header Row */}
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">Recent Orders</span>
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        Recent Orders
+                        {ordersLoading && <RefreshCw className="w-3 h-3 text-emerald-400 animate-spin" />}
+                      </span>
                       <button
                         onClick={() => setActiveNav('orders')}
                         className="text-[11px] font-mono text-emerald-400 hover:underline flex items-center gap-0.5"
@@ -1414,52 +1533,52 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </button>
                     </div>
 
-                    {/* 3 Orders List matching Screenshot 1 */}
+                    {/* Dynamic Recent Orders from /api/admin/orders */}
                     <div className="space-y-2">
-                      {/* Order 1 */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-white">#PB-00024</span>
-                            <span className="text-xs text-zinc-300">John Doe</span>
-                          </div>
-                          <div className="text-[10px] text-zinc-500 font-mono">17 Aug, 10:45 AM</div>
+                      {ordersLoading ? (
+                        <div className="p-4 text-center text-[11px] text-zinc-500">
+                          <RefreshCw className="w-4 h-4 animate-spin inline mr-1.5" />
+                          Loading recent orders…
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">Rs 2,499</div>
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold">Completed</span>
+                      ) : adminOrders.length === 0 ? (
+                        <div className="p-4 text-center text-[11px] text-zinc-500">
+                          No orders yet. New customer orders will appear here in real time.
                         </div>
-                      </div>
-
-                      {/* Order 2 */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-white">#PB-00023</span>
-                            <span className="text-xs text-zinc-300">Sarah Smith</span>
-                          </div>
-                          <div className="text-[10px] text-zinc-500 font-mono">17 Aug, 09:15 AM</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">Rs 1,499</div>
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold">Completed</span>
-                        </div>
-                      </div>
-
-                      {/* Order 3 */}
-                      <div className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-white">#PB-00022</span>
-                            <span className="text-xs text-zinc-300">Mike Johnson</span>
-                          </div>
-                          <div className="text-[10px] text-zinc-500 font-mono">16 Aug, 08:20 PM</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs font-mono font-black text-white">Rs 1,299</div>
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold">Completed</span>
-                        </div>
-                      </div>
+                      ) : (
+                        adminOrders.slice(0, 5).map((o: any) => {
+                          const d = o.createdAt ? new Date(o.createdAt) : null
+                          const dateStr = d
+                            ? `${d.toLocaleDateString('en', { month: 'short', day: '2-digit' })}, ${d.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}`
+                            : '—'
+                          return (
+                            <div
+                              key={o.id}
+                              className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-mono font-bold text-white">{o.orderNumber}</span>
+                                  <span className="text-xs text-zinc-300 truncate">{o.customerName}</span>
+                                </div>
+                                <div className="text-[10px] text-zinc-500 font-mono">{dateStr}</div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-xs font-mono font-black text-white">
+                                  Rs {Number(o.totalAmount || 0).toLocaleString()}
+                                </div>
+                                <span className={`text-[10px] font-mono font-bold ${
+                                  o.status === 'completed' ? 'text-emerald-400' :
+                                  o.status === 'processing' ? 'text-amber-400' :
+                                  o.status === 'pending' ? 'text-blue-400' :
+                                  'text-rose-400'
+                                }`}>
+                                  {o.status?.charAt(0).toUpperCase() + o.status?.slice(1) || '—'}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
 
                     {/* Footer Tip */}
@@ -1637,7 +1756,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       {/* Create Order */}
                       <button
-                        onClick={() => triggerToast('Opening order creation modal')}
+                        onClick={() => { setActiveNav('orders'); triggerToast('Switched to Orders & Fulfillment — click an order to manage it') }}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
@@ -1651,7 +1770,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       {/* View Reports */}
                       <button
-                        onClick={() => setActiveNav('reports')}
+                        onClick={() => setActiveNav('analytics')}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
@@ -1679,7 +1798,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       {/* Discounts */}
                       <button
-                        onClick={() => setActiveNav('discounts')}
+                        onClick={() => setActiveNav('coupons')}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
@@ -1691,17 +1810,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         </div>
                       </button>
 
-                      {/* Settings */}
+                      {/* Settings — opens reset/refresh menu */}
                       <button
-                        onClick={() => setActiveNav('settings')}
+                        onClick={() => setShowResetConfirm(true)}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Settings className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-white leading-tight">Settings</div>
-                          <div className="text-[9px] text-zinc-400">System preferences</div>
+                          <div className="text-xs font-bold text-white leading-tight">Reset Panel</div>
+                          <div className="text-[9px] text-zinc-400">Clear cache & reload</div>
                         </div>
                       </button>
                     </div>
@@ -3070,6 +3189,82 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 className="flex-1 px-4 py-2.5 rounded-xl bg-amber-400 text-black font-bold text-xs disabled:opacity-50"
               >
                 Promote User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Admin Panel Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#0F131D] border border-rose-500/30 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center">
+                  <RefreshCw className="w-5 h-5 text-rose-400" />
+                </div>
+                <h3 className="font-bold text-base text-white">Reset Admin Panel</h3>
+              </div>
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-zinc-300 leading-relaxed">
+                This will clear all locally-cached admin data (stats, orders, top products, revenue chart, users, staff) and reload everything fresh from MongoDB.
+              </p>
+
+              <div className="p-3 rounded-xl bg-[#07090E] border border-white/5 space-y-1.5">
+                <div className="text-[10px] text-zinc-500 uppercase font-mono mb-1">What gets reset:</div>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Dashboard stats (revenue, orders, products)
+                </div>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Recent orders list
+                </div>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Top selling products
+                </div>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  14-day revenue chart
+                </div>
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                  Users & staff lists
+                </div>
+                <div className="flex items-center gap-2 text-emerald-300 mt-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Admin session & JWT token: PRESERVED (you stay logged in)
+                </div>
+              </div>
+
+              <p className="text-[10px] text-zinc-500">
+                Useful when data looks stale or after placing test orders from the storefront.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 text-zinc-300 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetAdminPanel}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Reset & Reload
               </button>
             </div>
           </div>
