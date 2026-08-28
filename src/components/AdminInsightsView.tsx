@@ -1159,95 +1159,127 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white">Revenue Overview</span>
-                        <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-white/5 border border-white/5">
+                        <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-white/5 border border-white/5 flex items-center gap-1">
+                          {chartLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
                           14 Days ▾
                         </span>
                       </div>
 
                       <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-white font-mono">Rs 44,800</span>
+                        <span className="text-2xl font-black text-white font-mono">
+                          {adminRevenueChart ? `Rs ${Number(adminRevenueChart.totalRevenue || 0).toLocaleString()}` : '—'}
+                        </span>
                         <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-0.5">
-                          <ArrowUpRight className="w-3 h-3" /> 18.4% vs previous 14 days
+                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders (14d)
                         </span>
                       </div>
                     </div>
 
-                    {/* Line Chart with Highlight Marker */}
+                    {/* Line Chart with Highlight Marker — dynamic from /api/admin/revenue-chart */}
                     <div className="p-3.5 rounded-xl bg-[#070A12] border border-white/5 space-y-2 relative">
-                      <div className="absolute top-2 right-3 px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-[9px] font-mono font-bold text-amber-300">
-                        Aug 17 Rs 44,800
-                      </div>
+                      {adminRevenueChart?.bestDay && (
+                        <div className="absolute top-2 right-3 px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-[9px] font-mono font-bold text-amber-300">
+                          {new Date(adminRevenueChart.bestDay.date).toLocaleDateString('en', { month: 'short', day: '2-digit' })} Rs {Number(adminRevenueChart.bestDay.revenue).toLocaleString()}
+                        </div>
+                      )}
 
                       <div className="h-28 w-full pt-4">
-                        <svg className="w-full h-full overflow-visible" viewBox="0 0 240 80">
-                          <defs>
-                            <linearGradient id="goldGradient02" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
-                              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-                            </linearGradient>
-                          </defs>
+                        {adminRevenueChart?.series?.length ? (
+                          <svg className="w-full h-full overflow-visible" viewBox="0 0 240 80" preserveAspectRatio="none">
+                            <defs>
+                              <linearGradient id="goldGradient02" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
+                                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                              </linearGradient>
+                            </defs>
 
-                          {/* Grid Lines */}
-                          <line x1="0" y1="20" x2="240" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
-                          <line x1="0" y1="50" x2="240" y2="50" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
+                            {/* Grid Lines */}
+                            <line x1="0" y1="20" x2="240" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
+                            <line x1="0" y1="50" x2="240" y2="50" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
 
-                          {/* Area Fill */}
-                          <path
-                            d="M0,70 Q30,65 60,50 T120,40 T180,30 T240,10 L240,80 L0,80 Z"
-                            fill="url(#goldGradient02)"
-                          />
-
-                          {/* Gold Trend Line */}
-                          <path
-                            d="M0,70 Q30,65 60,50 T120,40 T180,30 T240,10"
-                            fill="none"
-                            stroke="#fbbf24"
-                            strokeWidth="2.5"
-                          />
-
-                          {/* Data points */}
-                          {[
-                            { cx: 0, cy: 70 },
-                            { cx: 35, cy: 65 },
-                            { cx: 70, cy: 50 },
-                            { cx: 105, cy: 45 },
-                            { cx: 140, cy: 40 },
-                            { cx: 175, cy: 30 },
-                            { cx: 210, cy: 22 },
-                            { cx: 240, cy: 10 },
-                          ].map((pt, i) => (
-                            <circle key={i} cx={pt.cx} cy={pt.cy} r={i === 7 ? 4 : 2.5} fill="#fbbf24" />
-                          ))}
-                        </svg>
+                            {(() => {
+                              const series = adminRevenueChart.series
+                              const max = Math.max(...series.map((s: any) => s.revenue), 1)
+                              const points = series.map((s: any, i: number) => {
+                                const x = (i / (series.length - 1)) * 240
+                                const y = 70 - (s.revenue / max) * 60
+                                return { cx: x, cy: y, revenue: s.revenue }
+                              })
+                              const linePath = points.length > 0
+                                ? points.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`).join(' ')
+                                : ''
+                              const areaPath = linePath ? `${linePath} L240,80 L0,80 Z` : ''
+                              const bestIdx = points.reduce((best: number, p: any, i: number) => p.revenue > points[best].revenue ? i : best, 0)
+                              return (
+                                <>
+                                  {/* Area Fill */}
+                                  {areaPath && <path d={areaPath} fill="url(#goldGradient02)" />}
+                                  {/* Gold Trend Line */}
+                                  {linePath && <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.5" />}
+                                  {/* Data points */}
+                                  {points.map((p: any, i: number) => (
+                                    <circle
+                                      key={i}
+                                      cx={p.cx}
+                                      cy={p.cy}
+                                      r={i === bestIdx && p.revenue > 0 ? 4 : 2.5}
+                                      fill={p.revenue > 0 ? '#fbbf24' : '#374151'}
+                                    />
+                                  ))}
+                                </>
+                              )
+                            })()}
+                          </svg>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-[10px] text-zinc-600">
+                            {chartLoading ? 'Loading chart…' : 'No revenue data'}
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex justify-between text-[8px] font-mono text-zinc-500">
-                        <span>Aug 03</span>
-                        <span>Aug 05</span>
-                        <span>Aug 07</span>
-                        <span>Aug 09</span>
-                        <span>Aug 11</span>
-                        <span>Aug 13</span>
-                        <span>Aug 15</span>
-                        <span className="text-amber-400 font-bold">Aug 17</span>
+                        {adminRevenueChart?.series ? (
+                          adminRevenueChart.series
+                            .filter((_: any, i: number) => i % 2 === 0 || i === adminRevenueChart.series.length - 1)
+                            .map((s: any) => {
+                              const date = new Date(s.date)
+                              const label = date.toLocaleDateString('en', { month: 'short', day: '2-digit' })
+                              const isBest = adminRevenueChart.bestDay?.date === s.date
+                              return (
+                                <span key={s.date} className={isBest ? 'text-amber-400 font-bold' : ''}>
+                                  {label}
+                                </span>
+                              )
+                            })
+                        ) : (
+                          <span>Loading…</span>
+                        )}
                       </div>
 
                       {/* 3 mini stats */}
                       <div className="grid grid-cols-3 gap-1 pt-2 border-t border-white/5 text-[9px] font-mono">
                         <div>
                           <div className="text-zinc-500">Average Daily Revenue</div>
-                          <div className="text-white font-bold">Rs 3,200</div>
-                          <div className="text-emerald-400">↗ 12.6%</div>
+                          <div className="text-white font-bold">
+                            {adminRevenueChart ? `Rs ${Number(adminRevenueChart.avgDailyRevenue || 0).toLocaleString()}` : '—'}
+                          </div>
+                          <div className="text-emerald-400">↗ 14d avg</div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Best Day</div>
-                          <div className="text-white font-bold">Aug 17</div>
-                          <div className="text-amber-400">Rs 6,700</div>
+                          <div className="text-white font-bold">
+                            {adminRevenueChart?.bestDay
+                              ? new Date(adminRevenueChart.bestDay.date).toLocaleDateString('en', { month: 'short', day: '2-digit' })
+                              : '—'}
+                          </div>
+                          <div className="text-amber-400">
+                            {adminRevenueChart?.bestDay ? `Rs ${Number(adminRevenueChart.bestDay.revenue).toLocaleString()}` : ''}
+                          </div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Total Transactions</div>
-                          <div className="text-white font-bold">32</div>
-                          <div className="text-emerald-400">↗ 14.3%</div>
+                          <div className="text-white font-bold">{adminRevenueChart?.totalOrders ?? '—'}</div>
+                          <div className="text-emerald-400">↗ last 14 days</div>
                         </div>
                       </div>
                     </div>
@@ -1260,7 +1292,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <div>
                         <div className="text-xs font-bold text-amber-300">Revenue Insights</div>
                         <p className="text-[10px] text-zinc-300 leading-snug">
-                          Your revenue is up <strong className="text-emerald-400">18.4%</strong> compared to the previous 14 days. Keep up the great work!
+                          {adminRevenueChart && adminRevenueChart.totalRevenue > 0 ? (
+                            <>You earned <strong className="text-emerald-400">Rs {Number(adminRevenueChart.totalRevenue).toLocaleString()}</strong> in the last 14 days from <strong className="text-amber-400">{adminRevenueChart.totalOrders}</strong> orders. Keep it up!</>
+                          ) : (
+                            <>No revenue recorded in the last 14 days. Place a test order from the storefront to see live data here.</>
+                          )}
                         </p>
                       </div>
                     </div>
