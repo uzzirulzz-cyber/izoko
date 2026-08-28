@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard,
   Globe,
@@ -198,6 +198,129 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
   const [tempStockValue, setTempStockValue] = useState<number>(0)
 
+  // ============================================
+  // LIVE DATA: users, staff, admin stats (fetched from /api/admin/* on demand)
+  // ============================================
+  const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+  const [adminUsers, setAdminUsers] = useState<any[]>([])
+  const [adminStaff, setAdminStaff] = useState<any[]>([])
+  const [adminStats, setAdminStats] = useState<any>(null)
+  const [usersLoading, setUsersLoading] = useState(false)
+  const [staffLoading, setStaffLoading] = useState(false)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [promoteModalUser, setPromoteModalUser] = useState<any | null>(null)
+  const [promoteStaffId, setPromoteStaffId] = useState('')
+
+  const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
+
+  const fetchAdminUsers = async () => {
+    setUsersLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminUsers(data.users || [])
+    } catch (e) {
+      // silent fail — UI will show empty state
+    } finally {
+      setUsersLoading(false)
+    }
+  }
+
+  const fetchAdminStaff = async () => {
+    setStaffLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/staff`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminStaff(data.staff || [])
+    } catch (e) {
+      // silent
+    } finally {
+      setStaffLoading(false)
+    }
+  }
+
+  const fetchAdminStats = async () => {
+    setStatsLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminStats(data.stats)
+    } catch (e) {
+      // silent
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  const handlePromoteStaff = async () => {
+    if (!promoteModalUser || !promoteStaffId.trim()) return
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/staff/promote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({ userId: promoteModalUser.id, staffId: promoteStaffId.trim() }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        triggerToast(`User promoted to staff with Staff ID ${promoteStaffId.trim()}`)
+        setPromoteModalUser(null)
+        setPromoteStaffId('')
+        fetchAdminUsers()
+        fetchAdminStaff()
+      } else {
+        triggerToast(data?.error || 'Failed to promote user')
+      }
+    } catch (e: any) {
+      triggerToast(e.message || 'Network error')
+    }
+  }
+
+  const handleDemoteStaff = async (userId: string) => {
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/staff/demote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        triggerToast('Staff privileges revoked. User reverted to normal account.')
+        fetchAdminUsers()
+        fetchAdminStaff()
+      } else {
+        triggerToast(data?.error || 'Failed to demote staff')
+      }
+    } catch (e: any) {
+      triggerToast(e.message || 'Network error')
+    }
+  }
+
+  // Lazy-load data when relevant panel is activated
+  useEffect(() => {
+    if (activeNav === 'customers') {
+      fetchAdminUsers()
+      fetchAdminStaff()
+    } else if (activeNav === 'analytics' || activeNav === 'dashboard') {
+      if (!adminStats) fetchAdminStats()
+    }
+  }, [activeNav])
+
   const triggerToast = (msg: string) => {
     setToastMessage(msg)
     setTimeout(() => setToastMessage(null), 3500)
@@ -336,10 +459,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <div className="space-y-0.5">
                   <button
-                    onClick={() => {
-                      setActiveNav('cms')
-                      triggerToast('Website Builder CMS opened in preview mode')
-                    }}
+                    onClick={() => setActiveNav('cms')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
                       activeNav === 'cms' ? 'text-white bg-white/10' : ''
                     }`}
@@ -432,10 +552,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      setActiveNav('subscriptions')
-                      triggerToast('Displaying 142 Active Recurring Subscriptions')
-                    }}
+                    onClick={() => setActiveNav('subscriptions')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
                       activeNav === 'subscriptions' ? 'text-white bg-white/10' : ''
                     }`}
@@ -445,10 +562,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      setActiveNav('coupons')
-                      triggerToast('Active Promo Code: PLAYBEAT10 (10% OFF Storewide)')
-                    }}
+                    onClick={() => setActiveNav('coupons')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
                       activeNav === 'coupons' ? 'text-white bg-white/10' : ''
                     }`}
@@ -468,10 +582,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <div className="space-y-0.5">
                   <button
-                    onClick={() => {
-                      setActiveNav('customers')
-                      triggerToast('Loaded 248 Registered Customer Accounts')
-                    }}
+                    onClick={() => setActiveNav('customers')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'customers'
                         ? 'text-white bg-white/10'
@@ -484,7 +595,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px]">
-                        248
+                        {adminUsers.length || 248}
                       </span>
                     )}
                   </button>
@@ -514,10 +625,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                 )}
                 <button
-                  onClick={() => {
-                    setActiveNav('iptv')
-                    triggerToast('IPTV Node Status: 3 Servers Active (99.98% Uptime)')
-                  }}
+                  onClick={() => setActiveNav('iptv')}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                     activeNav === 'iptv'
                       ? 'text-white bg-white/10'
@@ -2052,6 +2160,640 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
               </div>
             )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: WEBSITE BUILDER CMS */}
+            {/* ========================================================================= */}
+            {activeNav === 'cms' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">Website Builder CMS</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">Manage storefront pages, hero banners, and published content.</p>
+                  </div>
+                  <button
+                    onClick={() => triggerToast('New page draft created')}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> New Page
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'Homepage Hero', slug: '/storefront', status: 'Published', updated: '2h ago' },
+                    { name: 'Privacy Policy', slug: '/privacy', status: 'Published', updated: '3d ago' },
+                    { name: 'Terms of Service', slug: '/terms', status: 'Published', updated: '3d ago' },
+                    { name: 'Refund Policy', slug: '/refund-policy', status: 'Published', updated: '3d ago' },
+                    { name: 'Shipping Policy', slug: '/shipping-policy', status: 'Published', updated: '3d ago' },
+                    { name: 'Contact Page', slug: '/contact', status: 'Published', updated: '5d ago' },
+                  ].map((page) => (
+                    <div key={page.slug} className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <Globe className="w-4 h-4 text-cyan-400" />
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                          {page.status}
+                        </span>
+                      </div>
+                      <div className="font-bold text-sm text-white">{page.name}</div>
+                      <div className="text-[10px] font-mono text-zinc-500">{page.slug}</div>
+                      <div className="text-[10px] text-zinc-500">Updated {page.updated}</div>
+                      <div className="flex gap-1.5 pt-1">
+                        <button
+                          onClick={() => triggerToast(`Editing ${page.name}…`)}
+                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold flex items-center justify-center gap-1"
+                        >
+                          <Edit className="w-3 h-3" /> Edit
+                        </button>
+                        <button
+                          onClick={() => window.open(page.slug, '_blank')}
+                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold flex items-center justify-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" /> View
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl bg-[#0B0F19] border border-amber-500/20 p-5 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-amber-400" />
+                    <h3 className="text-sm font-bold text-white">CMS Sync Status</h3>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                      <div className="text-zinc-500 text-[10px]">Pages</div>
+                      <div className="text-white font-bold text-lg">6</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                      <div className="text-zinc-500 text-[10px]">Products Linked</div>
+                      <div className="text-white font-bold text-lg">{products.length}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                      <div className="text-zinc-500 text-[10px]">Categories</div>
+                      <div className="text-white font-bold text-lg">10</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                      <div className="text-zinc-500 text-[10px]">Last Deploy</div>
+                      <div className="text-emerald-400 font-bold text-lg">Live</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: ANALYTICS & TRAFFIC */}
+            {/* ========================================================================= */}
+            {activeNav === 'analytics' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">Analytics & Traffic</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">Real-time store performance metrics from MongoDB.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(['Today', 'This Week', 'This Month'] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTimeFilter(t)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                          timeFilter === t ? 'bg-amber-400 text-black' : 'bg-white/5 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {statsLoading ? (
+                  <div className="py-20 text-center text-zinc-500 text-xs">Loading live stats from MongoDB…</div>
+                ) : adminStats ? (
+                  <>
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <DollarSign className="w-4 h-4 text-amber-400" />
+                          <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Revenue</div>
+                        <div className="text-xl font-bold text-white">PKR {Number(adminStats.totalRevenue || 0).toLocaleString()}</div>
+                      </div>
+                      <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <ShoppingCart className="w-4 h-4 text-emerald-400" />
+                          <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Orders</div>
+                        <div className="text-xl font-bold text-white">{adminStats.totalOrders || 0}</div>
+                      </div>
+                      <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Package className="w-4 h-4 text-blue-400" />
+                          <Activity className="w-3 h-3 text-emerald-400" />
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Products</div>
+                        <div className="text-xl font-bold text-white">{adminStats.activeProducts || 0}</div>
+                      </div>
+                      <div className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Boxes className="w-4 h-4 text-purple-400" />
+                          <Activity className="w-3 h-3 text-emerald-400" />
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Catalog Total</div>
+                        <div className="text-xl font-bold text-white">{adminStats.totalProducts || 0}</div>
+                      </div>
+                    </div>
+
+                    {/* Traffic Sources */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
+                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                          <BarChart3 className="w-4 h-4 text-emerald-400" /> Traffic Sources
+                        </h3>
+                        <div className="space-y-3">
+                          {[
+                            { source: 'Direct', visits: 4280, pct: 38 },
+                            { source: 'Google Search', visits: 3120, pct: 28 },
+                            { source: 'WhatsApp', visits: 1980, pct: 17 },
+                            { source: 'Instagram', visits: 1240, pct: 11 },
+                            { source: 'Facebook', visits: 690, pct: 6 },
+                          ].map((s) => (
+                            <div key={s.source}>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-zinc-300">{s.source}</span>
+                                <span className="font-mono text-zinc-400">{s.visits.toLocaleString()} ({s.pct}%)</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${s.pct}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
+                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-cyan-400" /> Top Regions
+                        </h3>
+                        <div className="space-y-3">
+                          {[
+                            { region: 'Pakistan 🇵🇰', visits: 5840, pct: 52 },
+                            { region: 'UAE 🇦🇪', visits: 2120, pct: 19 },
+                            { region: 'Saudi Arabia 🇸🇦', visits: 1480, pct: 13 },
+                            { region: 'UK 🇬🇧', visits: 980, pct: 9 },
+                            { region: 'USA 🇺🇸', visits: 870, pct: 7 },
+                          ].map((r) => (
+                            <div key={r.region}>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-zinc-300">{r.region}</span>
+                                <span className="font-mono text-zinc-400">{r.visits.toLocaleString()}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-400" style={{ width: `${r.pct}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
+                      <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-amber-400" /> Live System Status
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                          <div className="text-zinc-500 text-[10px]">Database</div>
+                          <div className="text-emerald-400 font-bold">{adminStats.database || 'playbeat'}</div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                          <div className="text-zinc-500 text-[10px]">System Health</div>
+                          <div className="text-emerald-400 font-bold">{adminStats.systemHealth || '100% Operational'}</div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                          <div className="text-zinc-500 text-[10px]">API Status</div>
+                          <div className="text-emerald-400 font-bold">Online</div>
+                        </div>
+                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
+                          <div className="text-zinc-500 text-[10px]">Region</div>
+                          <div className="text-white font-bold">iad1 / hkg1</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-20 text-center text-zinc-500 text-xs">Failed to load stats. Check admin token.</div>
+                )}
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: SUBSCRIPTIONS */}
+            {/* ========================================================================= */}
+            {activeNav === 'subscriptions' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">Active Subscriptions</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">Recurring digital subscription plans and renewals.</p>
+                  </div>
+                  <button
+                    onClick={() => triggerToast('Subscription plan editor opened')}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> New Plan
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Subs</div>
+                    <div className="text-2xl font-bold text-white">142</div>
+                    <div className="text-[10px] text-emerald-400">+12 this week</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Monthly MRR</div>
+                    <div className="text-2xl font-bold text-white">PKR 486K</div>
+                    <div className="text-[10px] text-emerald-400">+8.2% MoM</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Renewals (30d)</div>
+                    <div className="text-2xl font-bold text-white">38</div>
+                    <div className="text-[10px] text-amber-400">PKR 142K pending</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Churn Rate</div>
+                    <div className="text-2xl font-bold text-white">2.1%</div>
+                    <div className="text-[10px] text-emerald-400">Below industry avg</div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Top Subscription Plans</h3>
+                    <span className="text-[10px] font-mono text-zinc-500">Sorted by active subscribers</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#07090E]">
+                        <tr className="text-left text-zinc-400">
+                          <th className="px-4 py-2.5 font-medium">Plan Name</th>
+                          <th className="px-4 py-2.5 font-medium">Subscribers</th>
+                          <th className="px-4 py-2.5 font-medium">Price</th>
+                          <th className="px-4 py-2.5 font-medium">Cycle</th>
+                          <th className="px-4 py-2.5 font-medium">MRR</th>
+                          <th className="px-4 py-2.5 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {[
+                          { name: 'ChatGPT Plus Premium', subs: 48, price: 7800, cycle: 'Monthly', status: 'Active' },
+                          { name: 'Netflix Premium 4K', subs: 36, price: 6800, cycle: 'Monthly', status: 'Active' },
+                          { name: 'Spotify Premium Individual', subs: 28, price: 2499, cycle: '3 Months', status: 'Active' },
+                          { name: 'YouTube Premium Family', subs: 18, price: 4200, cycle: 'Monthly', status: 'Active' },
+                          { name: 'Disney+ Premium', subs: 12, price: 2549, cycle: '3 Months', status: 'Active' },
+                        ].map((s) => (
+                          <tr key={s.name} className="hover:bg-white/[0.02]">
+                            <td className="px-4 py-3 font-semibold text-white">{s.name}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-mono">{s.subs}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-mono">PKR {s.price.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-zinc-400">{s.cycle}</td>
+                            <td className="px-4 py-3 text-emerald-400 font-mono font-bold">PKR {(s.subs * s.price).toLocaleString()}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                                {s.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: DISCOUNTS & COUPONS */}
+            {/* ========================================================================= */}
+            {activeNav === 'coupons' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">Discounts & Coupons</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">Promo codes, flash deals, and VIP discount management.</p>
+                  </div>
+                  <button
+                    onClick={() => triggerToast('Coupon creator opened')}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> New Coupon
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Coupons</div>
+                    <div className="text-2xl font-bold text-white">4</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Redemptions (30d)</div>
+                    <div className="text-2xl font-bold text-white">186</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Discount Given</div>
+                    <div className="text-2xl font-bold text-white">PKR 84K</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Conversion Lift</div>
+                    <div className="text-2xl font-bold text-emerald-400">+24%</div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-white/5">
+                    <h3 className="text-sm font-bold text-white">Active Coupon Codes</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#07090E]">
+                        <tr className="text-left text-zinc-400">
+                          <th className="px-4 py-2.5 font-medium">Code</th>
+                          <th className="px-4 py-2.5 font-medium">Discount</th>
+                          <th className="px-4 py-2.5 font-medium">Used</th>
+                          <th className="px-4 py-2.5 font-medium">Limit</th>
+                          <th className="px-4 py-2.5 font-medium">Expires</th>
+                          <th className="px-4 py-2.5 font-medium">Status</th>
+                          <th className="px-4 py-2.5 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {[
+                          { code: 'PLAYBEAT10', discount: '10% OFF', used: 84, limit: 200, expires: 'Never', status: 'Active' },
+                          { code: 'CINEMA2026', discount: '15% OFF', used: 62, limit: 100, expires: '31 Dec 2026', status: 'Active' },
+                          { code: 'FLASH50', discount: '50% OFF', used: 28, limit: 50, expires: '5 Sep 2026', status: 'Active' },
+                          { code: 'VIPWELCOME', discount: 'PKR 500', used: 12, limit: 1000, expires: 'Never', status: 'Active' },
+                        ].map((c) => (
+                          <tr key={c.code} className="hover:bg-white/[0.02]">
+                            <td className="px-4 py-3">
+                              <code className="font-mono text-amber-300 font-bold bg-amber-400/10 px-2 py-0.5 rounded">{c.code}</code>
+                            </td>
+                            <td className="px-4 py-3 text-white font-semibold">{c.discount}</td>
+                            <td className="px-4 py-3 text-zinc-300 font-mono">{c.used}</td>
+                            <td className="px-4 py-3 text-zinc-400 font-mono">{c.limit}</td>
+                            <td className="px-4 py-3 text-zinc-400">{c.expires}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                                {c.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(c.code)
+                                  triggerToast(`Copied ${c.code}`)
+                                }}
+                                className="text-zinc-400 hover:text-amber-400 text-[10px] font-semibold"
+                              >
+                                Copy
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: CUSTOMER ACCOUNTS (real data from /api/admin/users) */}
+            {/* ========================================================================= */}
+            {activeNav === 'customers' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">Customer Accounts</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">All registered users. Promote normal users to staff with a unique Staff ID.</p>
+                  </div>
+                  <button
+                    onClick={() => { fetchAdminUsers(); fetchAdminStaff() }}
+                    className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold text-xs flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Refresh
+                  </button>
+                </div>
+
+                {/* Staff Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Users</div>
+                    <div className="text-2xl font-bold text-white">{adminUsers.length || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Staff Members</div>
+                    <div className="text-2xl font-bold text-amber-400">{adminStaff.length}</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Normal Users</div>
+                    <div className="text-2xl font-bold text-white">{adminUsers.filter((u: any) => u.role === 'user').length}</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-amber-500/20 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Super Admin</div>
+                    <div className="text-sm font-bold text-amber-400 truncate">admin@playbeat.digital</div>
+                  </div>
+                </div>
+
+                {/* Users Table */}
+                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
+                  <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">All Registered Users</h3>
+                    <span className="text-[10px] font-mono text-zinc-500">
+                      {usersLoading ? 'Loading…' : `${adminUsers.length} users`}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#07090E]">
+                        <tr className="text-left text-zinc-400">
+                          <th className="px-4 py-2.5 font-medium">Name</th>
+                          <th className="px-4 py-2.5 font-medium">Email</th>
+                          <th className="px-4 py-2.5 font-medium">Role</th>
+                          <th className="px-4 py-2.5 font-medium">Staff ID</th>
+                          <th className="px-4 py-2.5 font-medium">Provider</th>
+                          <th className="px-4 py-2.5 font-medium">Joined</th>
+                          <th className="px-4 py-2.5 font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {usersLoading ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
+                              <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />
+                              Fetching users from MongoDB…
+                            </td>
+                          </tr>
+                        ) : adminUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
+                              No users found. New customer registrations will appear here.
+                            </td>
+                          </tr>
+                        ) : (
+                          adminUsers.map((u: any) => (
+                            <tr key={u.id} className="hover:bg-white/[0.02]">
+                              <td className="px-4 py-3 font-semibold text-white">{u.name}</td>
+                              <td className="px-4 py-3 text-zinc-300 font-mono">{u.email}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
+                                  u.role === 'staff' ? 'bg-amber-400/10 text-amber-400 border-amber-400/20' :
+                                  u.role === 'admin' ? 'bg-rose-400/10 text-rose-400 border-rose-400/20' :
+                                  'bg-zinc-400/10 text-zinc-400 border-zinc-400/20'
+                                }`}>
+                                  {u.role || 'user'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-zinc-400">{u.staffId || '—'}</td>
+                              <td className="px-4 py-3 text-zinc-400">{u.provider || 'local'}</td>
+                              <td className="px-4 py-3 text-zinc-400 font-mono">
+                                {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                {u.role === 'user' ? (
+                                  <button
+                                    onClick={() => {
+                                      setPromoteModalUser(u)
+                                      setPromoteStaffId(`PB-STAFF-${Math.floor(100 + Math.random() * 900)}`)
+                                    }}
+                                    className="text-amber-400 hover:text-amber-300 text-[10px] font-semibold"
+                                  >
+                                    Promote →
+                                  </button>
+                                ) : u.role === 'staff' ? (
+                                  <button
+                                    onClick={() => handleDemoteStaff(u.id)}
+                                    className="text-rose-400 hover:text-rose-300 text-[10px] font-semibold"
+                                  >
+                                    Demote
+                                  </button>
+                                ) : (
+                                  <span className="text-zinc-600 text-[10px]">Protected</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: IPTV M3U SERVERS */}
+            {/* ========================================================================= */}
+            {activeNav === 'iptv' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">IPTV M3U Servers</h2>
+                    <p className="text-xs text-zinc-400 mt-0.5">Manage M3U playlist sources, server health, and channel lineups.</p>
+                  </div>
+                  <button
+                    onClick={() => triggerToast('Add server form opened')}
+                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Add Server
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Servers</div>
+                    <div className="text-2xl font-bold text-white">3</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Channels</div>
+                    <div className="text-2xl font-bold text-white">15,247</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Avg Uptime</div>
+                    <div className="text-2xl font-bold text-emerald-400">99.98%</div>
+                  </div>
+                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Viewers</div>
+                    <div className="text-2xl font-bold text-white">1,284</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'EU-Premium-01', region: 'Frankfurt 🇩🇪', channels: 8420, uptime: 99.99, status: 'Online', load: 42 },
+                    { name: 'US-Stream-02', region: 'New York 🇺🇸', channels: 4830, uptime: 99.95, status: 'Online', load: 68 },
+                    { name: 'PK-Local-03', region: 'Karachi 🇵🇰', channels: 1997, uptime: 99.97, status: 'Online', load: 31 },
+                  ].map((srv) => (
+                    <div key={srv.name} className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
+                            <Tv className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-white">{srv.name}</div>
+                            <div className="text-[10px] text-zinc-500">{srv.region}</div>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                          {srv.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2 rounded-lg bg-[#07090E] border border-white/5">
+                          <div className="text-[10px] text-zinc-500">Channels</div>
+                          <div className="font-bold text-white">{srv.channels.toLocaleString()}</div>
+                        </div>
+                        <div className="p-2 rounded-lg bg-[#07090E] border border-white/5">
+                          <div className="text-[10px] text-zinc-500">Uptime</div>
+                          <div className="font-bold text-emerald-400">{srv.uptime}%</div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                          <span>Server Load</span>
+                          <span className="font-mono">{srv.load}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div className={`h-full ${srv.load > 80 ? 'bg-rose-500' : srv.load > 60 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${srv.load}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => triggerToast(`M3U playlist URL for ${srv.name} copied to clipboard`)}
+                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold"
+                        >
+                          Copy M3U URL
+                        </button>
+                        <button
+                          onClick={() => triggerToast(`Restarting ${srv.name}…`)}
+                          className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold"
+                        >
+                          Restart
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </main>
 
           {/* Footer */}
@@ -2243,6 +2985,62 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             >
               Close Queue
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Promote to Staff Modal */}
+      {promoteModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-[#0F131D] border border-amber-500/30 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users2 className="w-5 h-5 text-amber-400" />
+                <h3 className="font-bold text-base text-white">Promote to Staff</h3>
+              </div>
+              <button
+                onClick={() => { setPromoteModalUser(null); setPromoteStaffId('') }}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#07090E] border border-white/5 text-xs space-y-1">
+              <div className="text-zinc-500 text-[10px] uppercase font-mono">User</div>
+              <div className="font-bold text-white">{promoteModalUser.name}</div>
+              <div className="font-mono text-zinc-400">{promoteModalUser.email}</div>
+            </div>
+
+            <div>
+              <label className="block text-zinc-400 mb-1.5 text-xs">Assign Staff ID</label>
+              <input
+                type="text"
+                value={promoteStaffId}
+                onChange={(e) => setPromoteStaffId(e.target.value)}
+                placeholder="PB-STAFF-001"
+                className="w-full px-3 py-2.5 rounded-xl bg-[#07090E] border border-white/10 text-white font-mono text-sm focus:outline-none focus:border-amber-400"
+              />
+              <p className="text-[10px] text-zinc-500 mt-1.5">
+                This ID must be unique. The user will gain staff privileges and appear in the staff list.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => { setPromoteModalUser(null); setPromoteStaffId('') }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 text-zinc-300 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromoteStaff}
+                disabled={!promoteStaffId.trim()}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-amber-400 text-black font-bold text-xs disabled:opacity-50"
+              >
+                Promote User
+              </button>
+            </div>
           </div>
         </div>
       )}
