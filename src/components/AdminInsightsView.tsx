@@ -53,6 +53,8 @@ import {
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
 import { CsvImporterModal } from './CsvImporterModal'
+import { CampaignsPanel } from './admin/CampaignsPanel'
+import { SupportPanel } from './admin/SupportPanel'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -601,8 +603,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
-                    onClick={() => setShowSupportModal(true)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+                    onClick={() => setActiveNav('support')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
+                      activeNav === 'support'
+                        ? 'text-white bg-white/10'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <MessageSquare className="w-4 h-4 text-indigo-400" />
@@ -652,8 +658,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                 )}
                 <button
-                  onClick={() => setShowCampaignModal(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition"
+                  onClick={() => setActiveNav('campaigns')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                    activeNav === 'campaigns'
+                      ? 'text-white bg-white/10'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
                 >
                   <Megaphone className="w-4 h-4 text-orange-400" />
                   {!sidebarCollapsed && <span>Marketing Campaigns</span>}
@@ -2793,6 +2803,27 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: MARKETING CAMPAIGNS */}
+            {/* ========================================================================= */}
+            {activeNav === 'campaigns' && (
+              <CampaignsPanel
+                products={products}
+                triggerToast={triggerToast}
+                onLaunchCampaign={() => setShowCampaignModal(true)}
+              />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: SUPPORT TICKETS */}
+            {/* ========================================================================= */}
+            {activeNav === 'support' && (
+              <SupportPanel
+                triggerToast={triggerToast}
+                onQuickReply={() => setShowSupportModal(true)}
+              />
             )}
           </main>
 

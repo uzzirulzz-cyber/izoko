@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { X, Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff, LockKeyhole } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff, LockKeyhole, LogOut } from 'lucide-react'
 
 interface AdminLoginProps {
   onSuccess: (admin: { email: string; name: string }) => void
@@ -9,8 +9,11 @@ interface AdminLoginProps {
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  // Use uncontrolled inputs with refs to defeat browser autofill/credential managers.
+  // We never store the password in React state, never persist it, and clear it from
+  // the DOM immediately after submit.
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -27,6 +30,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
     }
   }, [])
 
+  // Defeat browser autofill/credential manager:
+  // 1. Set autocomplete="off" on the entire form via attribute
+  // 2. Use fake hidden honeypot fields to confuse password managers
+  // 3. Randomize input names so browsers can't recognize them as login fields
+  // 4. Clear fields after every submit attempt
+  const formRef = useRef<HTMLFormElement>(null)
+  const [fieldNonce] = useState(() => Math.random().toString(36).slice(2, 10))
+
   // Lockout after 5 failed attempts (60s cooldown)
   const [lockedUntil, setLockedUntil] = useState<number | null>(null)
 
@@ -41,9 +52,20 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
     return () => clearInterval(t)
   }, [lockedUntil])
 
+  // On unmount, scrub any values that might have been typed
+  useEffect(() => {
+    return () => {
+      if (emailRef.current) emailRef.current.value = ''
+      if (passwordRef.current) passwordRef.current.value = ''
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    const email = emailRef.current?.value || ''
+    const password = passwordRef.current?.value || ''
 
     if (lockedUntil && Date.now() < lockedUntil) {
       const secs = Math.ceil((lockedUntil - Date.now()) / 1000)
@@ -66,6 +88,9 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
       })
       const data = await res.json()
 
+      // ALWAYS clear the password field immediately, regardless of outcome
+      if (passwordRef.current) passwordRef.current.value = ''
+
       if (!res.ok || !data.success) {
         const newAttempts = attempts + 1
         setAttempts(newAttempts)
@@ -80,21 +105,49 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
         return
       }
 
-      // Persist admin token in localStorage (NOT auto-login for normal users)
+      // Persist admin token ONLY (never the password). Token is JWT, expires in 7d,
+      // and is verified against /api/auth/admin/me on every admin route visit.
       if (data.token) {
         localStorage.setItem('playbeat_admin_token', data.token)
       }
-      localStorage.setItem('playbeat_admin_session', JSON.stringify({ email: data.admin?.email || email, name: data.admin?.name || 'Super Administrator', ts: Date.now() }))
+      localStorage.setItem(
+        'playbeat_admin_session',
+        JSON.stringify({
+          email: data.admin?.email || email,
+          name: data.admin?.name || 'Super Administrator',
+          ts: Date.now(),
+          // NO password stored anywhere
+        })
+      )
+
+      // Also clear email field for good measure
+      if (emailRef.current) emailRef.current.value = ''
 
       onSuccess({
         email: data.admin?.email || email.trim(),
         name: data.admin?.name || 'PlayBeat Super Administrator',
       })
     } catch (err: any) {
+      if (passwordRef.current) passwordRef.current.value = ''
       setError(err.message || 'Network error during admin authentication.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLogout = async () => {
+    // Tell backend to clear the adminToken cookie too
+    try {
+      await fetch(`${API_BASE}/api/auth/admin/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem('playbeat_admin_token')
+    localStorage.removeItem('playbeat_admin_session')
+    onCancel()
   }
 
   const isLocked = !!lockedUntil && Date.now() < lockedUntil
@@ -138,6 +191,9 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
             <p className="text-xs text-slate-400 mt-1 font-sans">
               Authorized super-administrator credentials required. All access attempts are logged.
             </p>
+            <p className="text-[10px] text-slate-500 mt-2 font-mono">
+              🔒 Credentials are never saved, autofilled, or persisted by this form.
+            </p>
           </div>
 
           {error && (
@@ -147,7 +203,48 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/*
+            Anti-autofill strategy:
+            - form autoComplete="off" + autoCapitalize/autoCorrect off
+            - Two honeypot fields (hidden) BEFORE the real fields to soak up
+              Chrome's "username/password" heuristic
+            - Randomized input names (fieldNonce) so password managers can't
+              identify them by name
+            - type="text" initially on email, switched via JS — defeats Chrome's
+              password-manager heuristic which only fires for type=email/password
+              pairs
+            - Uncontrolled inputs (no value= prop) so React doesn't hold the value
+          */}
+          <form
+            ref={formRef}
+            onSubmit={handleSubmit}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="space-y-4"
+          >
+            {/* Honeypot #1 — fake username to confuse Chrome */}
+            <input
+              type="text"
+              name={`user_${fieldNonce}`}
+              autoComplete="off"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="hidden"
+              aria-label="ignore"
+            />
+            {/* Honeypot #2 — fake password to soak up credential manager */}
+            <input
+              type="password"
+              name={`pwd_${fieldNonce}`}
+              autoComplete="new-password"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="hidden"
+              aria-label="ignore"
+            />
+
             <div>
               <label className="block text-[11px] font-mono uppercase text-slate-300 mb-1.5 tracking-wider">
                 Administrator Email
@@ -155,11 +252,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
-                  required
+                  ref={emailRef}
+                  type="text"
+                  name={`adm_${fieldNonce}`}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   autoFocus
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   placeholder="admin@playbeat.digital"
                   className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />
@@ -173,10 +274,14 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
+                  ref={passwordRef}
                   type={showPassword ? 'text' : 'password'}
+                  name={`key_${fieldNonce}`}
+                  autoComplete="new-password"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />
@@ -184,6 +289,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -214,12 +320,22 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
             <span>JWT Secured • Rate Limited • Audit Logged</span>
           </div>
 
-          <button
-            onClick={onCancel}
-            className="mt-3 w-full text-center text-[11px] text-slate-500 hover:text-slate-300 transition"
-          >
-            ← Return to public storefront
-          </button>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={onCancel}
+              className="flex-1 text-center text-[11px] text-slate-500 hover:text-slate-300 transition py-2 rounded-lg hover:bg-white/5"
+            >
+              ← Return to public storefront
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-[11px] text-rose-400/70 hover:text-rose-400 transition py-2 px-3 rounded-lg hover:bg-rose-500/5 flex items-center gap-1"
+              title="Clear any saved admin session and return to storefront"
+            >
+              <LogOut className="w-3 h-3" />
+              Force Logout
+            </button>
+          </div>
         </div>
       </div>
     </div>
