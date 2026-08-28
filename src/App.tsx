@@ -383,9 +383,9 @@ export function App() {
     return wishlist.some((p) => p.id === productId)
   }
 
-  // Top 5 Popular Products (Matching Screenshot 3)
+  // Top 8 Popular Products (tiled across stretched storefront)
   const popularProducts = useMemo(() => {
-    return products.slice(0, 5)
+    return products.slice(0, 8)
   }, [products])
 
   // Filtered & Sorted Products
@@ -597,7 +597,7 @@ export function App() {
           {/* Popular Products Row (Matching Screenshot 3 & 2) */}
           {selectedCategory === 'all' && !searchQuery && (
             <section id="popular-products-section" className="w-full py-8 bg-[#050814]">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6">
+              <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
@@ -615,8 +615,8 @@ export function App() {
                   </button>
                 </div>
 
-                {/* 5 Popular Cards in Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {/* 8 Popular Cards in Row — tiled denser for stretched layout */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-3 sm:gap-4">
                   {popularProducts.map((prod) => (
                     <ProductCard
                       key={`popular-${prod.id}`}
@@ -635,7 +635,7 @@ export function App() {
           )}
 
           {/* Main Full Catalog View */}
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-8">
+          <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 space-y-8">
             {/* Catalog Header & Controls Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-400/10">
               <div className="flex items-center gap-2.5">
@@ -733,7 +733,7 @@ export function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 sm:gap-4">
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={`catalog-${product.id}`}

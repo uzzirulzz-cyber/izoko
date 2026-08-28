@@ -16,7 +16,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       {/* Background Liquid Water Glow Waves */}
       <div className="absolute top-1/4 left-1/3 w-[550px] h-[350px] bg-[radial-gradient(circle,_rgba(37,99,235,0.18)_0%,_rgba(255,193,7,0.1)_50%,_transparent_75%)] blur-3xl pointer-events-none"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Left Narrative */}
           <div className="lg:col-span-7 space-y-6 text-left">

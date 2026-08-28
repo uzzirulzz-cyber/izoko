@@ -40,7 +40,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
       {/* Dynamic Water Glow Ambient Base */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-24 bg-[radial-gradient(ellipse_at_bottom,_rgba(255,193,7,0.1)_0%,_rgba(56,189,248,0.08)_50%,_transparent_75%)] pointer-events-none"></div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 relative z-10">
         {/* Section Header (Matching Screenshot 1) */}
         <div className="flex items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">

@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#060B1E]/95 border-b border-slate-400/10 shadow-2xl transition-all">
       {/* Main Top Header Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         {/* PlayBeat Logo (Official 3D Chrome & Gold Brand Asset) */}
         <div
           id="header-brand-logo"
