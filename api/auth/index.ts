@@ -313,6 +313,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ /api/auth/admin/login ============
   // Accepts EITHER the super administrator env credentials OR an employee/staff
   // account created by the super admin in the admin panel (bcrypt-verified).
+  // A DB password override (set via Admin Profile Settings) takes precedence for
+  // the super administrator so password changes take real effect.
   if (route === "admin/login" && req.method === "POST") {
     try {
       const { email, password } = req.body || {};
@@ -320,27 +322,54 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, "Admin email and password are required.", 400);
       }
       const cleanEmail = String(email).toLowerCase().trim();
+      const db = await getDb();
+      const profilesCol = db.collection("admin_profiles");
+      const activityCol = db.collection("admin_activity");
+      const profileDoc: any = await profilesCol.findOne({ email: cleanEmail });
 
-      // 1) Super administrator via environment credentials
-      if (isAdminCredentials(cleanEmail, password)) {
+      // 1) Super administrator via DB password override or environment credentials
+      const superAdminMatch = profileDoc?.passwordOverride
+        ? await comparePassword(String(password), profileDoc.passwordOverride)
+        : isAdminCredentials(cleanEmail, String(password));
+      if (profileDoc?.passwordOverride || isAdminCredentials(cleanEmail, String(password))) {
+        if (!superAdminMatch) {
+          return jsonError(res, "Invalid administrative credentials.", 401);
+        }
+        const displayName = profileDoc?.name || "PlayBeat Super Administrator";
         const adminToken = signAdminToken({
           email: ADMIN_EMAIL,
-          name: "PlayBeat Super Administrator",
+          name: displayName,
         });
         setCookie(res, "adminToken", adminToken, { maxAge: 7 * 24 * 60 * 60 });
+        // Track last login (profile override doc + activity feed)
+        try {
+          await profilesCol.updateOne(
+            { email: cleanEmail },
+            { $set: { email: cleanEmail, lastLoginAt: new Date(), updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+            { upsert: true }
+          );
+          await activityCol.insertOne({
+            type: "login",
+            adminEmail: cleanEmail,
+            adminName: displayName,
+            role: "admin",
+            detail: "Signed in to the admin dashboard",
+            meta: { method: profileDoc?.passwordOverride ? "database password" : "platform credentials" },
+            createdAt: new Date(),
+          });
+        } catch { /* activity tracking must never block login */ }
         return jsonOk(res, {
           success: true,
           token: adminToken,
           admin: {
             email: ADMIN_EMAIL,
-            name: "PlayBeat Super Administrator",
+            name: displayName,
             role: "admin",
           },
         });
       }
 
       // 2) Staff / employee account created via admin panel
-      const db = await getDb();
       const usersCol = db.collection("users");
       const staffUser: any = await usersCol.findOne({
         email: cleanEmail,
@@ -365,6 +394,22 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           role: staffUser.role,
         });
         setCookie(res, "adminToken", staffToken, { maxAge: 7 * 24 * 60 * 60 });
+        // Track last login (users doc + activity feed)
+        try {
+          await usersCol.updateOne(
+            { _id: staffUser._id },
+            { $set: { lastLoginAt: new Date(), updatedAt: new Date() } }
+          );
+          await activityCol.insertOne({
+            type: "login",
+            adminEmail: staffUser.email.toLowerCase(),
+            adminName: staffUser.name,
+            role: staffUser.role,
+            detail: "Signed in to the admin dashboard",
+            meta: { method: "staff account" },
+            createdAt: new Date(),
+          });
+        } catch { /* activity tracking must never block login */ }
         return jsonOk(res, {
           success: true,
           token: staffToken,

@@ -23,6 +23,9 @@
 //   POST   /api/admin/backup/restore            (super admin: restore from snapshot)
 //   POST   /api/admin/backup/delete             (super admin: delete a restore point)
 //   GET|PUT  /api/admin/cms/settings            (site settings read/update)
+//   GET    /api/admin/profile                   (signed-in admin's full profile + activity)
+//   PUT    /api/admin/profile                   (update own profile identity & preferences)
+//   POST   /api/admin/profile/password          (change own password — bcrypt verified)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
@@ -34,10 +37,11 @@ import {
   jsonError,
   requireAdmin,
   requireSuperAdmin,
+  verifyAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
-import { ADMIN_EMAIL, MONGODB_DB_NAME } from "../_lib/config.js";
-import { hashPassword } from "../_lib/auth.js";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME } from "../_lib/config.js";
+import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
@@ -1017,6 +1021,279 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         console.error("DELETE /api/admin/products/:id error:", err);
         return jsonError(res, err.message, 500);
       }
+    }
+  }
+
+  // ===========================================================================
+  // ADMIN PROFILE SETTINGS (own account — available to super admin AND staff)
+  // ===========================================================================
+
+  // Super-admin identity is env-credential based, so personalisation overrides
+  // (display name, avatar color, phone, preferences, optional password override)
+  // live in the dedicated `admin_profiles` collection keyed by email.
+  // Staff/employee identities are real `users` documents and are updated in place.
+
+  // ============ GET /api/admin/profile ============
+  if (route === "profile" && req.method === "GET") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const usersCol = db.collection("users");
+      const profilesCol = db.collection("admin_profiles");
+      const activityCol = db.collection("admin_activity");
+
+      let profile: any = null;
+      let source: "super_admin_env" | "staff_account" = "super_admin_env";
+
+      if (admin.role === "staff" && admin.id) {
+        const staffUser = await usersCol.findOne({ _id: new ObjectId(admin.id) });
+        if (!staffUser) return jsonError(res, "Staff account not found.", 404);
+        source = "staff_account";
+        profile = {
+          id: staffUser._id.toString(),
+          name: staffUser.name,
+          email: staffUser.email,
+          role: staffUser.role,
+          staffId: staffUser.staffId || null,
+          department: staffUser.department || null,
+          permissions: staffUser.permissions || [],
+          phone: staffUser.phone || "",
+          jobTitle: staffUser.jobTitle || "",
+          timezone: staffUser.timezone || "Asia/Karachi",
+          bio: staffUser.bio || "",
+          avatarColor: staffUser.avatarColor || "amber",
+          notificationPrefs: staffUser.notificationPrefs || null,
+          provider: staffUser.provider || "local",
+          active: staffUser.active !== false,
+          createdAt: staffUser.createdAt || null,
+          lastLoginAt: staffUser.lastLoginAt || null,
+        };
+      } else {
+        const doc = await profilesCol.findOne({
+          email: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        });
+        profile = {
+          id: null,
+          name: doc?.name || admin.name || "PlayBeat Super Administrator",
+          email: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+          role: "admin",
+          staffId: null,
+          department: doc?.department || "Executive",
+          permissions: ["all"],
+          phone: doc?.phone || "",
+          jobTitle: doc?.jobTitle || "Super Administrator",
+          timezone: doc?.timezone || "Asia/Karachi",
+          bio: doc?.bio || "",
+          avatarColor: doc?.avatarColor || "amber",
+          notificationPrefs: doc?.notificationPrefs || null,
+          provider: "env-credentials",
+          active: true,
+          createdAt: doc?.createdAt || null,
+          lastLoginAt: doc?.lastLoginAt || null,
+          hasPasswordOverride: Boolean(doc?.passwordOverride),
+        };
+      }
+
+      const activities = await activityCol
+        .find({ adminEmail: profile.email })
+        .sort({ createdAt: -1 })
+        .limit(15)
+        .toArray();
+
+      return jsonOk(res, {
+        success: true,
+        profile,
+        source,
+        activity: activities.map((a: any) => ({
+          id: a._id?.toString(),
+          type: a.type,
+          detail: a.detail,
+          meta: a.meta || null,
+          createdAt: a.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/profile error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ PUT /api/admin/profile ============
+  if (route === "profile" && req.method === "PUT") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const {
+        name,
+        email,
+        phone,
+        jobTitle,
+        department,
+        timezone,
+        bio,
+        avatarColor,
+        notificationPrefs,
+      } = req.body || {};
+
+      const usersCol = db.collection("users");
+      const profilesCol = db.collection("admin_profiles");
+      const activityCol = db.collection("admin_activity");
+
+      if (name !== undefined && !String(name).trim()) {
+        return jsonError(res, "Display name cannot be empty.", 400);
+      }
+      const allowedColors = ["amber", "blue", "emerald", "purple", "rose", "cyan"];
+      if (avatarColor !== undefined && !allowedColors.includes(String(avatarColor))) {
+        return jsonError(res, `avatarColor must be one of: ${allowedColors.join(", ")}.`, 400);
+      }
+      if (notificationPrefs !== undefined && (typeof notificationPrefs !== "object" || notificationPrefs === null || Array.isArray(notificationPrefs))) {
+        return jsonError(res, "notificationPrefs must be an object of boolean flags.", 400);
+      }
+
+      let updatedName: string;
+
+      if (admin.role === "staff" && admin.id) {
+        // ---- Staff: update the real users document ----
+        const staffUser = await usersCol.findOne({ _id: new ObjectId(admin.id) });
+        if (!staffUser) return jsonError(res, "Staff account not found.", 404);
+        const update: any = { updatedAt: new Date() };
+        if (name !== undefined) update.name = String(name).trim();
+        if (phone !== undefined) update.phone = String(phone).trim().slice(0, 40);
+        if (jobTitle !== undefined) update.jobTitle = String(jobTitle).trim().slice(0, 80);
+        if (timezone !== undefined) update.timezone = String(timezone).trim().slice(0, 60);
+        if (bio !== undefined) update.bio = String(bio).trim().slice(0, 400);
+        if (avatarColor !== undefined) update.avatarColor = String(avatarColor);
+        if (notificationPrefs !== undefined) update.notificationPrefs = notificationPrefs;
+        if (email !== undefined) {
+          const cleanEmail = String(email).toLowerCase().trim();
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+            return jsonError(res, "Please provide a valid email address.", 400);
+          }
+          if (cleanEmail !== staffUser.email.toLowerCase()) {
+            if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+              return jsonError(res, "This email is reserved for the super administrator.", 409);
+            }
+            const taken = await usersCol.findOne({ email: cleanEmail });
+            if (taken) return jsonError(res, "An account with this email already exists.", 409);
+            update.email = cleanEmail;
+          }
+        }
+        await usersCol.updateOne({ _id: staffUser._id }, { $set: update });
+        updatedName = update.name || staffUser.name;
+      } else {
+        // ---- Super admin: personalisation overrides in admin_profiles ----
+        // Login email is the env credential and stays read-only by design.
+        if (email !== undefined && String(email).toLowerCase().trim() !== String(admin.email || ADMIN_EMAIL).toLowerCase()) {
+          return jsonError(
+            res,
+            "The super administrator login email is tied to platform credentials and cannot be changed here.",
+            403
+          );
+        }
+        const keyEmail = String(admin.email || ADMIN_EMAIL).toLowerCase();
+        const existing = await profilesCol.findOne({ email: keyEmail });
+        const set: any = { email: keyEmail, updatedAt: new Date() };
+        if (name !== undefined) set.name = String(name).trim();
+        if (phone !== undefined) set.phone = String(phone).trim().slice(0, 40);
+        if (jobTitle !== undefined) set.jobTitle = String(jobTitle).trim().slice(0, 80);
+        if (department !== undefined) set.department = String(department).trim().slice(0, 80);
+        if (timezone !== undefined) set.timezone = String(timezone).trim().slice(0, 60);
+        if (bio !== undefined) set.bio = String(bio).trim().slice(0, 400);
+        if (avatarColor !== undefined) set.avatarColor = String(avatarColor);
+        if (notificationPrefs !== undefined) set.notificationPrefs = notificationPrefs;
+        if (!existing) set.createdAt = new Date();
+        await profilesCol.updateOne({ email: keyEmail }, { $set: set }, { upsert: true });
+        updatedName = set.name || existing?.name || admin.name || "PlayBeat Super Administrator";
+      }
+
+      await activityCol.insertOne({
+        type: "profile_update",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: updatedName,
+        role: admin.role,
+        detail: "Profile settings updated",
+        createdAt: new Date(),
+      });
+
+      return jsonOk(res, {
+        success: true,
+        message: "Profile updated successfully.",
+        name: updatedName,
+      });
+    } catch (err: any) {
+      console.error("PUT /api/admin/profile error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/profile/password ============
+  if (route === "profile/password" && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const { currentPassword, newPassword } = req.body || {};
+      if (!currentPassword || !newPassword) {
+        return jsonError(res, "Current and new password are required.", 400);
+      }
+      if (String(newPassword).length < 8) {
+        return jsonError(res, "New password must be at least 8 characters long.", 400);
+      }
+      if (String(newPassword) === String(currentPassword)) {
+        return jsonError(res, "New password must be different from the current password.", 400);
+      }
+
+      const usersCol = db.collection("users");
+      const profilesCol = db.collection("admin_profiles");
+      const activityCol = db.collection("admin_activity");
+
+      if (admin.role === "staff" && admin.id) {
+        const staffUser = await usersCol.findOne({ _id: new ObjectId(admin.id) });
+        if (!staffUser) return jsonError(res, "Staff account not found.", 404);
+        if (!staffUser.password) return jsonError(res, "This account has no local password set.", 400);
+        const ok = await comparePassword(String(currentPassword), staffUser.password);
+        if (!ok) return jsonError(res, "Current password is incorrect.", 401);
+        await usersCol.updateOne(
+          { _id: staffUser._id },
+          { $set: { password: await hashPassword(String(newPassword)), passwordChangedAt: new Date(), updatedAt: new Date() } }
+        );
+      } else {
+        const keyEmail = String(admin.email || ADMIN_EMAIL).toLowerCase();
+        const doc = await profilesCol.findOne({ email: keyEmail });
+        // Verify against the DB password override when one exists, otherwise the env credential.
+        if (doc?.passwordOverride) {
+          const ok = await comparePassword(String(currentPassword), doc.passwordOverride);
+          if (!ok) return jsonError(res, "Current password is incorrect.", 401);
+        } else if (String(currentPassword) !== ADMIN_PASSWORD) {
+          return jsonError(res, "Current password is incorrect.", 401);
+        }
+        await profilesCol.updateOne(
+          { email: keyEmail },
+          {
+            $set: {
+              email: keyEmail,
+              passwordOverride: await hashPassword(String(newPassword)),
+              passwordChangedAt: new Date(),
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { createdAt: new Date() },
+          },
+          { upsert: true }
+        );
+      }
+
+      await activityCol.insertOne({
+        type: "password_change",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: "Account password changed",
+        createdAt: new Date(),
+      });
+
+      return jsonOk(res, { success: true, message: "Password changed successfully." });
+    } catch (err: any) {
+      console.error("POST /api/admin/profile/password error:", err);
+      return jsonError(res, err.message, 500);
     }
   }
 

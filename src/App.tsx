@@ -766,6 +766,12 @@ export function App() {
             clearAdminSession()
             navigate('storefront')
           }}
+          onSignOut={() => {
+            // Full admin sign-out: terminate session and return to the admin login screen
+            setAdminAuthed(false)
+            clearAdminSession()
+            navigate('admin-login')
+          }}
           onQuickViewProduct={(p) => setQuickViewProduct(p)}
           onUpdateProductStock={handleUpdateProductStock}
           onImportProducts={handleImportProducts}

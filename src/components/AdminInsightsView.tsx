@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard,
   Globe,
@@ -52,6 +52,10 @@ import {
   ScrollText,
   DatabaseBackup,
   ImageIcon,
+  UserCog,
+  LogOut,
+  KeyRound,
+  History,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -66,11 +70,13 @@ import { BackupPanel } from './admin/BackupPanel'
 import { CmsPanel } from './admin/CmsPanel'
 import { AnalyticsPanel } from './admin/AnalyticsPanel'
 import { OrdersLogPanel } from './admin/OrdersLogPanel'
+import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 
 interface AdminInsightsViewProps {
   products: Product[]
   selectedCurrency: CurrencyCode
   onBackToStorefront: () => void
+  onSignOut?: () => void
   onQuickViewProduct: (product: Product) => void
   onUpdateProductStock?: (productId: string, newStock: number) => void
   onUpdateProductPrice?: (productId: string, newPrice: number) => void
@@ -93,6 +99,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   products,
   selectedCurrency,
   onBackToStorefront,
+  onSignOut,
   onQuickViewProduct,
   onUpdateProductStock,
   onUpdateProductPrice,
@@ -170,6 +177,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
   const [adminName, setAdminName] = useState('PlayBeat Admin')
+  const [adminEmail, setAdminEmail] = useState('')
+
+  // Admin profile dropdown (header avatar button)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [profileFocus, setProfileFocus] = useState<
+    'identity' | 'security' | 'activity' | null
+  >(null)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
 
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 
@@ -185,6 +200,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         if (data?.success && data?.admin) {
           setAdminRole(data.admin.role === 'staff' ? 'staff' : 'admin')
           setAdminName(data.admin.name || 'PlayBeat Admin')
+          setAdminEmail(data.admin.email || '')
         }
       } catch {
         // keep defaults
@@ -193,6 +209,45 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     run()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Close the profile dropdown when clicking outside of it
+  useEffect(() => {
+    if (!showProfileMenu) return
+    const onDown = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [showProfileMenu])
+
+  // Open the profile settings view, optionally deep-linking to a section
+  const openProfile = (focus: 'identity' | 'security' | 'activity' = 'identity') => {
+    setShowProfileMenu(false)
+    setProfileFocus(focus)
+    setActiveNav('profile')
+  }
+
+  // Terminate the admin session: server cookie clear + local cache clear + redirect
+  const handleAdminSignOut = async () => {
+    try {
+      await fetch(`${API_BASE}/api/auth/admin/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+        credentials: 'include',
+      })
+    } catch {
+      // continue with local cleanup regardless
+    }
+    localStorage.removeItem('playbeat_admin_token')
+    localStorage.removeItem('playbeat_admin_session')
+    if (onSignOut) {
+      onSignOut()
+    } else {
+      onBackToStorefront()
+    }
+  }
 
   const fetchAdminHealth = async () => {
     setHealthLoading(true)
@@ -492,6 +547,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         setShowProductEditor(true)
       } else if (e.key === 'Escape') {
         setShowQuickAddMenu(false)
+        setShowProfileMenu(false)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -931,27 +987,60 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {!sidebarCollapsed && <span>Marketing Campaigns</span>}
                 </button>
               </div>
+
+              {/* ACCOUNT */}
+              <div>
+                {!sidebarCollapsed && (
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                    Account
+                  </div>
+                )}
+                <button
+                  onClick={() => openProfile('identity')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                    activeNav === 'profile'
+                      ? 'text-white bg-white/10'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                  title="Profile Settings"
+                >
+                  <UserCog className="w-4 h-4 text-sky-400" />
+                  {!sidebarCollapsed && <span>Profile Settings</span>}
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Bottom Account Card + Reset Button */}
           <div className="p-3 border-t border-white/5 space-y-2">
-            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-bold flex items-center justify-center text-xs font-mono shrink-0 shadow-md">
-                N
+            {/* Account Card — opens Profile Settings */}
+            <button
+              onClick={() => openProfile('identity')}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition text-left ${
+                activeNav === 'profile' ? 'border-amber-400/40 bg-amber-400/5' : ''
+              }`}
+              title="Open Profile Settings"
+            >
+              <div
+                className={`w-8 h-8 rounded-full text-black font-bold flex items-center justify-center text-xs font-mono shrink-0 ${
+                  adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
+                }`}
+              >
+                {adminName.charAt(0).toUpperCase()}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-white truncate">
-                    PlayBeat Digital
+                    {adminName}
                   </div>
                   <div className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    <span>Pro Plan • Online</span>
+                    <span>{adminRole === 'staff' ? 'Staff · Online' : 'Admin · Online'}</span>
                   </div>
                 </div>
               )}
-            </div>
+              {!sidebarCollapsed && <UserCog className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+            </button>
 
             {/* Reset Admin Panel Button */}
             <button
@@ -1086,20 +1175,102 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
               </button>
 
-              {/* Admin Profile Dropdown */}
-              <div className="flex items-center gap-2.5 pl-2 border-l border-white/5">
-                <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-extrabold flex items-center justify-center text-xs font-mono">
-                  {adminName.charAt(0).toUpperCase()}
-                </div>
-                <div className="hidden sm:block text-left">
-                  <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
-                    {adminName}
+              {/* Admin Profile Button + Dropdown (fully functional) */}
+              <div className="relative flex items-center gap-2.5 pl-2 border-l border-white/5" ref={profileMenuRef}>
+                <button
+                  id="admin-profile-btn"
+                  onClick={() => setShowProfileMenu((v) => !v)}
+                  className="flex items-center gap-2.5 rounded-xl px-1.5 py-1 hover:bg-white/5 transition focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                  title="Admin profile menu"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full text-black font-extrabold flex items-center justify-center text-xs font-mono ${
+                      adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
+                    }`}
+                  >
+                    {adminName.charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">
-                    {adminRole === 'staff' ? 'Employee · Staff' : 'Administrator'}
+                  <div className="hidden sm:block text-left">
+                    <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
+                      {adminName}
+                    </div>
+                    <div className="text-[10px] text-zinc-400 font-mono">
+                      {adminRole === 'staff' ? 'Employee · Staff' : 'Administrator'}
+                    </div>
                   </div>
-                </div>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${
+                      showProfileMenu ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {showProfileMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#121622] border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                    {/* Menu header — live identity */}
+                    <div className="p-3.5 bg-[#0D1119] border-b border-white/5 flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-full text-black font-extrabold flex items-center justify-center text-sm font-mono ${
+                          adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
+                        }`}
+                      >
+                        {adminName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white truncate">{adminName}</div>
+                        <div className="text-[10px] text-zinc-400 font-mono truncate">
+                          {adminEmail || (adminRole === 'staff' ? 'Staff account' : 'Super administrator')}
+                        </div>
+                        <span
+                          className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                            adminRole === 'staff'
+                              ? 'bg-blue-500/20 text-blue-300'
+                              : 'bg-amber-400/20 text-amber-300'
+                          }`}
+                        >
+                          {adminRole === 'staff' ? 'STAFF · EMPLOYEE' : 'SUPER ADMIN'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-1.5 space-y-0.5 text-xs">
+                      <button
+                        onClick={() => openProfile('identity')}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2.5 transition"
+                      >
+                        <UserCog className="w-4 h-4 text-amber-400" />
+                        <span>Profile Settings</span>
+                      </button>
+                      <button
+                        onClick={() => openProfile('security')}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2.5 transition"
+                      >
+                        <KeyRound className="w-4 h-4 text-emerald-400" />
+                        <span>Change Password</span>
+                      </button>
+                      <button
+                        onClick={() => openProfile('activity')}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2.5 transition"
+                      >
+                        <History className="w-4 h-4 text-cyan-400" />
+                        <span>Recent Activity</span>
+                      </button>
+
+                      <div className="my-1 border-t border-white/5" />
+
+                      <button
+                        onClick={() => {
+                          setShowProfileMenu(false)
+                          handleAdminSignOut()
+                        }}
+                        className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-zinc-300 hover:text-rose-300 flex items-center gap-2.5 transition"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-400" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </header>
@@ -1147,7 +1318,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     {/* Welcome Greeting */}
                     <div className="space-y-0.5">
                       <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <span>Welcome back, PlayBeat Admin!</span>
+                        <span>Welcome back, {adminName}!</span>
                         <span>👋</span>
                       </div>
                       <p className="text-[11px] text-zinc-400">
@@ -2503,6 +2674,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* VIEW 4: ORDERS & FULFILLMENT */}
             {activeNav === 'orders-log' && <OrdersLogPanel onToast={triggerToast} />}
+
+            {/* VIEW: ADMIN PROFILE SETTINGS (identity / security / preferences / activity) */}
+            {activeNav === 'profile' && (
+              <ProfileSettingsPanel
+                onToast={triggerToast}
+                adminRole={adminRole}
+                adminName={adminName}
+                adminEmail={adminEmail}
+                onProfileUpdated={(newName) => setAdminName(newName)}
+                onSignOut={onSignOut || onBackToStorefront}
+                focusSection={profileFocus}
+              />
+            )}
 
             {/* LEGACY orders route — same live panel */}
             {activeNav === 'orders' && <OrdersLogPanel onToast={triggerToast} />}
