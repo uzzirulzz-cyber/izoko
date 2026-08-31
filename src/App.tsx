@@ -327,7 +327,7 @@ export function App() {
 
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('playbeat_products_catalog_v3')
+    const saved = localStorage.getItem('playbeat_products_catalog_v4')
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -393,8 +393,56 @@ export function App() {
 
   // Persist Products Catalog
   useEffect(() => {
-    localStorage.setItem('playbeat_products_catalog_v3', JSON.stringify(products))
+    localStorage.removeItem('playbeat_products_catalog_v3')
+    localStorage.setItem('playbeat_products_catalog_v4', JSON.stringify(products))
   }, [products])
+
+  // Hydrate the catalog from MongoDB (server is source of truth when reachable).
+  // If the database is empty, auto-seed it with the bundled official-image catalog.
+  // Falls back silently to the bundled catalog when offline.
+  useEffect(() => {
+    let cancelled = false
+    const hydrateFromApi = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/products?limit=200`, {
+          credentials: 'include',
+        })
+        const data = await res.json()
+        if (cancelled) return
+
+        if (data?.success && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products)
+          return
+        }
+
+        // Empty database — auto-seed with the official bundled catalog (safe: only seeds when empty)
+        const seedRes = await fetch(`${API_BASE}/api/admin/products/seed-if-empty`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ products: INITIAL_PRODUCTS }),
+        }).catch(() => null)
+
+        if (!seedRes || !seedRes.ok || cancelled) return
+        const seedData = await seedRes.json().catch(() => null)
+        if (seedData?.success && !cancelled) {
+          const refetch = await fetch(`${API_BASE}/api/products?limit=200`, {
+            credentials: 'include',
+          }).catch(() => null)
+          const refetchData = refetch ? await refetch.json().catch(() => null) : null
+          if (!cancelled && refetchData?.success && Array.isArray(refetchData.products) && refetchData.products.length > 0) {
+            setProducts(refetchData.products)
+          }
+        }
+      } catch {
+        // backend unreachable — bundled catalog already loaded
+      }
+    }
+    hydrateFromApi()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Persist Currency
   useEffect(() => {
