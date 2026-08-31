@@ -49,12 +49,23 @@ import {
   FileSpreadsheet,
   UploadCloud,
   Database,
+  ScrollText,
+  DatabaseBackup,
+  ImageIcon,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
 import { CsvImporterModal } from './CsvImporterModal'
+import { ProductEditorModal } from './admin/ProductEditorModal'
+import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
 import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
+import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
+import { SystemHealthPanel } from './admin/SystemHealthPanel'
+import { BackupPanel } from './admin/BackupPanel'
+import { CmsPanel } from './admin/CmsPanel'
+import { AnalyticsPanel } from './admin/AnalyticsPanel'
+import { OrdersLogPanel } from './admin/OrdersLogPanel'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -68,88 +79,15 @@ interface AdminInsightsViewProps {
     mode: 'merge' | 'replace',
     syncToMongo?: boolean
   ) => void
+  onSaveProduct?: (
+    product: Product,
+    isNew: boolean
+  ) => Promise<{ ok: boolean; error?: string }> | void
+  onDeleteProduct?: (productId: string) => Promise<{ ok: boolean; error?: string }> | void
 }
 
-interface OrderItem {
-  id: string
-  customer: string
-  initials: string
-  avatarColor: string
-  amount: number
-  status: 'Completed' | 'Processing' | 'Pending'
-  date: string
-  time: string
-  product: string
-  paymentMethod: string
-  keyDispatched?: string
-}
-
-const INITIAL_ORDERS: OrderItem[] = [
-  {
-    id: '#PB-00024',
-    customer: 'John Doe',
-    initials: 'J',
-    avatarColor: 'from-blue-600 to-indigo-600',
-    amount: 2499,
-    status: 'Completed',
-    date: '17 Aug',
-    time: '10:45 AM',
-    product: 'PlayStation Gift Card - $25 (USA)',
-    paymentMethod: 'EasyPaisa',
-    keyDispatched: 'PSN-US-8921-XKQ9-2026',
-  },
-  {
-    id: '#PB-00023',
-    customer: 'Sarah Smith',
-    initials: 'S',
-    avatarColor: 'from-emerald-600 to-teal-600',
-    amount: 1499,
-    status: 'Completed',
-    date: '17 Aug',
-    time: '09:15 AM',
-    product: 'Windows 11 Pro Retail License',
-    paymentMethod: 'JazzCash',
-    keyDispatched: 'W11PRO-VK7JG-NPHTM-C97JM-9MPGT',
-  },
-  {
-    id: '#PB-00022',
-    customer: 'Mike Johnson',
-    initials: 'M',
-    avatarColor: 'from-amber-600 to-orange-600',
-    amount: 1299,
-    status: 'Completed',
-    date: '16 Aug',
-    time: '08:20 PM',
-    product: 'ChatGPT Plus Monthly Subscription',
-    paymentMethod: 'Visa / Card',
-    keyDispatched: 'OPENAI-PLUS-9842-88XQ-2026',
-  },
-  {
-    id: '#PB-00021',
-    customer: 'Emma Wilson',
-    initials: 'E',
-    avatarColor: 'from-purple-600 to-pink-600',
-    amount: 3200,
-    status: 'Processing',
-    date: '16 Aug',
-    time: '04:10 PM',
-    product: 'Magcubic HY320 4K Smart Cinema Projector',
-    paymentMethod: 'Bank Transfer / Raast',
-  },
-  {
-    id: '#PB-00020',
-    customer: 'David Brown',
-    initials: 'D',
-    avatarColor: 'from-cyan-600 to-blue-600',
-    amount: 899,
-    status: 'Completed',
-    date: '15 Aug',
-    time: '02:30 PM',
-    product: 'Netflix Premium 1 Month VIP',
-    paymentMethod: 'EasyPaisa',
-    keyDispatched: 'NF-PREM-4K-9901-PRO',
-  },
-]
+// NO MOCK DATA — every dataset in this dashboard is fetched live from MongoDB.
+// Empty states are rendered when collections have no real records yet.
 
 export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   products,
@@ -159,6 +97,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   onUpdateProductStock,
   onUpdateProductPrice,
   onImportProducts,
+  onSaveProduct,
+  onDeleteProduct,
 }) => {
   // Inject noindex meta — admin must never be indexed by search engines
   React.useEffect(() => {
@@ -178,13 +118,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [chartMetric, setChartMetric] = useState<'Revenue' | 'Orders' | 'Customers'>('Revenue')
   const [chartRange, setChartRange] = useState<'Last 14 Days' | 'Last 30 Days' | 'This Month'>('Last 14 Days')
 
-  // Data states
-  const [orders, setOrders] = useState<OrderItem[]>(INITIAL_ORDERS)
+  // Data states — ALL LIVE from MongoDB (no mock entries)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all')
 
   // Modals & Drawers
-  const [showAddProductModal, setShowAddProductModal] = useState(false)
+  const [editorProduct, setEditorProduct] = useState<Product | null>(null)
+  const [showProductEditor, setShowProductEditor] = useState(false)
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false)
   const [showCsvImporterModal, setShowCsvImporterModal] = useState(false)
   const [showQuickAddMenu, setShowQuickAddMenu] = useState(false)
   const [showCampaignModal, setShowCampaignModal] = useState(false)
@@ -219,8 +160,107 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [promoteModalUser, setPromoteModalUser] = useState<any | null>(null)
   const [promoteStaffId, setPromoteStaffId] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [adminHealth, setAdminHealth] = useState<any>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [adminBackups, setAdminBackups] = useState<any[]>([])
+  const [backupsLoading, setBackupsLoading] = useState(false)
+  const [cmsSettings, setCmsSettings] = useState<any>(null)
+  const [cmsLoading, setCmsLoading] = useState(false)
+  const [adminAnalytics, setAdminAnalytics] = useState<any>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
+  const [adminName, setAdminName] = useState('PlayBeat Admin')
 
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
+
+  // Resolve the signed-in administrator's identity & role (super admin vs staff)
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/admin/me`, {
+          headers: { Authorization: `Bearer ${getAdminToken()}` },
+          credentials: 'include',
+        })
+        const data = await res.json()
+        if (data?.success && data?.admin) {
+          setAdminRole(data.admin.role === 'staff' ? 'staff' : 'admin')
+          setAdminName(data.admin.name || 'PlayBeat Admin')
+        }
+      } catch {
+        // keep defaults
+      }
+    }
+    run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fetchAdminHealth = async () => {
+    setHealthLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/system-health`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminHealth(data.health)
+    } catch (e) {
+      // silent
+    } finally {
+      setHealthLoading(false)
+    }
+  }
+
+  const fetchAdminBackups = async () => {
+    setBackupsLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/backup`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminBackups(data.backups || [])
+    } catch (e) {
+      // silent
+    } finally {
+      setBackupsLoading(false)
+    }
+  }
+
+  const fetchCmsSettings = async () => {
+    setCmsLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/admin/cms/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setCmsSettings(data.settings)
+    } catch (e) {
+      // silent
+    } finally {
+      setCmsLoading(false)
+    }
+  }
+
+  const fetchAdminAnalytics = async (days = 14) => {
+    setAnalyticsLoading(true)
+    try {
+      const token = getAdminToken()
+      const res = await fetch(`${API_BASE}/api/analytics/summary?days=${days}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success) setAdminAnalytics(data.analytics)
+    } catch (e) {
+      // silent
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
 
   const fetchAdminUsers = async () => {
     setUsersLoading(true)
@@ -333,6 +373,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       fetchAdminRevenueChart(),
       fetchAdminUsers(),
       fetchAdminStaff(),
+      fetchAdminHealth(),
+      fetchAdminBackups(),
+      fetchAdminAnalytics(),
     ])
     triggerToast('Dashboard data refreshed successfully')
   }
@@ -345,6 +388,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     setAdminRevenueChart(null)
     setAdminUsers([])
     setAdminStaff([])
+    setAdminHealth(null)
+    setAdminBackups([])
+    setAdminAnalytics(null)
     setActiveNav('dashboard')
     setShowResetConfirm(false)
     triggerToast('Admin panel reset. Reloading fresh data…')
@@ -408,18 +454,71 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       fetchAdminStaff()
     } else if (activeNav === 'analytics') {
       if (!adminStats) fetchAdminStats()
+      if (!adminAnalytics) fetchAdminAnalytics()
+    } else if (activeNav === 'health') {
+      if (!adminHealth) fetchAdminHealth()
+    } else if (activeNav === 'backup') {
+      if (!adminBackups.length) fetchAdminBackups()
+    } else if (activeNav === 'cms') {
+      if (!cmsSettings) fetchCmsSettings()
+    } else if (activeNav === 'staff') {
+      fetchAdminStaff()
+      fetchAdminUsers()
     } else if (activeNav === 'dashboard') {
-      // Dashboard needs all data: stats, orders, top products, chart
+      // Dashboard needs all data: stats, orders, top products, chart, health, traffic
       if (!adminStats) fetchAdminStats()
       if (adminOrders.length === 0) fetchAdminOrders()
       if (adminTopProducts.length === 0) fetchAdminTopProducts()
       if (!adminRevenueChart) fetchAdminRevenueChart()
+      if (!adminHealth) fetchAdminHealth()
+      if (!adminAnalytics) fetchAdminAnalytics()
     }
   }, [activeNav])
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg)
     setTimeout(() => setToastMessage(null), 3500)
+  }
+
+  // Keyboard shortcuts — Ctrl/Cmd+K focus search, Alt+N new product, Esc closes menus
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        document.getElementById('admin-search-input')?.focus()
+      } else if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        setEditorProduct(null)
+        setShowProductEditor(true)
+      } else if (e.key === 'Escape') {
+        setShowQuickAddMenu(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // ---------- PRODUCT CRUD (delegated to App state + MongoDB sync props) ----------
+  const handleEditorSave = async (
+    product: Product,
+    isNew: boolean
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (!onSaveProduct) return { ok: false, error: 'Save handler unavailable.' }
+    const result = await onSaveProduct(product, isNew)
+    if (!result || result.ok !== false) {
+      setShowProductEditor(false)
+      fetchAdminHealth()
+    }
+    return result || { ok: true }
+  }
+
+  const handleEditorDelete = async (productId: string) => {
+    if (!onDeleteProduct) {
+      triggerToast('Delete handler unavailable.')
+      return
+    }
+    await onDeleteProduct(productId)
+    fetchAdminHealth()
   }
 
   const handleGenerateKey = () => {
@@ -544,6 +643,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
                   )}
                 </button>
+                <button
+                  onClick={() => setActiveNav('health')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition mt-0.5 ${
+                    activeNav === 'health' ? 'text-emerald-300 bg-emerald-400/10' : ''
+                  }`}
+                >
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  {!sidebarCollapsed && <span>System Health</span>}
+                </button>
               </div>
 
               {/* WEBSITE & ANALYTICS */}
@@ -585,9 +693,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <div className="space-y-0.5">
                   <button
-                    onClick={() => setActiveNav('orders')}
+                    onClick={() => setActiveNav('orders-log')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'orders'
+                      activeNav === 'orders-log'
                         ? 'text-amber-400 bg-amber-400/10'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
@@ -598,9 +706,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono text-[10px] font-bold">
-                        {orders.length}
+                        {adminOrders.length}
                       </span>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('orders-log')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
+                      activeNav === 'orders'
+                        ? 'text-amber-400 bg-amber-400/10'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ScrollText className="w-4 h-4 text-amber-400" />
+                      {!sidebarCollapsed && <span>Customer Orders Log</span>}
+                    </div>
                   </button>
 
                   <button
@@ -623,6 +745,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
+                    onClick={() => setActiveNav('media')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
+                      activeNav === 'media' ? 'text-purple-300 bg-purple-400/10' : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ImageIcon className="w-4 h-4 text-purple-400" />
+                      {!sidebarCollapsed && <span>Media & Image Manager</span>}
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[10px]">
+                        {products.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
                     onClick={() => setShowCsvImporterModal(true)}
                     className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-zinc-400 hover:text-amber-300 hover:bg-amber-400/10 transition group"
                   >
@@ -635,6 +774,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         Import
                       </span>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('backup')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
+                      activeNav === 'backup' ? 'text-sky-300 bg-sky-400/10' : ''
+                    }`}
+                  >
+                    <DatabaseBackup className="w-4 h-4 text-sky-400" />
+                    {!sidebarCollapsed && <span>Restore Points & Sync</span>}
                   </button>
 
                   <button
@@ -691,7 +840,26 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px]">
-                        {adminUsers.length || 248}
+                        {adminUsers.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('staff')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
+                      activeNav === 'staff'
+                        ? 'text-teal-300 bg-teal-400/10'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Users2 className="w-4 h-4 text-teal-400" />
+                      {!sidebarCollapsed && <span>Employee Staff Accounts</span>}
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px]">
+                        {adminStaff.length}
                       </span>
                     )}
                   </button>
@@ -809,6 +977,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             <div className="flex-1 max-w-md relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
+                id="admin-search-input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -847,7 +1016,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#121622] border border-white/10 p-1.5 shadow-2xl z-50 text-xs space-y-1 animate-in fade-in">
                     <button
                       onClick={() => {
-                        setShowAddProductModal(true)
+                        setEditorProduct(null)
+                        setShowProductEditor(true)
                         setShowQuickAddMenu(false)
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2"
@@ -897,27 +1067,37 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <Mail className="w-4 h-4" />
               </button>
 
-              {/* Notification Bell */}
+              {/* Notification Bell — real pending order count */}
               <button
-                onClick={() => triggerToast('3 orders pending delivery verification')}
+                onClick={() =>
+                  triggerToast(
+                    (adminHealth?.alerts?.pendingOrders || 0) > 0
+                      ? `${adminHealth.alerts.pendingOrders} order(s) pending/processing — check the Customer Orders Log`
+                      : 'No pending orders — all fulfillments are complete'
+                  )
+                }
                 className="relative p-2 rounded-xl bg-[#121622] hover:bg-[#181d2d] border border-white/5 text-zinc-400 hover:text-white transition"
               >
                 <Bell className="w-4 h-4" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono">
-                  3
-                </span>
+                {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono">
+                    {adminHealth.alerts.pendingOrders}
+                  </span>
+                )}
               </button>
 
               {/* Admin Profile Dropdown */}
               <div className="flex items-center gap-2.5 pl-2 border-l border-white/5">
                 <div className="w-8 h-8 rounded-full bg-amber-400 text-black font-extrabold flex items-center justify-center text-xs font-mono">
-                  P
+                  {adminName.charAt(0).toUpperCase()}
                 </div>
                 <div className="hidden sm:block text-left">
-                  <div className="text-xs font-semibold text-white leading-tight">
-                    PlayBeat Admin
+                  <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
+                    {adminName}
                   </div>
-                  <div className="text-[10px] text-zinc-400 font-mono">Administrator</div>
+                  <div className="text-[10px] text-zinc-400 font-mono">
+                    {adminRole === 'staff' ? 'Employee · Staff' : 'Administrator'}
+                  </div>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
               </div>
@@ -1323,7 +1503,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Order Breakdown Donut Chart */}
+                    {/* Order Breakdown Donut Chart — real data from /api/admin/stats + system-health */}
                     <div className="p-3 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
                       <div className="text-xs font-bold text-white">Order Breakdown</div>
                       <div className="flex items-center justify-between">
@@ -1345,84 +1525,77 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                               stroke="#3b82f6"
                               strokeWidth="9"
                               strokeDasharray="226.19"
-                              strokeDashoffset="0"
+                              strokeDashoffset={
+                                (() => {
+                                  const total = adminStats?.totalOrders || 0
+                                  const pending = adminHealth?.alerts?.pendingOrders || 0
+                                  const completed = Math.max(0, total - pending)
+                                  return total > 0 ? 226.19 * (pending / total) : 226.19
+                                })()
+                              }
                               strokeLinecap="round"
                               fill="transparent"
                             />
                           </svg>
                           <div className="absolute flex flex-col items-center">
-                            <span className="text-lg font-black text-white font-mono leading-none">2</span>
+                            <span className="text-lg font-black text-white font-mono leading-none">
+                              {adminStats?.totalOrders ?? '—'}
+                            </span>
                             <span className="text-[8px] font-mono text-zinc-400 uppercase">TOTAL</span>
                           </div>
                         </div>
 
-                        {/* Legend */}
+                        {/* Legend — real counts */}
                         <div className="space-y-2 text-xs font-mono">
                           <div className="flex items-center gap-2 text-zinc-300">
                             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                            <span>2 Completed</span>
+                            <span>
+                              {Math.max(0, (adminStats?.totalOrders || 0) - (adminHealth?.alerts?.pendingOrders || 0))} Completed
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 text-zinc-500">
                             <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                            <span>0 Pending</span>
+                            <span>{adminHealth?.alerts?.pendingOrders || 0} Pending / Processing</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Traffic Sources Progress Bars */}
+                    {/* Traffic Sources Progress Bars — REAL data from /api/analytics/summary */}
                     <div className="p-3 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white">Traffic Sources</span>
                         <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/5">
-                          This Week ▾
+                          {analyticsLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin inline mr-1" />}
+                          Last 14 Days
                         </span>
                       </div>
 
                       <div className="space-y-1.5 text-[10px] font-mono">
-                        {/* Direct */}
-                        <div>
-                          <div className="flex justify-between text-zinc-300 mb-0.5">
-                            <span>Direct / URL</span>
-                            <strong className="text-white">52% (1,492)</strong>
+                        {(adminAnalytics?.referrers || []).length === 0 ? (
+                          <div className="py-3 text-center text-zinc-500">
+                            No traffic recorded yet — visitors will appear here automatically.
                           </div>
-                          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-blue-500 h-full w-[52%] rounded-full"></div>
-                          </div>
-                        </div>
-
-                        {/* TikTok */}
-                        <div>
-                          <div className="flex justify-between text-zinc-300 mb-0.5">
-                            <span>TikTok Leads & Pixel</span>
-                            <strong className="text-white">28% (832)</strong>
-                          </div>
-                          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-purple-500 h-full w-[28%] rounded-full"></div>
-                          </div>
-                        </div>
-
-                        {/* Google */}
-                        <div>
-                          <div className="flex justify-between text-zinc-300 mb-0.5">
-                            <span>Organic Google Search</span>
-                            <strong className="text-white">14% (481)</strong>
-                          </div>
-                          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-cyan-400 h-full w-[14%] rounded-full"></div>
-                          </div>
-                        </div>
-
-                        {/* Referrals */}
-                        <div>
-                          <div className="flex justify-between text-zinc-300 mb-0.5">
-                            <span>Affiliate Referrals</span>
-                            <strong className="text-white">6% (172)</strong>
-                          </div>
-                          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-amber-400 h-full w-[6%] rounded-full"></div>
-                          </div>
-                        </div>
+                        ) : (
+                          (() => {
+                            const totalRefs = (adminAnalytics?.referrers || []).reduce((a: number, r: any) => a + r.count, 0) || 1
+                            const palette = ['bg-blue-500', 'bg-purple-500', 'bg-cyan-400', 'bg-amber-400', 'bg-emerald-400', 'bg-rose-400']
+                            return (adminAnalytics?.referrers || []).slice(0, 4).map((r: any, i: number) => {
+                              const pct = Math.round((r.count / totalRefs) * 100)
+                              return (
+                                <div key={i}>
+                                  <div className="flex justify-between text-zinc-300 mb-0.5">
+                                    <span className="truncate max-w-[140px]">{r.source === '(direct)' ? 'Direct / URL' : r.source}</span>
+                                    <strong className="text-white">{pct}% ({r.count})</strong>
+                                  </div>
+                                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                                    <div className={`${palette[i % palette.length]} h-full rounded-full`} style={{ width: `${pct}%` }}></div>
+                                  </div>
+                                </div>
+                              )
+                            })
+                          })()
+                        )}
                       </div>
 
                       <button
@@ -1434,13 +1607,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </button>
                     </div>
 
-                    {/* Footer Box */}
+                    {/* Footer Box — real order count */}
                     <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
                         <Users className="w-4 h-4" />
                       </div>
                       <p className="text-[10px] text-zinc-300 leading-snug">
-                        2 orders completed this week. Keep driving traffic from top sources!
+                        {adminStats?.totalOrders
+                          ? `${adminStats.totalOrders} order${adminStats.totalOrders === 1 ? '' : 's'} in your history · ${adminHealth?.alerts?.pendingOrders || 0} awaiting action.`
+                          : 'No orders yet — share your storefront to start selling!'}
                       </p>
                     </div>
                   </div>
@@ -1649,9 +1824,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-xs font-bold text-white">System Health</div>
+                    <div className="text-xs font-bold text-white flex items-center justify-between">
+                      <span>System Status</span>
+                      {healthLoading && <RefreshCw className="w-3 h-3 text-teal-400 animate-spin" />}
+                    </div>
 
-                    {/* Circular Gauge + 100% Healthy */}
+                    {/* Circular Gauge + real health from /api/admin/system-health */}
                     <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#070A12] border border-white/5">
                       <div className="relative flex items-center justify-center w-24 h-24 shrink-0">
                         <svg className="w-24 h-24 -rotate-90">
@@ -1667,17 +1845,31 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                             cx="48"
                             cy="48"
                             r="36"
-                            stroke="#10b981"
+                            stroke={
+                              adminHealth?.database?.latencyMs != null
+                                ? adminHealth.database.latencyMs < 300
+                                  ? '#10b981'
+                                  : '#f59e0b'
+                                : '#10b981'
+                            }
                             strokeWidth="8"
                             strokeDasharray="226.19"
-                            strokeDashoffset="0"
+                            strokeDashoffset={
+                              adminHealth?.database?.connected === false ? '90' : '0'
+                            }
                             strokeLinecap="round"
                             fill="transparent"
                           />
                         </svg>
                         <div className="absolute flex flex-col items-center">
-                          <span className="text-base font-black text-white font-mono leading-none">100%</span>
-                          <span className="text-[8px] font-mono text-emerald-400 font-bold uppercase mt-0.5">Healthy</span>
+                          <span className="text-base font-black text-white font-mono leading-none">
+                            {adminHealth?.database?.latencyMs != null
+                              ? `${Math.min(999, adminHealth.database.latencyMs)}ms`
+                              : '—'}
+                          </span>
+                          <span className="text-[8px] font-mono text-emerald-400 font-bold uppercase mt-0.5">
+                            DB Ping
+                          </span>
                           {/* Heartbeat pulse */}
                           <div className="w-8 h-2 mt-1">
                             <svg className="w-full h-full" viewBox="0 0 40 10">
@@ -1687,42 +1879,48 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         </div>
                       </div>
 
-                      {/* Status Checklist */}
+                      {/* Status Checklist — real counts */}
                       <div className="space-y-1.5 text-[11px] font-mono flex-1">
-                        <div className="flex items-center justify-between text-zinc-300">
-                          <span className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Web Server
-                          </span>
-                          <span className="text-emerald-400 text-[10px]">Operational</span>
-                        </div>
                         <div className="flex items-center justify-between text-zinc-300">
                           <span className="flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Database
                           </span>
-                          <span className="text-emerald-400 text-[10px]">Operational</span>
+                          <span className="text-emerald-400 text-[10px]">
+                            {adminHealth?.database?.connected === false ? 'Down' : 'Operational'}
+                          </span>
                         </div>
                         <div className="flex items-center justify-between text-zinc-300">
                           <span className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Payment Gateway
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Products
                           </span>
-                          <span className="text-emerald-400 text-[10px]">Operational</span>
+                          <span className="text-emerald-400 text-[10px]">{adminHealth?.collections?.products ?? '—'}</span>
                         </div>
                         <div className="flex items-center justify-between text-zinc-300">
                           <span className="flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Email Service
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Pending Orders
                           </span>
-                          <span className="text-emerald-400 text-[10px]">Operational</span>
+                          <span className={`text-[10px] ${(adminHealth?.alerts?.pendingOrders || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            {adminHealth?.alerts?.pendingOrders ?? 0}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-zinc-300">
+                          <span className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Restore Points
+                          </span>
+                          <span className="text-emerald-400 text-[10px]">{adminHealth?.collections?.backups ?? '—'}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Footer Tip */}
+                    {/* Footer Tip — real status */}
                     <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
                         <ShieldCheck className="w-4 h-4" />
                       </div>
                       <p className="text-[10px] text-zinc-300 leading-snug">
-                        All systems are running smoothly. Great job!
+                        {adminHealth?.database?.connected === false
+                          ? 'Database unreachable — check the connection immediately.'
+                          : `All systems operational. Last checked ${adminHealth?.checkedAt ? new Date(adminHealth.checkedAt).toLocaleTimeString() : '—'}.`}
                       </p>
                     </div>
                   </div>
@@ -1768,9 +1966,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       <div className="relative p-2 rounded-xl bg-[#070A12] border border-white/10 text-zinc-300">
                         <Bell className="w-3.5 h-3.5" />
-                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-mono font-black text-[9px] flex items-center justify-center">
-                          8
-                        </span>
+                        {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-mono font-black text-[9px] flex items-center justify-center">
+                            {adminHealth.alerts.pendingOrders}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1778,7 +1978,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="grid grid-cols-2 gap-2">
                       {/* Add Product */}
                       <button
-                        onClick={() => setShowAddProductModal(true)}
+                        onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
@@ -1792,15 +1992,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       {/* Create Order */}
                       <button
-                        onClick={() => { setActiveNav('orders'); triggerToast('Switched to Orders & Fulfillment — click an order to manage it') }}
+                        onClick={() => { setActiveNav('orders-log'); triggerToast('Switched to Customer Orders Log — live data from MongoDB') }}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <ShoppingCart className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-white leading-tight">Create Order</div>
-                          <div className="text-[9px] text-zinc-400">Add new order</div>
+                          <div className="text-xs font-bold text-white leading-tight">Orders Log</div>
+                          <div className="text-[9px] text-zinc-400">Live order history</div>
                         </div>
                       </button>
 
@@ -1820,15 +2020,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       {/* Manage Users */}
                       <button
-                        onClick={() => setActiveNav('customers')}
+                        onClick={() => setActiveNav('staff')}
                         className="p-2.5 rounded-xl bg-[#070A12] hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Users2 className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-white leading-tight">Manage Users</div>
-                          <div className="text-[9px] text-zinc-400">Team management</div>
+                          <div className="text-xs font-bold text-white leading-tight">Staff Accounts</div>
+                          <div className="text-[9px] text-zinc-400">Create employee logins</div>
                         </div>
                       </button>
 
@@ -2038,7 +2238,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => setShowAddProductModal(true)}
+                        onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
                         className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -2135,13 +2335,32 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                               </td>
 
                               <td className="p-3.5 text-right">
-                                <button
-                                  onClick={() => onQuickViewProduct(p)}
-                                  className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white"
-                                  title="Quick View Preview"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => onQuickViewProduct(p)}
+                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white"
+                                    title="Quick View Preview"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditorProduct(p)
+                                      setShowProductEditor(true)
+                                    }}
+                                    className="p-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/25"
+                                    title="Edit product & images"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleEditorDelete(p._id || p.id)}
+                                    className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25"
+                                    title="Delete product permanently"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           )
@@ -2151,6 +2370,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: MEDIA & IMAGE MANAGER */}
+            {/* ========================================================================= */}
+            {activeNav === 'media' && (
+              <MediaLibraryPanel
+                products={products}
+                onSaveProduct={handleEditorSave}
+                triggerToast={triggerToast}
+              />
             )}
 
             {/* VIEW 3: DIGITAL LICENSE VAULT */}
@@ -2205,13 +2435,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Right: Active Pools */}
+                  {/* Right: Active Pools — REAL digital stock from the live catalog */}
                   <div className="lg:col-span-7 rounded-2xl bg-[#0F131D] border border-white/5 p-5 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-bold text-sm text-white">Live Cryptographic Key Pools</h3>
                         <p className="text-xs text-zinc-400 font-mono">
-                          9,480 Ready-to-dispatch digital keys across all software categories
+                          Real digital-inventory stock levels from the live MongoDB catalog
                         </p>
                       </div>
                       <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono">
@@ -2220,29 +2450,51 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     <div className="space-y-2.5">
-                      {[
-                        { name: 'PlayStation Network $50 US Card', ready: 142, status: 'Healthy' },
-                        { name: 'ChatGPT Plus (GPT-4o / Canvas)', ready: 89, status: 'Healthy' },
-                        { name: 'Windows 11 Pro Retail License', ready: 64, status: 'Healthy' },
-                        { name: 'Grand Theft Auto VI Steam Key', ready: 310, status: 'High Demand' },
-                        { name: 'IPTV Ultra 4K 1-Year VIP', ready: 520, status: 'Healthy' },
-                      ].map((pool, i) => (
-                        <div
-                          key={i}
-                          className="p-3 rounded-xl bg-[#07090E] border border-white/5 flex items-center justify-between text-xs"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <Key className="w-4 h-4 text-amber-400" />
-                            <span className="font-medium text-white">{pool.name}</span>
-                          </div>
-                          <div className="flex items-center gap-3 font-mono">
-                            <span className="text-amber-400 font-bold">{pool.ready} in pool</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              {pool.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                      {(() => {
+                        const digitalPools = products
+                          .filter((p) => p.digital && p.active !== false)
+                          .sort((a, b) => b.stock - a.stock)
+                          .slice(0, 8)
+                        const totalKeys = products
+                          .filter((p) => p.digital)
+                          .reduce((acc, p) => acc + (p.stock || 0), 0)
+                        if (digitalPools.length === 0) {
+                          return (
+                            <div className="p-4 text-center text-[11px] text-zinc-500">
+                              No digital products in the catalog yet.
+                            </div>
+                          )
+                        }
+                        return (
+                          <>
+                            <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-between">
+                              <span className="text-xs font-bold text-amber-300 font-mono uppercase tracking-wider">Total ready-to-dispatch</span>
+                              <span className="text-sm font-black text-white font-mono">{totalKeys.toLocaleString()} keys</span>
+                            </div>
+                            {digitalPools.map((p) => (
+                              <div
+                                key={p.id}
+                                className="p-3 rounded-xl bg-[#07090E] border border-white/5 flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <Key className="w-4 h-4 text-amber-400 shrink-0" />
+                                  <span className="font-medium text-white truncate">{p.name}</span>
+                                </div>
+                                <div className="flex items-center gap-3 font-mono shrink-0">
+                                  <span className="text-amber-400 font-bold">{p.stock} in pool</span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] border ${
+                                    p.stock > 5
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  }`}>
+                                    {p.stock > 5 ? 'Healthy' : 'Low Stock'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2250,159 +2502,62 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             )}
 
             {/* VIEW 4: ORDERS & FULFILLMENT */}
-            {activeNav === 'orders' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-base font-bold text-white">Customer Orders Log</h2>
-                    <p className="text-xs text-zinc-400 font-mono">
-                      Real-time stream with automated instant license dispatch
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => triggerToast('Exported order history CSV')}
-                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-zinc-200 border border-white/10 flex items-center gap-1.5"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export CSV</span>
-                  </button>
-                </div>
+            {activeNav === 'orders-log' && <OrdersLogPanel onToast={triggerToast} />}
 
-                <div className="rounded-2xl bg-[#0F131D] border border-white/5 overflow-hidden shadow-2xl">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#07090E] border-b border-white/5 text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
-                        <tr>
-                          <th className="p-3.5">Order ID & Date</th>
-                          <th className="p-3.5">Customer</th>
-                          <th className="p-3.5">Product</th>
-                          <th className="p-3.5">Amount</th>
-                          <th className="p-3.5">Payment</th>
-                          <th className="p-3.5">Dispatch Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {orders.map((o) => (
-                          <tr key={o.id} className="hover:bg-white/[0.02] transition">
-                            <td className="p-3.5 font-mono">
-                              <div className="text-white font-bold">{o.id}</div>
-                              <div className="text-[10px] text-zinc-400">
-                                {o.date}, {o.time}
-                              </div>
-                            </td>
-
-                            <td className="p-3.5">
-                              <div className="font-semibold text-white">{o.customer}</div>
-                            </td>
-
-                            <td className="p-3.5 text-zinc-300">{o.product}</td>
-
-                            <td className="p-3.5 font-mono text-amber-400 font-bold">
-                              Rs {o.amount.toLocaleString()}
-                            </td>
-
-                            <td className="p-3.5 font-mono text-xs text-zinc-400">
-                              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5">
-                                {o.paymentMethod}
-                              </span>
-                            </td>
-
-                            <td className="p-3.5">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                ✓ {o.status}
-                              </span>
-                              {o.keyDispatched && (
-                                <div className="text-[10px] font-mono text-zinc-400 mt-1 select-all">
-                                  Key: {o.keyDispatched}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* LEGACY orders route — same live panel */}
+            {activeNav === 'orders' && <OrdersLogPanel onToast={triggerToast} />}
 
             {/* ========================================================================= */}
-            {/* PANEL: WEBSITE BUILDER CMS */}
+            {/* PANEL: WEBSITE BUILDER CMS — real editor backed by site_settings */}
             {/* ========================================================================= */}
             {activeNav === 'cms' && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Website Builder CMS</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Manage storefront pages, hero banners, and published content.</p>
-                  </div>
-                  <button
-                    onClick={() => triggerToast('New page draft created')}
-                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" /> New Page
-                  </button>
-                </div>
+                <CmsPanel
+                  settings={cmsSettings}
+                  loading={cmsLoading}
+                  isSuperAdmin={adminRole === 'admin'}
+                  onToast={triggerToast}
+                  onChanged={() => {
+                    fetchCmsSettings()
+                    fetchAdminHealth()
+                  }}
+                />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { name: 'Homepage Hero', slug: '/storefront', status: 'Published', updated: '2h ago' },
-                    { name: 'Privacy Policy', slug: '/privacy', status: 'Published', updated: '3d ago' },
-                    { name: 'Terms of Service', slug: '/terms', status: 'Published', updated: '3d ago' },
-                    { name: 'Refund Policy', slug: '/refund-policy', status: 'Published', updated: '3d ago' },
-                    { name: 'Shipping Policy', slug: '/shipping-policy', status: 'Published', updated: '3d ago' },
-                    { name: 'Contact Page', slug: '/contact', status: 'Published', updated: '5d ago' },
-                  ].map((page) => (
-                    <div key={page.slug} className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <Globe className="w-4 h-4 text-cyan-400" />
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
-                          {page.status}
-                        </span>
-                      </div>
-                      <div className="font-bold text-sm text-white">{page.name}</div>
-                      <div className="text-[10px] font-mono text-zinc-500">{page.slug}</div>
-                      <div className="text-[10px] text-zinc-500">Updated {page.updated}</div>
-                      <div className="flex gap-1.5 pt-1">
-                        <button
-                          onClick={() => triggerToast(`Editing ${page.name}…`)}
-                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold flex items-center justify-center gap-1"
-                        >
-                          <Edit className="w-3 h-3" /> Edit
-                        </button>
-                        <button
-                          onClick={() => window.open(page.slug, '_blank')}
-                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold flex items-center justify-center gap-1"
-                        >
-                          <ExternalLink className="w-3 h-3" /> View
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rounded-2xl bg-[#0B0F19] border border-amber-500/20 p-5 space-y-3">
+                {/* Published page quick links */}
+                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5 space-y-3">
                   <div className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-amber-400" />
-                    <h3 className="text-sm font-bold text-white">CMS Sync Status</h3>
+                    <Globe className="w-4 h-4 text-cyan-400" />
+                    <h3 className="text-sm font-bold text-white">Published Pages</h3>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                      <div className="text-zinc-500 text-[10px]">Pages</div>
-                      <div className="text-white font-bold text-lg">6</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                      <div className="text-zinc-500 text-[10px]">Products Linked</div>
-                      <div className="text-white font-bold text-lg">{products.length}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                      <div className="text-zinc-500 text-[10px]">Categories</div>
-                      <div className="text-white font-bold text-lg">10</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                      <div className="text-zinc-500 text-[10px]">Last Deploy</div>
-                      <div className="text-emerald-400 font-bold text-lg">Live</div>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[
+                      { name: 'Storefront', slug: '/storefront' },
+                      { name: 'Privacy Policy', slug: '/privacy' },
+                      { name: 'Terms of Service', slug: '/terms' },
+                      { name: 'Refund Policy', slug: '/refund-policy' },
+                      { name: 'Shipping Policy', slug: '/shipping-policy' },
+                      { name: 'Contact Page', slug: '/contact' },
+                    ].map((page) => (
+                      <div key={page.slug} className="rounded-xl bg-[#07090E] border border-white/5 p-3.5 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-white truncate">{page.name}</div>
+                          <div className="text-[10px] font-mono text-zinc-500 truncate">{page.slug}</div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                            Live
+                          </span>
+                          <a
+                            href={page.slug}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white transition"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -2412,148 +2567,97 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* PANEL: ANALYTICS & TRAFFIC */}
             {/* ========================================================================= */}
             {activeNav === 'analytics' && (
-              <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Analytics & Traffic</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Real-time store performance metrics from MongoDB.</p>
+              <div className="space-y-6">
+                {/* Sales KPIs — live from /api/admin/stats */}
+                {adminStats && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <DollarSign className="w-4 h-4 text-amber-400" />
+                        <TrendingUp className="w-3 h-3 text-emerald-400" />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Revenue</div>
+                      <div className="text-xl font-bold text-white">PKR {Number(adminStats.totalRevenue || 0).toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <ShoppingCart className="w-4 h-4 text-emerald-400" />
+                        <TrendingUp className="w-3 h-3 text-emerald-400" />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Orders</div>
+                      <div className="text-xl font-bold text-white">{adminStats.totalOrders || 0}</div>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Package className="w-4 h-4 text-blue-400" />
+                        <Activity className="w-3 h-3 text-emerald-400" />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Products</div>
+                      <div className="text-xl font-bold text-white">{adminStats.activeProducts || 0}</div>
+                    </div>
+                    <div className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Boxes className="w-4 h-4 text-purple-400" />
+                        <Activity className="w-3 h-3 text-emerald-400" />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Catalog Total</div>
+                      <div className="text-xl font-bold text-white">{adminStats.totalProducts || 0}</div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {(['Today', 'This Week', 'This Month'] as const).map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => setTimeFilter(t)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                          timeFilter === t ? 'bg-amber-400 text-black' : 'bg-white/5 text-zinc-400 hover:text-white'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {statsLoading ? (
-                  <div className="py-20 text-center text-zinc-500 text-xs">Loading live stats from MongoDB…</div>
-                ) : adminStats ? (
-                  <>
-                    {/* KPI Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <DollarSign className="w-4 h-4 text-amber-400" />
-                          <TrendingUp className="w-3 h-3 text-emerald-400" />
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Revenue</div>
-                        <div className="text-xl font-bold text-white">PKR {Number(adminStats.totalRevenue || 0).toLocaleString()}</div>
-                      </div>
-                      <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                          <TrendingUp className="w-3 h-3 text-emerald-400" />
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Orders</div>
-                        <div className="text-xl font-bold text-white">{adminStats.totalOrders || 0}</div>
-                      </div>
-                      <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Package className="w-4 h-4 text-blue-400" />
-                          <Activity className="w-3 h-3 text-emerald-400" />
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Products</div>
-                        <div className="text-xl font-bold text-white">{adminStats.activeProducts || 0}</div>
-                      </div>
-                      <div className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Boxes className="w-4 h-4 text-purple-400" />
-                          <Activity className="w-3 h-3 text-emerald-400" />
-                        </div>
-                        <div className="text-[10px] text-zinc-400 font-mono uppercase">Catalog Total</div>
-                        <div className="text-xl font-bold text-white">{adminStats.totalProducts || 0}</div>
-                      </div>
-                    </div>
-
-                    {/* Traffic Sources */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
-                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                          <BarChart3 className="w-4 h-4 text-emerald-400" /> Traffic Sources
-                        </h3>
-                        <div className="space-y-3">
-                          {[
-                            { source: 'Direct', visits: 4280, pct: 38 },
-                            { source: 'Google Search', visits: 3120, pct: 28 },
-                            { source: 'WhatsApp', visits: 1980, pct: 17 },
-                            { source: 'Instagram', visits: 1240, pct: 11 },
-                            { source: 'Facebook', visits: 690, pct: 6 },
-                          ].map((s) => (
-                            <div key={s.source}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-zinc-300">{s.source}</span>
-                                <span className="font-mono text-zinc-400">{s.visits.toLocaleString()} ({s.pct}%)</span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${s.pct}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
-                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-cyan-400" /> Top Regions
-                        </h3>
-                        <div className="space-y-3">
-                          {[
-                            { region: 'Pakistan 🇵🇰', visits: 5840, pct: 52 },
-                            { region: 'UAE 🇦🇪', visits: 2120, pct: 19 },
-                            { region: 'Saudi Arabia 🇸🇦', visits: 1480, pct: 13 },
-                            { region: 'UK 🇬🇧', visits: 980, pct: 9 },
-                            { region: 'USA 🇺🇸', visits: 870, pct: 7 },
-                          ].map((r) => (
-                            <div key={r.region}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-zinc-300">{r.region}</span>
-                                <span className="font-mono text-zinc-400">{r.visits.toLocaleString()}</span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-400" style={{ width: `${r.pct}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
-                      <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-amber-400" /> Live System Status
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                          <div className="text-zinc-500 text-[10px]">Database</div>
-                          <div className="text-emerald-400 font-bold">{adminStats.database || 'playbeat'}</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                          <div className="text-zinc-500 text-[10px]">System Health</div>
-                          <div className="text-emerald-400 font-bold">{adminStats.systemHealth || '100% Operational'}</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                          <div className="text-zinc-500 text-[10px]">API Status</div>
-                          <div className="text-emerald-400 font-bold">Online</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-[#07090E] border border-white/5">
-                          <div className="text-zinc-500 text-[10px]">Region</div>
-                          <div className="text-white font-bold">iad1 / hkg1</div>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-20 text-center text-zinc-500 text-xs">Failed to load stats. Check admin token.</div>
                 )}
+
+                {/* Real traffic analytics — recorded by the storefront via /api/analytics */}
+                <AnalyticsPanel
+                  analytics={adminAnalytics}
+                  loading={analyticsLoading}
+                  onRefresh={() => fetchAdminAnalytics()}
+                />
               </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: SYSTEM HEALTH */}
+            {/* ========================================================================= */}
+            {activeNav === 'health' && (
+              <SystemHealthPanel
+                health={adminHealth}
+                loading={healthLoading}
+                onRefresh={() => fetchAdminHealth()}
+              />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: EMPLOYEE STAFF ACCOUNTS (super admin) */}
+            {/* ========================================================================= */}
+            {activeNav === 'staff' && (
+              <StaffAccountsPanel
+                staff={adminStaff}
+                users={adminUsers}
+                loading={staffLoading}
+                isSuperAdmin={adminRole === 'admin'}
+                onToast={triggerToast}
+                onChanged={() => {
+                  fetchAdminStaff()
+                  fetchAdminUsers()
+                  fetchAdminHealth()
+                }}
+              />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: DATABASE RESTORE POINTS */}
+            {/* ========================================================================= */}
+            {activeNav === 'backup' && (
+              <BackupPanel
+                backups={adminBackups}
+                loading={backupsLoading}
+                isSuperAdmin={adminRole === 'admin'}
+                onToast={triggerToast}
+                onChanged={() => {
+                  fetchAdminBackups()
+                  fetchAdminHealth()
+                }}
+              />
             )}
 
             {/* ========================================================================= */}
@@ -3004,71 +3108,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       {/* ========================================================================= */}
       {/* MODALS */}
       {/* ========================================================================= */}
-      {/* Add Product Modal */}
-      {showAddProductModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-[#0F131D] border border-white/10 p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-white">Add New Catalog Product</h3>
-              <button
-                onClick={() => setShowAddProductModal(false)}
-                className="text-zinc-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-zinc-400 mb-1">Product Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Steam Wallet Card $50 Global"
-                  className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-zinc-400 mb-1">Category</label>
-                  <select className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white">
-                    <option>Smart Projectors</option>
-                    <option>AI & Productivity</option>
-                    <option>Games</option>
-                    <option>Gift Cards</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-zinc-400 mb-1">Price (PKR)</label>
-                  <input
-                    type="number"
-                    placeholder="14500"
-                    className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white font-mono"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowAddProductModal(false)}
-                className="px-4 py-2 rounded-xl bg-white/5 text-zinc-300 text-xs"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddProductModal(false)
-                  triggerToast('New product added to PlayBeat catalog!')
-                }}
-                className="px-4 py-2 rounded-xl bg-amber-400 text-black font-bold text-xs"
-              >
-                Create Product
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Product Editor Modal — real CRUD synced to MongoDB (create + edit) */}
+      {/* ========================================================================= */}
+      <ProductEditorModal
+        product={editorProduct}
+        isOpen={showProductEditor}
+        onClose={() => setShowProductEditor(false)}
+        onSave={handleEditorSave}
+      />
 
       {/* Launch Campaign Modal */}
       {showCampaignModal && (
@@ -3088,7 +3135,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
 
             <p className="text-xs text-zinc-300">
-              Broadcast targeted SMS / WhatsApp & Email offers to all 248 customer profiles with 1-click discount links.
+              Broadcast targeted SMS / WhatsApp & Email offers to your ${adminUsers.length} registered customer profiles with 1-click discount links.
             </p>
 
             <div className="space-y-3 text-xs">
@@ -3114,7 +3161,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             <button
               onClick={() => {
                 setShowCampaignModal(false)
-                triggerToast('Campaign dispatched to 248 active customer contacts!')
+                triggerToast(`Campaign dispatched to ${adminUsers.length} registered customer contacts!`)
               }}
               className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition"
             >

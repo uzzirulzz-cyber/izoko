@@ -12,13 +12,43 @@ import {
   Instagram,
   Facebook,
   Headphones,
+  MapPin,
+  ExternalLink,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
 
 type InfoType = 'privacy' | 'terms' | 'refund' | 'track' | 'warranty' | 'contact'
 
-export const Footer: React.FC = () => {
+export interface FooterCms {
+  contact: {
+    email?: string
+    supportEmail?: string
+    whatsapp?: string
+    phone?: string
+    address?: string
+    hours?: string
+  }
+  social: {
+    instagram?: string
+    facebook?: string
+    tiktok?: string
+    telegram?: string
+  }
+  footer?: {
+    uptimeNote?: string
+  }
+}
+
+export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const [infoType, setInfoType] = useState<InfoType | null>(null)
+
+  const email = cms?.contact?.email || 'support@playbeat.digital'
+  const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
+  const whatsapp = cms?.contact?.whatsapp || '923000000000'
+  const address = cms?.contact?.address || 'PlayBeat Digital Pvt Ltd, Gulberg III, Lahore, Punjab, Pakistan'
+  const social = cms?.social || {}
+  const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
 
   return (
     <>
@@ -39,17 +69,39 @@ export const Footer: React.FC = () => {
               </p>
               <div className="flex items-center gap-2 text-yellow-400 text-[11px] font-mono font-semibold">
                 <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
-                Fulfillment Systems Active (99.99% Uptime)
+                {uptimeNote}
               </div>
 
+              {/* Office Address — dynamically managed via Website Builder CMS */}
+              <a
+                href={mapLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 transition group max-w-sm"
+                title="Open office address in Google Maps"
+              >
+                <MapPin className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0 group-hover:scale-110 transition" />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+                    Head Office
+                  </div>
+                  <div className="text-[11px] text-slate-300 leading-relaxed group-hover:text-yellow-200 transition">
+                    {address}
+                  </div>
+                  <div className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-yellow-300/90">
+                    View on Google Maps <ExternalLink className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+              </a>
+
               {/* Quick Contact Buttons */}
-              <div className="pt-3">
+              <div className="pt-1">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2 font-bold">
                   Quick Contact
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <a
-                    href="mailto:support@playbeat.digital"
+                    href={`mailto:${email}`}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 text-[10px] font-semibold text-slate-300 transition"
                     title="Email Support"
                   >
@@ -57,7 +109,7 @@ export const Footer: React.FC = () => {
                     Email
                   </a>
                   <a
-                    href="https://wa.me/923000000000"
+                    href={`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition"
@@ -66,44 +118,51 @@ export const Footer: React.FC = () => {
                     <Phone className="w-3 h-3 text-emerald-400" />
                     WhatsApp
                   </a>
+                  {social?.instagram && (
+                    <a
+                      href={social.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-pink-400/40 hover:text-pink-300 text-[10px] font-semibold text-slate-300 transition"
+                      title="Instagram"
+                    >
+                      <Instagram className="w-3 h-3 text-pink-400" />
+                      Instagram
+                    </a>
+                  )}
+                  {social?.facebook && (
+                    <a
+                      href={social.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-blue-400/40 hover:text-blue-300 text-[10px] font-semibold text-slate-300 transition"
+                      title="Facebook"
+                    >
+                      <Facebook className="w-3 h-3 text-blue-400" />
+                      Facebook
+                    </a>
+                  )}
+                  {social?.telegram && (
+                    <a
+                      href={social.telegram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-sky-400/40 hover:text-sky-300 text-[10px] font-semibold text-slate-300 transition"
+                      title="Telegram"
+                    >
+                      <Send className="w-3 h-3 text-sky-400" />
+                      Telegram
+                    </a>
+                  )}
+                  {/* Dynamic Contact Button — navigates to full contact page */}
                   <a
-                    href="https://instagram.com/playbeat.digital"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-pink-400/40 hover:text-pink-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="Instagram"
+                    href="/contact"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold-gradient text-slate-950 text-[10px] font-bold transition shadow-sm"
+                    title="All contact channels & office address"
                   >
-                    <Instagram className="w-3 h-3 text-pink-400" />
-                    Instagram
+                    <Headphones className="w-3 h-3" />
+                    Contact Us
                   </a>
-                  <a
-                    href="https://facebook.com/playbeat.digital"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-blue-400/40 hover:text-blue-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="Facebook"
-                  >
-                    <Facebook className="w-3 h-3 text-blue-400" />
-                    Facebook
-                  </a>
-                  <a
-                    href="https://t.me/playbeatdigital"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-sky-400/40 hover:text-sky-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="Telegram"
-                  >
-                    <Send className="w-3 h-3 text-sky-400" />
-                    Telegram
-                  </a>
-                  <button
-                    onClick={() => setInfoType('contact')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="All contact channels"
-                  >
-                    <Headphones className="w-3 h-3 text-yellow-400" />
-                    Support Hub
-                  </button>
                 </div>
               </div>
             </div>
@@ -120,21 +179,21 @@ export const Footer: React.FC = () => {
               </ul>
             </div>
 
-            {/* Customer Care — Now Functional Buttons */}
+            {/* Customer Care — Functional Buttons */}
             <div className="md:col-span-3 space-y-2.5 font-sans">
               <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">Support</h4>
               <ul className="space-y-2 text-slate-400 text-xs">
                 <li>
                   <a
-                    href="mailto:support@playbeat.pro"
+                    href={`mailto:${supportEmail}`}
                     className="flex items-center gap-2 hover:text-yellow-300 transition"
                   >
-                    <Mail className="w-3.5 h-3.5 text-yellow-400" /> support@playbeat.pro
+                    <Mail className="w-3.5 h-3.5 text-yellow-400" /> {supportEmail}
                   </a>
                 </li>
                 <li>
                   <a
-                    href="https://wa.me/923000000000"
+                    href={`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 hover:text-yellow-300 transition"
@@ -143,12 +202,9 @@ export const Footer: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setInfoType('track')}
-                    className="flex items-center gap-2 hover:text-yellow-300 transition"
-                  >
+                  <a href="/shipping-policy" className="flex items-center gap-2 hover:text-yellow-300 transition">
                     <Truck className="w-3.5 h-3.5 text-yellow-400" /> Track Courier Dispatch
-                  </button>
+                  </a>
                 </li>
                 <li>
                   <button
@@ -182,35 +238,43 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Bar — Policy Buttons */}
+          {/* Bottom Bar — Policy Links (real pages) */}
           <div className="pt-6 border-t border-slate-400/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[10px] font-mono">
             <div>
               © {new Date().getFullYear()} PlayBeat Digital Commerce. All rights reserved.
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-center">
-              <button
-                onClick={() => setInfoType('privacy')}
+              <a
+                href="/privacy"
                 className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
               >
                 <Lock className="w-3 h-3" />
                 Privacy Policy
-              </button>
+              </a>
               <span className="text-slate-700">•</span>
-              <button
-                onClick={() => setInfoType('terms')}
+              <a
+                href="/terms"
                 className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
               >
                 <FileText className="w-3 h-3" />
                 Terms of Service
-              </button>
+              </a>
               <span className="text-slate-700">•</span>
-              <button
-                onClick={() => setInfoType('refund')}
+              <a
+                href="/refund-policy"
                 className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
               >
                 <RefreshCw className="w-3 h-3" />
                 Refund Policy
-              </button>
+              </a>
+              <span className="text-slate-700">•</span>
+              <a
+                href="/contact"
+                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
+              >
+                <MapPin className="w-3 h-3" />
+                Contact
+              </a>
             </div>
           </div>
         </div>

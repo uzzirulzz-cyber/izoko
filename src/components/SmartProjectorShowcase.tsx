@@ -32,6 +32,7 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
   if (!projectors.length) return null
   const flagship = projectors[0]
   const rest = projectors.slice(1, 4)
+  const fullLineup = projectors.slice(4)
 
   return (
     <section className="w-full py-10 bg-[#050814] relative overflow-hidden">
@@ -251,6 +252,84 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
             )}
           </div>
         </div>
+
+        {/* Full Lineup — every projector listed for sale */}
+        {fullLineup.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full bg-cyan-400 inline-block"></span>
+                  Complete Lineup — All Models in Stock
+                </h3>
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold text-cyan-300 bg-[#0A122E] border border-cyan-400/25">
+                  {projectors.length} models
+                </span>
+              </div>
+              <button
+                onClick={onExploreAll}
+                className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-cyan-300 transition"
+              >
+                Browse full specs
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+              {fullLineup.map((p) => {
+                const soldOut = p.stock === 0 || p.status === 'out_of_stock'
+                return (
+                  <div
+                    key={p.id}
+                    className="relative rounded-xl bg-[#0B1220]/90 border border-slate-400/15 hover:border-cyan-400/40 overflow-hidden transition group cursor-pointer"
+                    onClick={() => onQuickView(p)}
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-slate-900">
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-transparent"></div>
+                      {soldOut ? (
+                        <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-zinc-700/90 text-zinc-300 text-[9px] font-mono font-bold">
+                          SOLD OUT
+                        </span>
+                      ) : p.discountPercent ? (
+                        <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-rose-500/90 text-white text-[9px] font-mono font-bold">
+                          -{p.discountPercent}%
+                        </span>
+                      ) : null}
+                      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[9px] font-mono font-bold backdrop-blur-sm">
+                        ★ {p.rating}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 space-y-1.5">
+                      <h4 className="text-[11px] font-bold text-white line-clamp-2 leading-snug min-h-[2.1em]">{p.name}</h4>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="text-[13px] font-extrabold text-cyan-300 font-mono">
+                          {formatPrice(p.price, currency)}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onAddToCart(p)
+                          }}
+                          disabled={soldOut}
+                          className="px-2 py-1 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-[10px] font-bold transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        >
+                          {soldOut ? '—' : 'Add'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Trust Bar */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">

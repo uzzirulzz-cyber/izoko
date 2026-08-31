@@ -4,11 +4,25 @@
 //   PUT    /api/admin/products/:id              (update product)
 //   DELETE /api/admin/products/:id              (delete product)
 //   POST   /api/admin/products/seed-if-empty    (safe seed)
+//   POST   /api/admin/products/check-duplicate  (duplicate detection — variant suggestions)
+//   POST   /api/admin/products/:id/variants     (attach a variant to an existing product)
 //   GET    /api/admin/stats                     (dashboard KPIs)
+//   GET    /api/admin/system-health             (DB ping, latency, collections, last backup)
+//   GET    /api/admin/orders                    (recent orders list)
+//   GET    /api/admin/orders-log                (full paginated order log w/ search + filters)
+//   GET    /api/admin/top-products              (aggregated best sellers)
+//   GET    /api/admin/revenue-chart             (daily revenue series)
 //   GET    /api/admin/users                     (list all users)
 //   GET    /api/admin/staff                     (list staff + super admin)
+//   POST   /api/admin/staff/create              (super admin: create employee account)
+//   POST   /api/admin/staff/delete              (super admin: remove staff account)
+//   POST   /api/admin/staff/update              (super admin: update staff permissions/status)
 //   POST   /api/admin/staff/promote             (assign staffId)
 //   POST   /api/admin/staff/demote              (revoke staff role)
+//   GET|POST /api/admin/backup                  (list restore points | create restore point)
+//   POST   /api/admin/backup/restore            (super admin: restore from snapshot)
+//   POST   /api/admin/backup/delete             (super admin: delete a restore point)
+//   GET|PUT  /api/admin/cms/settings            (site settings read/update)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
@@ -19,9 +33,12 @@ import {
   jsonOk,
   jsonError,
   requireAdmin,
+  requireSuperAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
 import { ADMIN_EMAIL, MONGODB_DB_NAME } from "../_lib/config.js";
+import { hashPassword } from "../_lib/auth.js";
+import { CMS_DEFAULTS } from "../cms/index.js";
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
@@ -298,6 +315,500 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ GET /api/admin/system-health ============
+  if (route === "system-health" && req.method === "GET") {
+    try {
+      const started = Date.now();
+      const db = await getDb();
+      await db.command({ ping: 1 });
+      const dbLatency = Date.now() - started;
+      const [productsCount, ordersCount, usersCount, backupsCount, pendingOrders, lowStock] =
+        await Promise.all([
+          db.collection("products").countDocuments(),
+          db.collection("orders").countDocuments(),
+          db.collection("users").countDocuments(),
+          db.collection("backups").countDocuments(),
+          db.collection("orders").countDocuments({ status: { $in: ["pending", "processing"] } }),
+          db.collection("products").countDocuments({ stock: { $lte: 5 } }),
+        ]);
+      const lastBackup = await db
+        .collection("backups")
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(1)
+        .toArray();
+      const mem = process.memoryUsage();
+      return jsonOk(res, {
+        success: true,
+        health: {
+          status: "operational",
+          database: {
+            connected: true,
+            name: MONGODB_DB_NAME,
+            latencyMs: dbLatency,
+          },
+          collections: {
+            products: productsCount,
+            orders: ordersCount,
+            users: usersCount,
+            backups: backupsCount,
+          },
+          alerts: {
+            pendingOrders,
+            lowStockProducts: lowStock,
+          },
+          lastBackup: lastBackup[0]
+            ? {
+                id: lastBackup[0]._id?.toString?.(),
+                name: lastBackup[0].name,
+                createdAt: lastBackup[0].createdAt,
+              }
+            : null,
+          runtime: {
+            uptimeSeconds: Math.round(process.uptime()),
+            memoryUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+            memoryTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+            nodeVersion: process.version,
+            platform: process.platform,
+          },
+          checkedAt: new Date().toISOString(),
+        },
+      });
+    } catch (err: any) {
+      return jsonOk(res, {
+        success: true,
+        health: {
+          status: "degraded",
+          database: { connected: false, error: err.message },
+          checkedAt: new Date().toISOString(),
+        },
+      });
+    }
+  }
+
+  // ============ GET /api/admin/orders-log (full paginated log) ============
+  if (route === "orders-log" && req.method === "GET") {
+    try {
+      const urlQ = new URL(req.url || "", "http://localhost").searchParams;
+      const page = Math.max(1, parseInt(urlQ.get("page") || "1", 10) || 1);
+      const limit = Math.min(parseInt(urlQ.get("limit") || "25", 10) || 25, 200);
+      const status = (urlQ.get("status") || "all").toLowerCase();
+      const search = (urlQ.get("search") || "").trim();
+      const ordersCol = db.collection("orders");
+      const query: any = {};
+      if (status !== "all") query.status = status;
+      if (search) {
+        const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+        query.$or = [
+          { orderNumber: rx },
+          { customerName: rx },
+          { customerEmail: rx },
+          { paymentMethod: rx },
+        ];
+      }
+      const [items, total] = await Promise.all([
+        ordersCol
+          .find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .toArray(),
+        ordersCol.countDocuments(query),
+      ]);
+      // Per-customer aggregation for the Customer Orders Log side summary
+      const customerAgg = await ordersCol
+        .aggregate([
+          {
+            $group: {
+              _id: "$customerEmail",
+              customerName: { $first: "$customerName" },
+              orderCount: { $sum: 1 },
+              lifetimeValue: { $sum: "$totalAmount" },
+              lastOrderAt: { $max: "$createdAt" },
+            },
+          },
+          { $sort: { lastOrderAt: -1 } },
+          { $limit: 50 },
+        ])
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        page,
+        totalPages: Math.ceil(total / limit) || 1,
+        total,
+        orders: items.map((o: any) => ({
+          id: o._id.toString(),
+          orderNumber: o.orderNumber,
+          customerName: o.customerName,
+          customerEmail: o.customerEmail,
+          totalAmount: o.totalAmount,
+          currency: o.currency || "PKR",
+          status: o.status,
+          paymentMethod: o.paymentMethod,
+          items: (o.items || []).map((i: any) => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            variantName: i.variantName,
+            licenseKeys: i.licenseKeys || [],
+          })),
+          licenseKeysDelivered: o.licenseKeysDelivered || [],
+          createdAt: o.createdAt,
+        })),
+        customers: customerAgg.map((c: any) => ({
+          email: c._id,
+          name: c.customerName,
+          orderCount: c.orderCount,
+          lifetimeValue: c.lifetimeValue,
+          lastOrderAt: c.lastOrderAt,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/staff/create (super admin only) ============
+  if (route === "staff/create" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { name, email, password, staffId, department, permissions } = req.body || {};
+      if (!name || !email || !password) {
+        return jsonError(res, "Name, email, and password are required.", 400);
+      }
+      if (String(password).length < 6) {
+        return jsonError(res, "Password must be at least 6 characters long.", 400);
+      }
+      const cleanEmail = String(email).toLowerCase().trim();
+      if (cleanEmail === ADMIN_EMAIL.toLowerCase()) {
+        return jsonError(res, "This email is reserved for the super administrator.", 409);
+      }
+      const usersCol = db.collection("users");
+      const existing = await usersCol.findOne({ email: cleanEmail });
+      if (existing) {
+        return jsonError(res, "An account with this email already exists.", 409);
+      }
+      const finalStaffId = (staffId && String(staffId).trim()) || `EMP-${Date.now().toString().slice(-6)}`;
+      const staffIdTaken = await usersCol.findOne({ staffId: finalStaffId });
+      if (staffIdTaken) {
+        return jsonError(res, `Staff ID ${finalStaffId} is already assigned.`, 409);
+      }
+      const hashed = await hashPassword(String(password));
+      const newStaff = {
+        name: String(name).trim(),
+        email: cleanEmail,
+        password: hashed,
+        role: "staff",
+        staffId: finalStaffId,
+        department: department ? String(department).trim() : "Operations",
+        permissions: Array.isArray(permissions)
+          ? permissions
+          : ["orders", "products", "customers", "support"],
+        provider: "local",
+        active: true,
+        createdBy: "super_admin",
+        createdAt: new Date(),
+      };
+      const result = await usersCol.insertOne(newStaff);
+      return jsonOk(res, {
+        success: true,
+        message: `Employee account created. Staff ID: ${finalStaffId}`,
+        staff: {
+          id: result.insertedId.toString(),
+          name: newStaff.name,
+          email: newStaff.email,
+          role: "staff",
+          staffId: newStaff.staffId,
+          department: newStaff.department,
+          permissions: newStaff.permissions,
+        },
+      }, 201);
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/staff/delete (super admin only) ============
+  if (route === "staff/delete" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { userId } = req.body || {};
+      if (!userId) return jsonError(res, "userId is required.", 400);
+      const usersCol = db.collection("users");
+      const target = await usersCol.findOne({ _id: new ObjectId(userId) });
+      if (!target) return jsonError(res, "Staff account not found.", 404);
+      if (target.email && target.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return jsonError(res, "The super administrator account cannot be deleted.", 403);
+      }
+      await usersCol.deleteOne({ _id: new ObjectId(userId) });
+      return jsonOk(res, { success: true, message: `Staff account ${target.email} deleted.` });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/staff/update (super admin only) ============
+  if (route === "staff/update" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { userId, name, department, permissions, active, password } = req.body || {};
+      if (!userId) return jsonError(res, "userId is required.", 400);
+      const usersCol = db.collection("users");
+      const target = await usersCol.findOne({ _id: new ObjectId(userId) });
+      if (!target) return jsonError(res, "Staff account not found.", 404);
+      if (target.email && target.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        return jsonError(res, "The super administrator account cannot be modified here.", 403);
+      }
+      const update: any = { updatedAt: new Date() };
+      if (name) update.name = String(name).trim();
+      if (department) update.department = String(department).trim();
+      if (Array.isArray(permissions)) update.permissions = permissions;
+      if (typeof active === "boolean") update.active = active;
+      if (password) {
+        if (String(password).length < 6) {
+          return jsonError(res, "Password must be at least 6 characters long.", 400);
+        }
+        update.password = await hashPassword(String(password));
+      }
+      await usersCol.updateOne({ _id: new ObjectId(userId) }, { $set: update });
+      return jsonOk(res, { success: true, message: "Staff account updated." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/backup (list restore points) ============
+  if (route === "backup" && req.method === "GET") {
+    try {
+      const backupsCol = db.collection("backups");
+      const list = await backupsCol
+        .find({}, { projection: { "collections.products": 0, "collections.orders": 0, "collections.users": 0, "collections.site_settings": 0 } })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        backups: list.map((b: any) => ({
+          id: b._id.toString(),
+          name: b.name,
+          type: b.type || "manual",
+          createdBy: b.createdBy,
+          counts: b.counts || {},
+          sizeKB: b.sizeKB || 0,
+          createdAt: b.createdAt,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/backup (create restore point) ============
+  if (route === "backup" && req.method === "POST") {
+    try {
+      const started = Date.now();
+      const body = req.body || {};
+      const name =
+        (body.name && String(body.name).trim()) ||
+        `Restore point ${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC`;
+      const [products, orders, users, siteSettings] = await Promise.all([
+        db.collection("products").find({}).toArray(),
+        db.collection("orders").find({}).toArray(),
+        db.collection("users").find({}, { projection: { password: 0 } }).toArray(),
+        db.collection("site_settings").find({}).toArray(),
+      ]);
+      const snapshot = {
+        products,
+        orders,
+        users,
+        site_settings: siteSettings,
+      };
+      const sizeKB = Math.round(JSON.stringify(snapshot).length / 1024);
+      const doc = {
+        name,
+        type: "manual",
+        createdBy: "admin_panel",
+        collections: snapshot,
+        counts: {
+          products: products.length,
+          orders: orders.length,
+          users: users.length,
+          site_settings: siteSettings.length,
+        },
+        sizeKB,
+        createdAt: new Date(),
+      };
+      const result = await db.collection("backups").insertOne(doc);
+      return jsonOk(res, {
+        success: true,
+        message: `Restore point created (${products.length} products, ${orders.length} orders, ${users.length} users) in ${Date.now() - started}ms.`,
+        backup: {
+          id: result.insertedId.toString(),
+          name,
+          counts: doc.counts,
+          sizeKB,
+          createdAt: doc.createdAt,
+        },
+      }, 201);
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/backup/restore (super admin only) ============
+  if (route === "backup/restore" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { backupId } = req.body || {};
+      if (!backupId) return jsonError(res, "backupId is required.", 400);
+      const backupsCol = db.collection("backups");
+      const snap = await backupsCol.findOne({ _id: new ObjectId(backupId) });
+      if (!snap) return jsonError(res, "Restore point not found.", 404);
+
+      // Safety: snapshot current state before overwriting (so restore is reversible)
+      const [curProducts, curOrders, curUsers] = await Promise.all([
+        db.collection("products").find({}).toArray(),
+        db.collection("orders").find({}).toArray(),
+        db.collection("users").find({}).toArray(),
+      ]);
+      await backupsCol.insertOne({
+        name: `Auto-backup before restore (${new Date().toISOString().replace("T", " ").slice(0, 19)} UTC)`,
+        type: "auto_pre_restore",
+        createdBy: "system:restore",
+        collections: { products: curProducts, orders: curOrders, users: curUsers },
+        counts: { products: curProducts.length, orders: curOrders.length, users: curUsers.length },
+        createdAt: new Date(),
+      });
+
+      const restore = async (colName: string, docs: any[], dropPassword = false) => {
+        if (!Array.isArray(docs)) return 0;
+        const col = db.collection(colName);
+        await col.deleteMany({});
+        if (docs.length === 0) return 0;
+        const clean = docs.map((d: any) => {
+          if (d._id) delete d._id;
+          return d;
+        });
+        const r = await col.insertMany(clean);
+        return r.insertedCount;
+      };
+      const [p, o, u] = await Promise.all([
+        restore("products", snap.collections?.products || []),
+        restore("orders", snap.collections?.orders || []),
+        restore("users", snap.collections?.users || []),
+      ]);
+      let s = 0;
+      if (Array.isArray(snap.collections?.site_settings)) {
+        s = await restore("site_settings", snap.collections.site_settings);
+      }
+      return jsonOk(res, {
+        success: true,
+        message: `Database restored from "${snap.name}" — ${p} products, ${o} orders, ${u} users, ${s} settings.`,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/backup/delete (super admin only) ============
+  if (route === "backup/delete" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { backupId } = req.body || {};
+      if (!backupId) return jsonError(res, "backupId is required.", 400);
+      const r = await db
+        .collection("backups")
+        .deleteOne({ _id: new ObjectId(backupId) });
+      if (r.deletedCount === 0) return jsonError(res, "Restore point not found.", 404);
+      return jsonOk(res, { success: true, message: "Restore point deleted." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET/PUT /api/admin/cms/settings (Website Builder CMS) ============
+  if (route === "cms/settings" && req.method === "GET") {
+    try {
+      const doc = await db.collection("site_settings").findOne({ key: "site" });
+      const settings = { ...CMS_DEFAULTS, ...(doc?.settings || {}) };
+      for (const k of Object.keys(CMS_DEFAULTS)) {
+        settings[k] = { ...(CMS_DEFAULTS as any)[k], ...((doc?.settings || {})[k] || {}) };
+      }
+      return jsonOk(res, { success: true, settings, updatedAt: doc?.updatedAt || null });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+  if (route === "cms/settings" && req.method === "PUT") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = req.body || {};
+      const settings = body.settings || body;
+      const cleanSettings: any = {};
+      for (const k of Object.keys(CMS_DEFAULTS)) {
+        if (settings[k] && typeof settings[k] === "object") {
+          cleanSettings[k] = { ...(CMS_DEFAULTS as any)[k], ...settings[k] };
+        }
+      }
+      await db.collection("site_settings").updateOne(
+        { key: "site" },
+        { $set: { key: "site", settings: cleanSettings, updatedAt: new Date() } },
+        { upsert: true }
+      );
+      return jsonOk(res, { success: true, message: "Website content published to the live storefront.", settings: cleanSettings });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/products/check-duplicate ============
+  if (route === "products/check-duplicate" && req.method === "POST") {
+    try {
+      const { products: incoming } = req.body || {};
+      if (!Array.isArray(incoming)) return jsonError(res, "products array is required.", 400);
+      const col = db.collection("products");
+      const existing = await col.find({}).project({ name: 1, sku: 1, slug: 1, variants: 1, price: 1, image: 1 }).toArray();
+      const normalize = (s: string) => (s || "").toString().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
+      const bySlug = new Map<string, any>();
+      const bySku = new Map<string, any>();
+      const byName = new Map<string, any>();
+      existing.forEach((d: any) => {
+        if (d.slug) bySlug.set(String(d.slug).toLowerCase(), d);
+        if (d.sku) bySku.set(String(d.sku).toLowerCase(), d);
+        if (d.name) byName.set(normalize(d.name), d);
+      });
+      const results = incoming.map((p: any) => {
+        const name = (p.name || "").toString();
+        const slug = slugify(p.slug || name);
+        const sku = (p.sku || "").toString().trim();
+        const match = bySku.get(sku.toLowerCase()) || bySlug.get(slug.toLowerCase()) || byName.get(normalize(name));
+        if (!match) return { name, match: null };
+        return {
+          name,
+          match: {
+            id: match._id.toString(),
+            name: match.name,
+            sku: match.sku,
+            price: match.price,
+            image: match.image,
+            variantCount: Array.isArray(match.variants) ? match.variants.length : 0,
+            suggestedVariantName: p.region || p.variantName || "Standard",
+          },
+        };
+      });
+      const matchCount = results.filter((r: any) => r.match).length;
+      return jsonOk(res, {
+        success: true,
+        results,
+        matchCount,
+        newCount: incoming.length - matchCount,
+        message: `${matchCount} of ${incoming.length} items already exist in the catalog and will be attached as variants instead of duplicated.`,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   // ============ POST /api/admin/products/seed-if-empty ============
   if (route === "products/seed-if-empty" && req.method === "POST") {
     try {
@@ -342,6 +853,28 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const name = body.name.trim();
       const slug = body.slug ? slugify(body.slug) : slugify(name);
       const sku = body.sku ? body.sku.trim() : `PB-${Date.now().toString().slice(-6)}`;
+
+      // SMART DUPLICATE DETECTION — the same product must NEVER be posted as a
+      // new entry. If an existing product matches (slug / sku / normalized name),
+      // instruct the caller to attach it as a VARIANT instead.
+      const normalize = (s: string) =>
+        (s || "").toString().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim();
+      const duplicate = await col.findOne({
+        $or: [{ slug }, { sku }, { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") }],
+      });
+      if (duplicate && !body.forceNew) {
+        return res.status(409).json({
+          success: false,
+          error: `"${duplicate.name}" already exists in the catalog (SKU ${duplicate.sku}). Attach this item as a VARIANT of it instead of creating a duplicate product.`,
+          duplicateOf: {
+            id: duplicate._id.toString(),
+            name: duplicate.name,
+            sku: duplicate.sku,
+            variantCount: Array.isArray(duplicate.variants) ? duplicate.variants.length : 0,
+          },
+        });
+      }
+
       const existing = await col.findOne({ $or: [{ slug }, { sku }] });
       const finalSlug = existing ? `${slug}-${Math.floor(100 + Math.random() * 900)}` : slug;
 
@@ -401,6 +934,54 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const filter: any = ObjectId.isValid(id)
       ? { _id: new ObjectId(id) }
       : { $or: [{ id }, { sku: id }, { slug: id }] };
+
+    if (req.method === "POST" && pathSegments[2] === "variants") {
+      // POST /api/admin/products/:id/variants — attach a variant to an existing product
+      try {
+        const body = req.body || {};
+        const vName = body.name ? String(body.name).trim() : "";
+        if (!vName) return jsonError(res, "Variant name is required.", 400);
+        const product = await col.findOne(filter);
+        if (!product) return jsonError(res, "Product not found.", 404);
+        const existingVariants: any[] = Array.isArray(product.variants) ? product.variants : [];
+        if (existingVariants.some((v: any) => String(v.name).toLowerCase() === vName.toLowerCase())) {
+          return jsonError(res, `Variant "${vName}" already exists on this product.`, 409);
+        }
+        const variantDoc = {
+          id: `var-${Date.now().toString(36)}-${Math.floor(Math.random() * 900 + 100)}`,
+          name: vName,
+          price: Number(body.price) || product.price || 0,
+          originalPrice: body.originalPrice ? Number(body.originalPrice) : undefined,
+          sku: body.sku ? String(body.sku).trim() : undefined,
+          badge: body.badge || undefined,
+        };
+        await col.updateOne(filter, {
+          $push: { variants: variantDoc } as any,
+          $set: { updatedAt: new Date() },
+        });
+        return jsonOk(res, {
+          success: true,
+          message: `Variant "${vName}" attached to ${product.name}.`,
+          variant: variantDoc,
+        });
+      } catch (err: any) {
+        return jsonError(res, err.message, 500);
+      }
+    }
+
+    if (req.method === "DELETE" && pathSegments[2] === "variants" && pathSegments[3]) {
+      // DELETE /api/admin/products/:id/variants/:variantId
+      try {
+        const variantId = pathSegments[3];
+        const product = await col.findOne(filter);
+        if (!product) return jsonError(res, "Product not found.", 404);
+        const remaining = (product.variants || []).filter((v: any) => v.id !== variantId);
+        await col.updateOne(filter, { $set: { variants: remaining, updatedAt: new Date() } });
+        return jsonOk(res, { success: true, message: "Variant removed." });
+      } catch (err: any) {
+        return jsonError(res, err.message, 500);
+      }
+    }
 
     if (req.method === "PUT") {
       try {

@@ -15,13 +15,78 @@ import { AccountDrawer } from './components/AccountDrawer'
 import { Footer } from './components/Footer'
 import { AdminInsightsView } from './components/AdminInsightsView'
 import { AdminLogin } from './components/AdminLogin'
+import { PolicyPage } from './components/PolicyPage'
+import { ContactPage } from './components/ContactPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
-type Route = 'storefront' | 'admin-login' | 'admin'
+// Admin token helper — used for product CRUD sync to MongoDB
+const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
+
+// Persist a product to MongoDB (create or update). Returns the canonical product
+// from the server so the local catalog can adopt the database _id.
+async function syncProductToMongo(
+  product: Product,
+  isNew: boolean
+): Promise<{ ok: boolean; error?: string; saved?: Product }> {
+  try {
+    const token = getAdminToken()
+    if (!token) return { ok: true }
+    const url = isNew
+      ? `${API_BASE}/api/admin/products`
+      : `${API_BASE}/api/admin/products/${encodeURIComponent(product._id || product.id || product.sku)}`
+    const res = await fetch(url, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(product),
+    })
+    const data = await res.json().catch(() => null)
+    if (res.ok && data?.success) return { ok: true, saved: data.product }
+    return { ok: false, error: data?.error || `Sync failed (${res.status})` }
+  } catch {
+    return { ok: false, error: 'Backend unreachable — change saved locally only' }
+  }
+}
+
+// Delete a product from MongoDB
+async function deleteProductFromMongo(productId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const token = getAdminToken()
+    if (!token) return { ok: true }
+    const res = await fetch(
+      `${API_BASE}/api/admin/products/${encodeURIComponent(productId)}`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      }
+    )
+    const data = await res.json().catch(() => null)
+    if (res.ok && data?.success) return { ok: true }
+    return { ok: false, error: data?.error || `Delete failed (${res.status})` }
+  } catch {
+    return { ok: false, error: 'Backend unreachable — product removed locally only' }
+  }
+}
+
+type Route =
+  | 'storefront'
+  | 'admin-login'
+  | 'admin'
+  | 'privacy'
+  | 'terms'
+  | 'refund-policy'
+  | 'shipping-policy'
+  | 'contact'
+
+const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'contact']
 
 // Pathname-based router (works on Vercel via vercel.json SPA rewrites).
 // Also falls back to legacy hash routing so old bookmarks still work.
@@ -30,6 +95,7 @@ function parseRoute(): Route {
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, '').replace(/^\//, '')
   if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
+  if (POLICY_ROUTES.includes(path as Route)) return path as Route
   // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
@@ -40,6 +106,7 @@ function parseRoute(): Route {
 function routeToPath(route: Route): string {
   if (route === 'admin') return '/admin'
   if (route === 'admin-login') return '/admin/login'
+  if (POLICY_ROUTES.includes(route)) return `/${route}`
   return '/storefront'
 }
 
@@ -133,6 +200,97 @@ export function App() {
 
   // User State — NO auto-login. User must explicitly sign in.
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+
+  // Website Builder CMS settings — live from MongoDB via /api/cms
+  const [cmsSettings, setCmsSettings] = useState<any>(null)
+  useEffect(() => {
+    fetch(`${API_BASE}/api/cms`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d?.settings) setCmsSettings(d.settings)
+      })
+      .catch(() => setCmsSettings(null))
+  }, [])
+
+  // Analytics — real page_view tracking (one event per route change per session)
+  useEffect(() => {
+    const sessionKey = 'playbeat_analytics_session'
+    let sessionId = sessionStorage.getItem(sessionKey)
+    if (!sessionId) {
+      sessionId = `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+      sessionStorage.setItem(sessionKey, sessionId)
+    }
+    const lastPath = sessionStorage.getItem('playbeat_last_view') || ''
+    if (route === lastPath) return
+    sessionStorage.setItem('playbeat_last_view', route)
+    try {
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'page_view',
+          path: routeToPath(route),
+          sessionId,
+          referrer: document.referrer || '',
+        }),
+        keepalive: true,
+      }).catch(() => {})
+    } catch {
+      /* analytics must never break the app */
+    }
+  }, [route])
+
+  // Track product_view events when a customer opens a product's quick view
+  const handleQuickViewWithTracking = (p: Product) => {
+    try {
+      const sessionId = sessionStorage.getItem('playbeat_analytics_session') || 'anon'
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'product_view',
+          path: window.location.pathname,
+          productId: p._id || p.id,
+          productName: p.name,
+          sessionId,
+        }),
+        keepalive: true,
+      }).catch(() => {})
+    } catch {
+      /* ignore */
+    }
+    setQuickViewProduct(p)
+  }
+
+  // Social OAuth callback results (?social_success= / ?social_error=)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const ok = params.get('social_success')
+    const err = params.get('social_error')
+    if (ok) {
+      // The OAuth callback already set the session cookie — fetch the profile
+      fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.success && d?.user) {
+            const u = { name: d.user.name, email: d.user.email }
+            localStorage.setItem('playbeat_user_token', d.token || '')
+            localStorage.setItem('playbeat_user', JSON.stringify(u))
+            setUser(u)
+            showToast(`Welcome to PlayBeat, ${d.user.name}! Signed up via ${ok}.`)
+          } else {
+            showToast(`Signed up via ${ok} — session activation may require a refresh.`)
+          }
+        })
+        .catch(() => showToast(`Signed up via ${ok}.`))
+      window.history.replaceState({}, '', '/storefront')
+    } else if (err) {
+      showToast(`Social sign-in notice: ${err}`)
+      window.history.replaceState({}, '', '/storefront')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // On mount, verify a stored user token against backend. If invalid, drop it.
   useEffect(() => {
@@ -268,6 +426,58 @@ export function App() {
     setTimeout(() => {
       setToastMessage(null)
     }, 2800)
+  }
+
+  // Save (create/update) a product from the Admin Console
+  const handleSaveProduct = async (
+    product: Product,
+    isNew: boolean
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const sync = await syncProductToMongo(product, isNew)
+    const canonical = sync.saved || product
+
+    // Local-first: upsert into the catalog state (adopt DB _id when MongoDB responds)
+    setProducts((prev) => {
+      if (isNew) {
+        const withoutDup = prev.filter((p) => p.id !== product.id && p._id !== canonical._id)
+        return [canonical, ...withoutDup]
+      }
+      return prev.map((p) => (p.id === product.id || p._id === product._id ? { ...p, ...canonical } : p))
+    })
+
+    if (sync.ok) {
+      showToast(
+        isNew
+          ? `Product "${product.name}" created & synced to MongoDB`
+          : `Product "${product.name}" updated & synced`
+      )
+    } else {
+      showToast(`Saved locally — MongoDB sync failed: ${sync.error}`)
+    }
+    return { ok: true }
+  }
+
+  // Delete a product from the Admin Console
+  const handleDeleteProduct = async (
+    productId: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const target = products.find((p) => p.id === productId || p._id === productId)
+    setProducts((prev) => prev.filter((p) => p.id !== productId && p._id !== productId))
+    // Also remove from wishlist/cart references
+    setWishlist((prev) => prev.filter((p) => p.id !== productId && p._id !== productId))
+
+    // Prefer the MongoDB _id when available; the API also matches local ids/skus
+    const sync = await deleteProductFromMongo(target?._id || productId)
+    if (sync.ok) {
+      showToast(
+        target
+          ? `Product "${target.name}" permanently deleted`
+          : 'Product permanently deleted'
+      )
+    } else {
+      showToast(`Removed locally — MongoDB delete failed: ${sync.error}`)
+    }
+    return { ok: true }
   }
 
   // Stock update from Admin Console
@@ -511,6 +721,8 @@ export function App() {
           onQuickViewProduct={(p) => setQuickViewProduct(p)}
           onUpdateProductStock={handleUpdateProductStock}
           onImportProducts={handleImportProducts}
+          onSaveProduct={handleSaveProduct}
+          onDeleteProduct={handleDeleteProduct}
         />
       )}
 
@@ -534,9 +746,40 @@ export function App() {
         />
       )}
 
+      {/* POLICY & CONTACT PAGES — full standalone routes */}
+      {(route === 'privacy' ||
+        route === 'terms' ||
+        route === 'refund-policy' ||
+        route === 'shipping-policy') && (
+        <PolicyPage
+          type={route as 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy'}
+          contact={cmsSettings?.contact}
+        />
+      )}
+
+      {route === 'contact' && (
+        <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
+      )}
+
       {/* STOREFRONT — completely separate from admin */}
       {route === 'storefront' && (
         <>
+          {/* CMS Announcement Bar — editable via Website Builder CMS */}
+          {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && (
+            <div
+              className="w-full bg-gradient-to-r from-amber-400/15 via-[#0A122E] to-amber-400/15 border-b border-amber-400/25 text-center py-2 px-4 cursor-pointer group"
+              onClick={() => {
+                if (cmsSettings.announcement.link) {
+                  window.location.href = cmsSettings.announcement.link
+                }
+              }}
+            >
+              <span className="text-[11px] sm:text-xs font-semibold text-amber-300 group-hover:text-amber-200 transition font-mono">
+                {cmsSettings.announcement.text}
+              </span>
+            </div>
+          )}
+
           {/* Main App Header — NO admin link exposed to public users */}
           <Header
             searchQuery={searchQuery}
@@ -589,7 +832,7 @@ export function App() {
               projectors={projectorProducts}
               currency={selectedCurrency}
               onAddToCart={handleAddToCart}
-              onQuickView={(p) => setQuickViewProduct(p)}
+              onQuickView={handleQuickViewWithTracking}
               onExploreAll={() => setSelectedCategory('Smart Projectors')}
             />
           )}
@@ -623,7 +866,7 @@ export function App() {
                       product={prod}
                       currency={selectedCurrency}
                       onAddToCart={handleAddToCart}
-                      onQuickView={(p) => setQuickViewProduct(p)}
+                      onQuickView={handleQuickViewWithTracking}
                       onToggleWishlist={handleToggleWishlist}
                       isWishlisted={isWishlisted(prod.id)}
                       onInstantBuy={handleInstantBuy}
@@ -740,7 +983,7 @@ export function App() {
                     product={product}
                     currency={selectedCurrency}
                     onAddToCart={handleAddToCart}
-                    onQuickView={(p) => setQuickViewProduct(p)}
+                    onQuickView={handleQuickViewWithTracking}
                     onToggleWishlist={handleToggleWishlist}
                     isWishlisted={isWishlisted(product.id)}
                     onInstantBuy={handleInstantBuy}
@@ -768,7 +1011,7 @@ export function App() {
                 projectors={projectorProducts}
                 currency={selectedCurrency}
                 onAddToCart={handleAddToCart}
-                onQuickView={(p) => setQuickViewProduct(p)}
+                onQuickView={handleQuickViewWithTracking}
               />
             )}
 
@@ -777,7 +1020,7 @@ export function App() {
           </main>
 
           {/* Footer */}
-          <Footer />
+          <Footer cms={cmsSettings} />
 
           {/* Quick View Modal — storefront only */}
           <QuickViewModal

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import {
   X,
@@ -119,6 +119,45 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
     hardware: number
     mongoSynced: boolean
   } | null>(null)
+  // Variant-aware duplicate report (from /api/mongodb/products/upload)
+  const [uploadReport, setUploadReport] = useState<{
+    insertedCount: number
+    variantAttachedCount: number
+    skippedCount: number
+    attachedVariants: { product: string; variant: string }[]
+    skipped: { product: string; reason: string }[]
+  } | null>(null)
+  // Duplicate pre-check (from /api/admin/products/check-duplicate)
+  const [dupCheck, setDupCheck] = useState<{ matchCount: number; total: number } | null>(null)
+
+  // Pre-check parsed items against the live catalog whenever the review step opens
+  useEffect(() => {
+    const runCheck = async () => {
+      if (currentStep !== 'review') return
+      const items = parsedItems.filter((i) => i.isValid)
+      if (items.length === 0) {
+        setDupCheck(null)
+        return
+      }
+      try {
+        const token = localStorage.getItem('playbeat_admin_token')
+        const res = await fetch('/api/admin/products/check-duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ products: items.map((i) => ({ name: i.name, sku: i.sku, region: i.region })) }),
+        })
+        const data = await res.json()
+        if (data?.success) {
+          setDupCheck({ matchCount: data.matchCount, total: items.length })
+        } else {
+          setDupCheck(null)
+        }
+      } catch {
+        setDupCheck(null)
+      }
+    }
+    runCheck()
+  }, [currentStep, parsedItems])
 
   if (!isOpen) return null
 
@@ -380,7 +419,8 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
           isFeatured: item.isFeatured || false,
         }))
 
-      // Sync to MongoDB Cloud if requested
+      // Sync to MongoDB Cloud if requested — the backend detects duplicates and
+      // attaches them as VARIANTS to the existing product instead of duplicating.
       let mongoSuccess = false
       if (syncToMongoCloud) {
         try {
@@ -398,6 +438,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
           const data = await res.json()
           if (data.success) {
             mongoSuccess = true
+            if (data.report) setUploadReport(data.report)
           }
         } catch (err) {
           console.error('Failed to sync to MongoDB API:', err)
@@ -856,6 +897,22 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
           {/* ========================================================= */}
           {currentStep === 'review' && (
             <div className="space-y-4">
+              {/* Duplicate → Variant pre-check banner (live catalog comparison) */}
+              {dupCheck && dupCheck.matchCount > 0 && (
+                <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 space-y-1.5">
+                  <div className="flex items-center gap-2 text-cyan-300 text-xs font-bold font-mono">
+                    <Layers className="w-4 h-4" />
+                    SMART DUPLICATE DETECTION
+                  </div>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">
+                    <strong className="text-cyan-300">{dupCheck.matchCount} of {dupCheck.total}</strong> items already
+                    exist in your live catalog. They will <strong className="text-white">NOT be posted again as new
+                    products</strong> — instead each one comes down as a selectable <strong className="text-white">variant</strong>{' '}
+                    on the existing product, so customers can choose it from the dropdown.
+                  </p>
+                </div>
+              )}
+
               {/* Summary KPIs Banner */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-2xl bg-[#0E1322] border border-white/5 space-y-1">
@@ -1291,7 +1348,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
               <div className="grid grid-cols-3 gap-3 w-full max-w-lg p-4 rounded-2xl bg-[#0E1322] border border-white/5 text-center font-mono">
                 <div>
                   <div className="text-lg font-black text-white">{publishedSummary.total}</div>
-                  <div className="text-[10px] text-zinc-400 uppercase">Live Products</div>
+                  <div className="text-[10px] text-zinc-400 uppercase">Processed</div>
                 </div>
                 <div>
                   <div className="text-lg font-black text-amber-400">{publishedSummary.digital}</div>
@@ -1302,6 +1359,49 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
                   <div className="text-[10px] text-zinc-400 uppercase">Hardware</div>
                 </div>
               </div>
+
+              {/* Variant-aware duplicate report — real backend dedupe results */}
+              {uploadReport && (uploadReport.insertedCount > 0 || uploadReport.variantAttachedCount > 0 || uploadReport.skippedCount > 0) && (
+                <div className="w-full max-w-lg rounded-2xl bg-[#0E1322] border border-white/5 p-4 space-y-3 text-left">
+                  <div className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" /> Duplicate-Safe Import Report
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+                      <div className="text-base font-black text-emerald-300">{uploadReport.insertedCount}</div>
+                      <div className="text-[9px] text-zinc-400 uppercase">New Products</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
+                      <div className="text-base font-black text-cyan-300">{uploadReport.variantAttachedCount}</div>
+                      <div className="text-[9px] text-zinc-400 uppercase">Added as Variants</div>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                      <div className="text-base font-black text-amber-300">{uploadReport.skippedCount}</div>
+                      <div className="text-[9px] text-zinc-400 uppercase">Skipped (dupes)</div>
+                    </div>
+                  </div>
+                  {uploadReport.attachedVariants.length > 0 && (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {uploadReport.attachedVariants.map((v, i) => (
+                        <div key={i} className="text-[10px] font-mono text-zinc-400 flex items-center gap-1.5">
+                          <Check className="w-3 h-3 text-cyan-400 shrink-0" />
+                          <span>"{v.variant}" attached as a selectable variant of <span className="text-zinc-200">{v.product}</span></span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {uploadReport.skipped.length > 0 && (
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {uploadReport.skipped.map((s, i) => (
+                        <div key={i} className="text-[10px] font-mono text-amber-300/80 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{s.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {publishedSummary.mongoSynced && (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-xs">

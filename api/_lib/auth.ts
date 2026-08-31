@@ -43,17 +43,22 @@ export function verifyUser(req: AuthenticatedRequest): any | null {
   }
 }
 
-// Verify admin JWT (must have role === "admin")
+// Verify admin JWT (must have role === "admin" (super admin) or "staff" (employee))
 export function verifyAdmin(req: AuthenticatedRequest): any | null {
   const token = getToken(req, "adminToken");
   if (!token) return null;
   try {
     const decoded: any = jwt.verify(token, SESSION_SECRET);
-    if (decoded.role !== "admin") return null;
+    if (decoded.role !== "admin" && decoded.role !== "staff") return null;
     return decoded;
   } catch {
     return null;
   }
+}
+
+// Check whether the verified admin token belongs to a SUPER admin (not employee staff)
+export function isSuperAdmin(admin: any): boolean {
+  return Boolean(admin && admin.role === "admin");
 }
 
 // Middleware-style: returns 401 if user not authed
@@ -67,11 +72,28 @@ export function requireUser(req: AuthenticatedRequest, res: VercelResponse): any
   return user;
 }
 
-// Middleware-style: returns 403 if not admin
+// Middleware-style: returns 403 if not admin (staff or super admin both allowed)
 export function requireAdmin(req: AuthenticatedRequest, res: VercelResponse): any | null {
   const admin = verifyAdmin(req);
   if (!admin) {
     res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  req.user = admin;
+  return admin;
+}
+
+// Middleware-style: returns 403 unless token belongs to the SUPER admin
+export function requireSuperAdmin(req: AuthenticatedRequest, res: VercelResponse): any | null {
+  const admin = verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  if (!isSuperAdmin(admin)) {
+    res
+      .status(403)
+      .json({ success: false, error: "Super administrator privileges required for this action." });
     return null;
   }
   req.user = admin;
