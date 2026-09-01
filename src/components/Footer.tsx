@@ -4,18 +4,10 @@ import {
   MessageSquare,
   ShieldCheck,
   Truck,
-  RefreshCw,
   FileText,
   Lock,
-  Phone,
-  Send,
-  Instagram,
-  Facebook,
   Headphones,
-  MapPin,
-  ExternalLink,
-  Check,
-  MessageCircle,
+  ArrowRight,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
 
@@ -46,32 +38,9 @@ export interface FooterCms {
 
 export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const [infoType, setInfoType] = useState<InfoType | null>(null)
-  const [copiedHandle, setCopiedHandle] = useState<string | null>(null)
-
-  const email = cms?.contact?.email || 'support@playbeat.digital'
   const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
-  const whatsapp = cms?.contact?.whatsapp || '923000000000'
-  const address = cms?.contact?.address || 'PlayBeat Digital Pvt Ltd, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
-  const social = cms?.social || {}
+  const whatsapp = cms?.contact?.whatsapp || '923321049333'
   const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
-  // Direct Google Maps link to the verified business listing
-  const mapLink = 'https://www.google.com/maps/place/Playbeat+Digital+Private+Limited/@34.1922825,73.2380474,17z/data=!3m1!4b1!4m6!3m5!1s0x38de310060109459:0x8cde501ea1753c84!8m2!3d34.1922825!4d73.2406223!16s%2Fg%2F11z2y_hcmb'
-
-  // Dynamic messaging handles — default to @playbeatdigital01
-  const wechatHandle = cms?.contact?.wechat || '@playbeatdigital01'
-  const whatsappBusinessHandle = cms?.contact?.whatsappBusiness || '@playbeatdigital01'
-  const telegramHandle = cms?.contact?.telegram || '@playbeatdigital01'
-  // Telegram uses username format (strip @ for the URL)
-  const telegramUrl = social?.telegram || `https://t.me/${telegramHandle.replace(/^@/, '')}`
-  // WhatsApp Business uses wa.me with the handle as a deep link
-  const whatsappBusinessUrl = `https://wa.me/message/${whatsappBusinessHandle.replace(/^@/, '')}`
-  // WeChat doesn't have a web deep-link, so we show a copyable handle
-  const copyHandle = (handle: string, label: string) => {
-    navigator.clipboard.writeText(handle).then(() => {
-      setCopiedHandle(label)
-      setTimeout(() => setCopiedHandle(null), 2000)
-    })
-  }
 
   return (
     <>
@@ -79,7 +48,7 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-10">
             {/* Brand Col */}
-            <div className="md:col-span-4 space-y-3.5">
+            <div className="md:col-span-5 space-y-3.5">
               <div className="flex items-center gap-3">
                 <img
                   src="/playbeat-logo.png"
@@ -88,174 +57,40 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                 />
               </div>
               <p className="text-slate-400 text-xs leading-relaxed max-w-sm font-sans">
-                Your premier digital license marketplace and official partner for Magcubic 4K smart projectors. Instant 24/7 automated delivery worldwide.
+                Your premier digital license marketplace and official partner for Magcubic 4K smart
+                projectors. Instant 24/7 automated delivery worldwide.
               </p>
               <div className="flex items-center gap-2 text-yellow-400 text-[11px] font-mono font-semibold">
                 <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
                 {uptimeNote}
               </div>
-
-              {/* Office Address — dynamically managed via Website Builder CMS */}
-              <a
-                href={mapLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-2.5 p-3 rounded-xl bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 transition group max-w-sm"
-                title="Open office address in Google Maps"
-              >
-                <MapPin className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0 group-hover:scale-110 transition" />
-                <div className="min-w-0">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
-                    Head Office
-                  </div>
-                  <div className="text-[11px] text-slate-300 leading-relaxed group-hover:text-yellow-200 transition">
-                    {address}
-                  </div>
-                  <div className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-yellow-300/90">
-                    View on Google Maps <ExternalLink className="w-2.5 h-2.5" />
-                  </div>
-                </div>
-              </a>
-
-              {/* Quick Contact Buttons */}
-              <div className="pt-1">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2 font-bold">
-                  Quick Contact
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {/* WeChat — copyable handle (no web deep-link) */}
-                  <button
-                    onClick={() => copyHandle(wechatHandle, 'wechat')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition group"
-                    title={`WeChat: ${wechatHandle} — click to copy`}
-                  >
-                    <MessageCircle className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition" />
-                    {copiedHandle === 'wechat' ? (
-                      <span className="text-emerald-300 flex items-center gap-0.5">
-                        <Check className="w-3 h-3" /> Copied
-                      </span>
-                    ) : (
-                      <span>WeChat</span>
-                    )}
-                  </button>
-
-                  {/* WhatsApp Business — deep link */}
-                  <a
-                    href={whatsappBusinessUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition group"
-                    title={`WhatsApp Business: ${whatsappBusinessHandle}`}
-                  >
-                    <Phone className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition" />
-                    WhatsApp Business
-                  </a>
-
-                  {/* Telegram — deep link */}
-                  <a
-                    href={telegramUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-sky-400/40 hover:text-sky-300 text-[10px] font-semibold text-slate-300 transition group"
-                    title={`Telegram: ${telegramHandle}`}
-                  >
-                    <Send className="w-3 h-3 text-sky-400 group-hover:scale-110 transition" />
-                    Telegram
-                  </a>
-
-                  {/* Divider */}
-                  <div className="w-px h-6 bg-slate-400/10 mx-0.5 self-center hidden sm:block" />
-
-                  {/* Email */}
-                  <a
-                    href={`mailto:${email}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="Email Support"
-                  >
-                    <Mail className="w-3 h-3 text-yellow-400" />
-                    Email
-                  </a>
-                  <a
-                    href={`https://wa.me/${whatsapp.replace(/[^\d]/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition"
-                    title="WhatsApp 24/7"
-                  >
-                    <Phone className="w-3 h-3 text-emerald-400" />
-                    WhatsApp
-                  </a>
-                  {social?.instagram && (
-                    <a
-                      href={social.instagram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-pink-400/40 hover:text-pink-300 text-[10px] font-semibold text-slate-300 transition"
-                      title="Instagram"
-                    >
-                      <Instagram className="w-3 h-3 text-pink-400" />
-                      Instagram
-                    </a>
-                  )}
-                  {social?.facebook && (
-                    <a
-                      href={social.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-blue-400/40 hover:text-blue-300 text-[10px] font-semibold text-slate-300 transition"
-                      title="Facebook"
-                    >
-                      <Facebook className="w-3 h-3 text-blue-400" />
-                      Facebook
-                    </a>
-                  )}
-                  {social?.telegram && (
-                    <a
-                      href={social.telegram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-sky-400/40 hover:text-sky-300 text-[10px] font-semibold text-slate-300 transition"
-                      title="Telegram"
-                    >
-                      <Send className="w-3 h-3 text-sky-400" />
-                      Telegram
-                    </a>
-                  )}
-                  {/* Dynamic Contact Button — navigates to full contact page */}
-                  <a
-                    href="/contact"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-gold-gradient text-slate-950 text-[10px] font-bold transition shadow-sm"
-                    title="All contact channels & office address"
-                  >
-                    <Headphones className="w-3 h-3" />
-                    Contact Us
-                  </a>
-                </div>
-
-                {/* Handle display — shows the @playbeatdigital01 handle */}
-                <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
-                  <MessageCircle className="w-3 h-3 text-emerald-400/60" />
-                  <span>WeChat / WhatsApp / Telegram:</span>
-                  <code className="text-amber-300 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">@playbeatdigital01</code>
-                </div>
-              </div>
             </div>
 
             {/* Quick Categories */}
-            <div className="md:col-span-2 space-y-2.5 font-sans">
-              <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">Catalog</h4>
+            <div className="md:col-span-3 space-y-2.5 font-sans">
+              <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">
+                Catalog
+              </h4>
               <ul className="space-y-2 text-slate-400 text-xs">
                 <li className="hover:text-yellow-300 transition cursor-pointer">Smart 4K Projectors</li>
                 <li className="hover:text-yellow-300 transition cursor-pointer">AI Subscriptions</li>
                 <li className="hover:text-yellow-300 transition cursor-pointer">Steam & Game Keys</li>
                 <li className="hover:text-yellow-300 transition cursor-pointer">Windows & Office</li>
                 <li className="hover:text-yellow-300 transition cursor-pointer">Creative Software</li>
+                <li>
+                  <a href="/compare" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Projector Comparison
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
               </ul>
             </div>
 
             {/* Customer Care — Functional Buttons */}
-            <div className="md:col-span-3 space-y-2.5 font-sans">
-              <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">Support</h4>
+            <div className="md:col-span-4 space-y-2.5 font-sans">
+              <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">
+                Support
+              </h4>
               <ul className="space-y-2 text-slate-400 text-xs">
                 <li>
                   <a
@@ -290,65 +125,77 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                 </li>
               </ul>
             </div>
+          </div>
 
-            {/* Payment Badges */}
-            <div className="md:col-span-3 space-y-3">
-              <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">Secure Gateways</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {['Visa', 'Mastercard', 'EasyPaisa', 'JazzCash', 'Binance Pay', 'Apple Pay'].map(
-                  (gateway) => (
-                    <span
-                      key={gateway}
-                      className="px-2.5 py-1 rounded-lg bg-[#0A122E] border border-slate-400/15 text-[10px] text-slate-300 font-mono"
-                    >
-                      {gateway}
+          {/* Enhanced Dynamic Buttons — Policies & Contact */}
+          <div className="pt-8 pb-6 border-t border-slate-400/10">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[
+                {
+                  href: '/privacy',
+                  icon: <Lock className="w-4 h-4" />,
+                  title: 'Privacy Policy',
+                  subtitle: 'How your data is protected',
+                  chip: 'bg-violet-500/15 border-violet-400/30 text-violet-300',
+                  glow: 'hover:border-violet-400/60 hover:shadow-[0_0_28px_rgba(139,92,246,0.25)]',
+                },
+                {
+                  href: '/terms',
+                  icon: <FileText className="w-4 h-4" />,
+                  title: 'Terms of Service',
+                  subtitle: 'Fair usage & licensing terms',
+                  chip: 'bg-sky-500/15 border-sky-400/30 text-sky-300',
+                  glow: 'hover:border-sky-400/60 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)]',
+                },
+                {
+                  href: '/refund-policy',
+                  icon: <ShieldCheck className="w-4 h-4" />,
+                  title: 'Refund Policy',
+                  subtitle: 'Fast, transparent resolutions',
+                  chip: 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300',
+                  glow: 'hover:border-emerald-400/60 hover:shadow-[0_0_28px_rgba(52,211,153,0.25)]',
+                },
+                {
+                  href: '/contact',
+                  icon: <Headphones className="w-4 h-4" />,
+                  title: 'Contact',
+                  subtitle: '24/7 channels & office address',
+                  chip: 'bg-amber-500/15 border-amber-400/30 text-amber-300',
+                  glow: 'hover:border-amber-400/60 hover:shadow-[0_0_28px_rgba(255,193,7,0.25)]',
+                },
+              ].map((btn) => (
+                <a
+                  key={btn.href}
+                  href={btn.href}
+                  className={`group relative flex items-center gap-3 p-3.5 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 ${btn.glow}`}
+                >
+                  <span
+                    className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300 ${btn.chip}`}
+                  >
+                    {btn.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-white truncate font-sans">
+                      {btn.title}
                     </span>
-                  )
-                )}
-              </div>
-              <p className="text-[10px] text-slate-500 font-sans leading-normal">
-                256-Bit SSL military-grade encryption. Instant automated fulfillment to verified email.
-              </p>
+                    <span className="block text-[10px] text-slate-500 truncate font-sans group-hover:text-slate-400 transition">
+                      {btn.subtitle}
+                    </span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0 group-hover:text-yellow-300 group-hover:translate-x-1 transition-all duration-300" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Bottom Bar — Policy Links (real pages) */}
-          <div className="pt-6 border-t border-slate-400/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-[10px] font-mono">
-            <div>
-              © {new Date().getFullYear()} PlayBeat Digital Commerce. All rights reserved.
-            </div>
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <a
-                href="/privacy"
-                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
-              >
-                <Lock className="w-3 h-3" />
-                Privacy Policy
-              </a>
-              <span className="text-slate-700">•</span>
-              <a
-                href="/terms"
-                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
-              >
-                <FileText className="w-3 h-3" />
-                Terms of Service
-              </a>
-              <span className="text-slate-700">•</span>
-              <a
-                href="/refund-policy"
-                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
-              >
-                <RefreshCw className="w-3 h-3" />
-                Refund Policy
-              </a>
-              <span className="text-slate-700">•</span>
-              <a
-                href="/contact"
-                className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-white/5 hover:text-yellow-300 transition"
-              >
-                <MapPin className="w-3 h-3" />
-                Contact
-              </a>
+          {/* Bottom Bar */}
+          <div className="pt-6 border-t border-slate-400/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-500 text-[10px] font-mono">
+            <div>© {new Date().getFullYear()} PlayBeat Digital Commerce. All rights reserved.</div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Secure checkout · Instant delivery
+              </span>
             </div>
           </div>
         </div>

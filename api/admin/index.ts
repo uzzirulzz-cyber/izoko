@@ -1441,5 +1441,160 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============
+  if (route === "app/version" && req.method === "GET") {
+    return jsonOk(res, {
+      success: true,
+      app: {
+        name: "Playbeat Admin",
+        platform: "Android",
+        version: APP_RELEASE.version,
+        versionCode: APP_RELEASE.versionCode,
+        apkUrl: APP_RELEASE.apkUrl,
+        sizeBytes: APP_RELEASE.sizeBytes,
+        sha256: APP_RELEASE.sha256,
+        updatedAt: APP_RELEASE.updatedAt,
+        minAndroid: "7.0 (API 24)",
+        targetAndroid: "Android 14 (API 34)",
+        changelog: APP_RELEASE.changelog,
+      },
+    });
+  }
+
+  // ============ POST /api/admin/app/heartbeat (Android app live status ping) ============
+  // Called every 60s by the Playbeat Admin Android app while signed in.
+  // Only super admin / staff tokens pass the global requireAdmin gate above.
+  if (route === "app/heartbeat" && req.method === "POST") {
+    try {
+      const body = typeof req.body === "object" && req.body !== null ? req.body : {};
+      const deviceId = String(body.deviceId || "").trim().slice(0, 80);
+      if (!deviceId) return jsonError(res, "deviceId is required", 400);
+      const admin = req.user as any;
+      const devicesCol = db.collection("admin_app_devices");
+      const existing = await devicesCol.findOne({ deviceId });
+      if (existing?.revoked) {
+        return jsonError(res, "This device has been revoked by a super administrator.", 403);
+      }
+      const now = new Date();
+      await devicesCol.updateOne(
+        { deviceId },
+        {
+          $set: {
+            adminEmail: String(admin.email || "").toLowerCase(),
+            adminName: admin.name || "",
+            adminRole: admin.role === "staff" ? "staff" : "admin",
+            deviceModel: String(body.deviceModel || "Unknown device").slice(0, 80),
+            androidVersion: String(body.androidVersion || "").slice(0, 20),
+            appVersion: String(body.appVersion || APP_RELEASE.version).slice(0, 20),
+            lastSeenAt: now,
+            lastIp:
+              (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+              req.socket?.remoteAddress ||
+              "",
+          },
+          $setOnInsert: { firstSeenAt: now, revoked: false },
+        },
+        { upsert: true }
+      );
+      const onlineNow = await devicesCol.countDocuments({
+        lastSeenAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+        revoked: { $ne: true },
+      });
+      return jsonOk(res, { success: true, serverTime: now.toISOString(), onlineNow });
+    } catch (err: any) {
+      console.error("POST /api/admin/app/heartbeat error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/app/devices (live device list for the panel) ============
+  if (route === "app/devices" && req.method === "GET") {
+    try {
+      const devicesCol = db.collection("admin_app_devices");
+      const docs = await devicesCol
+        .find({})
+        .sort({ lastSeenAt: -1 })
+        .limit(100)
+        .toArray();
+      const now = Date.now();
+      const devices = docs.map((d: any) => ({
+        deviceId: d.deviceId,
+        adminEmail: d.adminEmail,
+        adminName: d.adminName || "",
+        adminRole: d.adminRole === "staff" ? "staff" : "admin",
+        deviceModel: d.deviceModel || "Unknown device",
+        androidVersion: d.androidVersion || "",
+        appVersion: d.appVersion || "",
+        firstSeenAt: d.firstSeenAt,
+        lastSeenAt: d.lastSeenAt,
+        revoked: Boolean(d.revoked),
+        lastIp: d.lastIp || "",
+        status: d.revoked
+          ? "revoked"
+          : now - new Date(d.lastSeenAt || 0).getTime() < 5 * 60 * 1000
+            ? "online"
+            : now - new Date(d.lastSeenAt || 0).getTime() < 30 * 60 * 1000
+              ? "idle"
+              : "offline",
+      }));
+      return jsonOk(res, {
+        success: true,
+        stats: {
+          total: devices.length,
+          onlineNow: devices.filter((d) => d.status === "online").length,
+          revoked: devices.filter((d) => d.revoked).length,
+        },
+        devices,
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/app/devices error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/app/devices/revoke (super admin device control) ============
+  if (route === "app/devices/revoke" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = typeof req.body === "object" && req.body !== null ? req.body : {};
+      const deviceId = String(body.deviceId || "").trim().slice(0, 80);
+      const revoked = Boolean(body.revoked);
+      if (!deviceId) return jsonError(res, "deviceId is required", 400);
+      const devicesCol = db.collection("admin_app_devices");
+      const result = await devicesCol.updateOne({ deviceId }, { $set: { revoked } });
+      if (result.matchedCount === 0) return jsonError(res, "Device not found", 404);
+      const activityCol = db.collection("admin_activity");
+      const admin = req.user as any;
+      await activityCol.insertOne({
+        type: "app_device_control",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: `${revoked ? "Revoked" : "Restored"} Android app device ${deviceId}`,
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, deviceId, revoked });
+    } catch (err: any) {
+      console.error("POST /api/admin/app/devices/revoke error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   return jsonError(res, `Admin route not found: ${route}`, 404);
 }
+
+// Playbeat Admin Android app release metadata (updated when a new APK is shipped)
+const APP_RELEASE = {
+  version: "1.0.0",
+  versionCode: 1,
+  apkUrl: "/downloads/playbeat-admin-v1.0.0.apk",
+  sizeBytes: 116097,
+  sha256: "294325bcb0c913902baef9f7cd7a9f717ec434cef3951fb629231d8a9decf9c3",
+  updatedAt: "2026-09-01T00:00:00.000Z",
+  changelog: [
+    "Initial release — full admin dashboard in your pocket",
+    "Same super admin / staff login as the web panel",
+    "Live device heartbeat (60s) with admin-panel status monitoring",
+    "Role-restricted access identical to the web experience",
+  ],
+};

@@ -29,6 +29,7 @@
     { "source": "/refund-policy", "destination": "/index.html" },
     { "source": "/shipping-policy", "destination": "/index.html" },
     { "source": "/contact", "destination": "/index.html" },
+    { "source": "/compare", "destination": "/index.html" },
     { "source": "/product/:path*", "destination": "/index.html" },
     { "source": "/category/:path*", "destination": "/index.html" }
   ],

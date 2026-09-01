@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   LayoutDashboard,
   Globe,
+  Smartphone,
   BarChart3,
   ShoppingBag,
   Package,
@@ -64,6 +65,7 @@ import { ProductEditorModal } from './admin/ProductEditorModal'
 import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
 import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
+import { MobileAppPanel } from './admin/MobileAppPanel'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
 import { SystemHealthPanel } from './admin/SystemHealthPanel'
 import { BackupPanel } from './admin/BackupPanel'
@@ -191,6 +193,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
   const [adminName, setAdminName] = useState('PlayBeat Admin')
   const [adminEmail, setAdminEmail] = useState('')
+  // Live online device count for the Mobile App sidebar badge (polled every 60s)
+  const appOnlineCountRef = useRef(0)
+  const [appOnlineCount, setAppOnlineCount] = useState(0)
 
   // Admin profile dropdown (header avatar button)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -220,6 +225,33 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       }
     }
     run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Poll Android app live device count for the sidebar badge
+  useEffect(() => {
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/app/devices`, {
+          headers: { Authorization: `Bearer ${getAdminToken()}` },
+          credentials: 'include',
+        })
+        const data = await res.json()
+        if (!cancelled && data?.success) {
+          appOnlineCountRef.current = data.stats?.onlineNow || 0
+          setAppOnlineCount(data.stats?.onlineNow || 0)
+        }
+      } catch {
+        /* silent */
+      }
+    }
+    poll()
+    const t = setInterval(poll, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1004,6 +1036,33 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 >
                   <Megaphone className="w-4 h-4 text-orange-400" />
                   {!sidebarCollapsed && <span>Marketing Campaigns</span>}
+                </button>
+              </div>
+
+              {/* PLATFORM — Mobile App */}
+              <div>
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-fuchsia-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 shadow-[0_0_8px_currentColor]"></span>
+                    Platform
+                  </div>
+                )}
+                <button
+                  onClick={() => setActiveNav('mobileapp')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
+                    activeNav === 'mobileapp'
+                      ? 'text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/25'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4 text-fuchsia-400" />
+                  {!sidebarCollapsed && <span>Mobile App (Android)</span>}
+                  {!sidebarCollapsed && appOnlineCount > 0 && (
+                    <span className="ml-auto px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1">
+                      <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                      {appOnlineCount}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -2725,6 +2784,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* LEGACY orders route — same live panel */}
             {activeNav === 'orders' && <OrdersLogPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: MOBILE APP (ANDROID) — download, live devices, revoke control      */}
+            {/* ========================================================================= */}
+            {activeNav === 'mobileapp' && (
+              <MobileAppPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
+            )}
 
             {/* ========================================================================= */}
             {/* PANEL: WEBSITE BUILDER CMS — real editor backed by site_settings */}

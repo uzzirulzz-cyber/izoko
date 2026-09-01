@@ -167,7 +167,7 @@ const CONTENT: Record<InfoType, { title: string; icon: React.ReactNode; body: Re
               <div className="text-[10px] text-slate-400 font-mono">support@playbeat.digital</div>
             </div>
           </a>
-          <a href="https://wa.me/923000000000" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 transition">
+          <a href="https://wa.me/923321049333" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-xl bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 transition">
             <RefreshCw className="w-4 h-4 text-emerald-400" />
             <div>
               <div className="text-xs font-semibold text-white">WhatsApp (24/7)</div>

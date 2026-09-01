@@ -266,13 +266,22 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
                   {projectors.length} models
                 </span>
               </div>
-              <button
-                onClick={onExploreAll}
-                className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-cyan-300 transition"
-              >
-                Browse full specs
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="hidden sm:inline-flex items-center gap-3">
+                <a
+                  href="/compare"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-300 hover:text-cyan-200 transition"
+                >
+                  Compare all models
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  onClick={onExploreAll}
+                  className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-cyan-300 transition"
+                >
+                  Browse full specs
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">

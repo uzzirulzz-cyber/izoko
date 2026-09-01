@@ -47,8 +47,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
   const meta = META[type]
   const supportEmail = contact?.email || 'support@playbeat.digital'
-  const whatsapp = contact?.whatsapp || '923000000000'
-  const address = contact?.address || 'PlayBeat Digital Pvt Ltd, Gulberg III, Lahore, Pakistan'
+  const whatsapp = contact?.whatsapp || '923321049333'
+  const address = contact?.address || 'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
 
   const body: Record<PolicyType, React.ReactNode> = {
     privacy: (

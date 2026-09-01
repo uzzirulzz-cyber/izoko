@@ -4,9 +4,9 @@ import { HeroBanner } from './components/HeroBanner'
 import { CategoryNav } from './components/CategoryNav'
 import { ProductCard } from './components/ProductCard'
 import { ProjectorSpecMatrix } from './components/ProjectorSpecMatrix'
+import { LayoutGrid } from 'lucide-react'
 import { SmartProjectorShowcase } from './components/SmartProjectorShowcase'
 import { TrustFeatures } from './components/TrustFeatures'
-import { SocialSignUpSection } from './components/SocialSignUpSection'
 import { QuickViewModal } from './components/QuickViewModal'
 import { CartDrawer } from './components/CartDrawer'
 import { WishlistDrawer } from './components/WishlistDrawer'
@@ -91,8 +91,9 @@ type Route =
   | 'gaming'
   | 'software'
   | 'smart-projectors'
+  | 'compare'
 
-const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'contact']
+const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'contact', 'compare']
 
 // Category routes — each maps a URL slug to a product category name
 const CATEGORY_ROUTES: Record<string, string> = {
@@ -903,6 +904,49 @@ export function App() {
         <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
       )}
 
+      {/* COMPARE PAGE — dedicated projector comparison (not on main storefront) */}
+      {route === 'compare' && (
+        <div className="min-h-screen bg-[#050814] text-slate-100 font-sans">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#0A122E] border border-cyan-400/30 flex items-center justify-center shrink-0">
+                  <LayoutGrid className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                    Hardware Specification Matrix
+                  </h1>
+                  <p className="text-xs text-slate-400 font-sans mt-0.5">
+                    Side-by-side comparison of every PlayBeat smart projector.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('storefront')}
+                className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/20 text-xs font-semibold text-slate-200 hover:text-yellow-300 hover:border-yellow-400/40 transition"
+              >
+                <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                Back to Storefront
+              </button>
+            </div>
+            <div className="rounded-[26px] overflow-hidden border border-slate-400/10">
+              <ProjectorSpecMatrix
+                projectors={projectorProducts}
+                currency={selectedCurrency}
+                onAddToCart={(p) => {
+                  navigate('storefront')
+                  setTimeout(() => handleAddToCart(p), 120)
+                }}
+                onQuickView={(p) => {
+                  navigate('storefront')
+                  setTimeout(() => handleQuickViewWithTracking(p), 120)
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {/* STOREFRONT (homepage + category pages) — completely separate from admin */}
       {isStorefrontRoute && (
         <>
@@ -1135,29 +1179,6 @@ export function App() {
                   />
                 ))}
               </div>
-            )}
-
-            {/* Social Sign Up Section (Google, Facebook, TikTok, Instagram) */}
-            {!searchQuery && (
-              <SocialSignUpSection
-                user={user}
-                onSocialAuth={(provider, newUser) => {
-                  // Token persistence handled inside SocialSignUpSection
-                  localStorage.setItem('playbeat_user', JSON.stringify(newUser))
-                  setUser(newUser)
-                  showToast(`Successfully signed up via ${provider}! Welcome to PlayBeat.`)
-                }}
-              />
-            )}
-
-            {/* Smart Projector Spec Matrix Section */}
-            {(selectedCategory === 'all' || selectedCategory === 'Smart Projectors' || selectedCategory === 'IPTV & Services') && !searchQuery && (
-              <ProjectorSpecMatrix
-                projectors={projectorProducts}
-                currency={selectedCurrency}
-                onAddToCart={handleAddToCart}
-                onQuickView={handleQuickViewWithTracking}
-              />
             )}
 
             {/* Bottom Trust Features Bar (Matching Screenshot 3) */}

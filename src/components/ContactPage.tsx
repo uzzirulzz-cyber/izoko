@@ -35,11 +35,20 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => {
   const email = contact?.email || 'support@playbeat.digital'
-  const supportEmail = contact?.supportEmail || 'support@playbeat.pro'
-  const whatsapp = contact?.whatsapp || '923000000000'
-  const phone = contact?.phone || '+92 300 0000000'
-  const address = contact?.address || 'PlayBeat Digital Pvt Ltd, Gulberg III, Lahore, Punjab, Pakistan'
+  const supportEmail = contact?.supportEmail || 'playbeatdiigital@proton.me'
+  const whatsapp = contact?.whatsapp || '923321049333'
+  const phone = contact?.phone || '+92 332 1049333'
+  const address =
+    contact?.address ||
+    'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
   const hours = contact?.hours || 'Support: 24/7 Automated — Live agents 10AM-10PM PKT'
+  const company = 'Playbeat Digital Private Limited'
+  const waLines = [
+    { label: 'WhatsApp Line 1 — Orders', num: '923321049333', pretty: '+92 332 1049333' },
+    { label: 'WhatsApp Line 2 — Support', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 3 — Escalations', num: '923341079333', pretty: '+92 334 1079333' },
+  ]
+  const messagingHandle = '@playbeatdigital01'
 
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
   const [sending, setSending] = useState(false)
@@ -164,6 +173,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => 
                 <MapPin className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs font-bold text-white mb-1">Registered Office</div>
+                  <p className="text-xs text-slate-300 leading-relaxed">{company}</p>
                   <p className="text-xs text-slate-300 leading-relaxed">{address}</p>
                   <a
                     href={mapLink}
@@ -173,6 +183,38 @@ export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => 
                   >
                     Get Directions <ExternalLink className="w-3 h-3" />
                   </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Phone className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white mb-1.5">WhatsApp Order Lines</div>
+                  <div className="space-y-1.5">
+                    {waLines.map((l) => (
+                      <a
+                        key={l.num}
+                        href={`https://wa.me/${l.num}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#060B1E] border border-slate-400/15 hover:border-emerald-400/40 text-[10px] transition group"
+                      >
+                        <span className="text-slate-400">{l.label}</span>
+                        <span className="font-mono font-bold text-emerald-300 group-hover:text-emerald-200">{l.pretty}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <MessageSquare className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-white mb-1">Quick Messaging</div>
+                  <p className="text-xs text-slate-300">
+                    WeChat / WhatsApp / Telegram:{' '}
+                    <code className="text-amber-300 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">{messagingHandle}</code>
+                  </p>
                 </div>
               </div>
 
@@ -191,7 +233,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => 
                   <p className="text-xs text-slate-300">
                     General: <a className="text-yellow-300 hover:underline" href={`mailto:${email}`}>{email}</a>
                     <br />
-                    Support: <a className="text-yellow-300 hover:underline" href={`mailto:${supportEmail}`}>{supportEmail}</a>
+                    Secure Support: <a className="text-yellow-300 hover:underline" href={`mailto:${supportEmail}`}>{supportEmail}</a>
                   </p>
                 </div>
               </div>
