@@ -14,6 +14,8 @@ import {
   Headphones,
   MapPin,
   ExternalLink,
+  Check,
+  MessageCircle,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
 
@@ -27,6 +29,9 @@ export interface FooterCms {
     phone?: string
     address?: string
     hours?: string
+    wechat?: string
+    whatsappBusiness?: string
+    telegram?: string
   }
   social: {
     instagram?: string
@@ -41,6 +46,7 @@ export interface FooterCms {
 
 export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const [infoType, setInfoType] = useState<InfoType | null>(null)
+  const [copiedHandle, setCopiedHandle] = useState<string | null>(null)
 
   const email = cms?.contact?.email || 'support@playbeat.digital'
   const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
@@ -49,6 +55,22 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const social = cms?.social || {}
   const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+
+  // Dynamic messaging handles — default to @playbeatdigital01
+  const wechatHandle = cms?.contact?.wechat || '@playbeatdigital01'
+  const whatsappBusinessHandle = cms?.contact?.whatsappBusiness || '@playbeatdigital01'
+  const telegramHandle = cms?.contact?.telegram || '@playbeatdigital01'
+  // Telegram uses username format (strip @ for the URL)
+  const telegramUrl = social?.telegram || `https://t.me/${telegramHandle.replace(/^@/, '')}`
+  // WhatsApp Business uses wa.me with the handle as a deep link
+  const whatsappBusinessUrl = `https://wa.me/message/${whatsappBusinessHandle.replace(/^@/, '')}`
+  // WeChat doesn't have a web deep-link, so we show a copyable handle
+  const copyHandle = (handle: string, label: string) => {
+    navigator.clipboard.writeText(handle).then(() => {
+      setCopiedHandle(label)
+      setTimeout(() => setCopiedHandle(null), 2000)
+    })
+  }
 
   return (
     <>
@@ -100,6 +122,50 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                   Quick Contact
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {/* WeChat — copyable handle (no web deep-link) */}
+                  <button
+                    onClick={() => copyHandle(wechatHandle, 'wechat')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition group"
+                    title={`WeChat: ${wechatHandle} — click to copy`}
+                  >
+                    <MessageCircle className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition" />
+                    {copiedHandle === 'wechat' ? (
+                      <span className="text-emerald-300 flex items-center gap-0.5">
+                        <Check className="w-3 h-3" /> Copied
+                      </span>
+                    ) : (
+                      <span>WeChat</span>
+                    )}
+                  </button>
+
+                  {/* WhatsApp Business — deep link */}
+                  <a
+                    href={whatsappBusinessUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-emerald-400/40 hover:text-emerald-300 text-[10px] font-semibold text-slate-300 transition group"
+                    title={`WhatsApp Business: ${whatsappBusinessHandle}`}
+                  >
+                    <Phone className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition" />
+                    WhatsApp Business
+                  </a>
+
+                  {/* Telegram — deep link */}
+                  <a
+                    href={telegramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-sky-400/40 hover:text-sky-300 text-[10px] font-semibold text-slate-300 transition group"
+                    title={`Telegram: ${telegramHandle}`}
+                  >
+                    <Send className="w-3 h-3 text-sky-400 group-hover:scale-110 transition" />
+                    Telegram
+                  </a>
+
+                  {/* Divider */}
+                  <div className="w-px h-6 bg-slate-400/10 mx-0.5 self-center hidden sm:block" />
+
+                  {/* Email */}
                   <a
                     href={`mailto:${email}`}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 text-[10px] font-semibold text-slate-300 transition"
@@ -163,6 +229,13 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                     <Headphones className="w-3 h-3" />
                     Contact Us
                   </a>
+                </div>
+
+                {/* Handle display — shows the @playbeatdigital01 handle */}
+                <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-slate-500 font-mono">
+                  <MessageCircle className="w-3 h-3 text-emerald-400/60" />
+                  <span>WeChat / WhatsApp / Telegram:</span>
+                  <code className="text-amber-300 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">@playbeatdigital01</code>
                 </div>
               </div>
             </div>
