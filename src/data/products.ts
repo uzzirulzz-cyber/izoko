@@ -1778,63 +1778,63 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "variants": [
       {
         "id": "v-PB-GFT-001",
-        "name": "Gift Card 1 USD",
+        "name": "1 USD",
         "price": 440,
         "originalPrice": 550,
         "sku": "PB-GFT-001"
       },
       {
         "id": "v-PB-GFT-002",
-        "name": "Gift Card 5 USD",
+        "name": "5 USD",
         "price": 1451,
         "originalPrice": 1500,
         "sku": "PB-GFT-002"
       },
       {
         "id": "v-PB-GFT-003",
-        "name": "Gift Card 10 USD",
+        "name": "10 USD",
         "price": 2698,
         "originalPrice": 3000,
         "sku": "PB-GFT-003"
       },
       {
         "id": "v-PB-GFT-004",
-        "name": "Gift Card 15 USD",
+        "name": "15 USD",
         "price": 3850,
         "originalPrice": 4500,
         "sku": "PB-GFT-004"
       },
       {
         "id": "v-PB-GFT-005",
-        "name": "Gift Card 25 USD",
+        "name": "25 USD",
         "price": 6324,
         "originalPrice": 7500,
         "sku": "PB-GFT-005"
       },
       {
         "id": "v-PB-GFT-006",
-        "name": "Gift Card 50 USD",
+        "name": "50 USD",
         "price": 13548,
         "originalPrice": 15500,
         "sku": "PB-GFT-006"
       },
       {
         "id": "v-PB-GFT-007",
-        "name": "Gift Card 100 USD",
+        "name": "100 USD",
         "price": 28415,
         "originalPrice": 32500,
         "sku": "PB-GFT-007"
       },
       {
         "id": "v-PB-GFT-008",
-        "name": "Gift Card 160 USD",
+        "name": "160 USD",
         "price": 40719,
         "originalPrice": 47000,
         "sku": "PB-GFT-008"
       },
       {
         "id": "v-PB-GFT-009",
-        "name": "Gift Card 225 USD",
+        "name": "225 USD",
         "price": 57339,
         "originalPrice": 66000,
         "sku": "PB-GFT-009"
@@ -1886,42 +1886,42 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "variants": [
       {
         "id": "v-PB-GFT-010",
-        "name": "Gift Card 10 USD",
+        "name": "10 USD",
         "price": 2820,
         "originalPrice": 3000,
         "sku": "PB-GFT-010"
       },
       {
         "id": "v-PB-GFT-011",
-        "name": "Gift Card 20 USD",
+        "name": "20 USD",
         "price": 5451,
         "originalPrice": 6500,
         "sku": "PB-GFT-011"
       },
       {
         "id": "v-PB-GFT-012",
-        "name": "Gift Card 25 USD",
+        "name": "25 USD",
         "price": 6739,
         "originalPrice": 8000,
         "sku": "PB-GFT-012"
       },
       {
         "id": "v-PB-GFT-013",
-        "name": "Gift Card 50 USD",
+        "name": "50 USD",
         "price": 13304,
         "originalPrice": 15500,
         "sku": "PB-GFT-013"
       },
       {
         "id": "v-PB-GFT-014",
-        "name": "Gift Card 100 USD",
+        "name": "100 USD",
         "price": 29163,
         "originalPrice": 33500,
         "sku": "PB-GFT-014"
       },
       {
         "id": "v-PB-GFT-015",
-        "name": "Gift Card 180 USD",
+        "name": "180 USD",
         "price": 45705,
         "originalPrice": 52500,
         "sku": "PB-GFT-015"
@@ -2095,42 +2095,42 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "variants": [
       {
         "id": "v-PB-GFT-027",
-        "name": "Gift Card 5 USD",
+        "name": "5 USD",
         "price": 1471,
         "originalPrice": 1500,
         "sku": "PB-GFT-027"
       },
       {
         "id": "v-PB-GFT-028",
-        "name": "Gift Card 10 USD",
+        "name": "10 USD",
         "price": 2875,
         "originalPrice": 3500,
         "sku": "PB-GFT-028"
       },
       {
         "id": "v-PB-GFT-029",
-        "name": "Gift Card 20 USD",
+        "name": "20 USD",
         "price": 5997,
         "originalPrice": 7000,
         "sku": "PB-GFT-029"
       },
       {
         "id": "v-PB-GFT-030",
-        "name": "Gift Card 30 USD",
+        "name": "30 USD",
         "price": 9127,
         "originalPrice": 10500,
         "sku": "PB-GFT-030"
       },
       {
         "id": "v-PB-GFT-031",
-        "name": "Gift Card 50 USD",
+        "name": "50 USD",
         "price": 14681,
         "originalPrice": 17000,
         "sku": "PB-GFT-031"
       },
       {
         "id": "v-PB-GFT-032",
-        "name": "Gift Card 100 USD",
+        "name": "100 USD",
         "price": 27700,
         "originalPrice": 32000,
         "sku": "PB-GFT-032"
