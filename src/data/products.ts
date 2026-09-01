@@ -1,6 +1,8 @@
-// products.ts — AUTO-GENERATED from Playbeat_Combined_Catalog.xlsx (CLSC file).
-// 178 products · 6 categories · real official web images in /assets/images/products/.
-// Regenerate with: node scripts/gen_products_ts.js
+// products.ts — AUTO-GENERATED from live consolidated catalog (CLSC file origin).
+// 69 storefront products · 25 with variant dropdown selection covering 134 SKUs · 6 categories.
+// Same product posted many times = posted ONCE with variants under the product dropdown.
+// Real official web images in /assets/images/products/.
+// Regenerate with: node scripts/export_products_ts.mjs
 import { Product, CategoryMeta } from '../types'
 import { ensureProductSlug } from '../lib/slug'
 
@@ -80,8 +82,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
   {
     "id": "pb-str-001",
     "sku": "PB-STR-001",
-    "name": "YouTube Premium Your Own Email 1 Month",
-    "slug": "youtube-premium-your-own-email-1-month",
+    "name": "YouTube Premium",
+    "slug": "youtube-premium",
     "category": "Streaming",
     "description": "Official YouTube Premium plan activated directly on your own Google account — ad-free videos, background and offline playback, plus YouTube Music Premium included. Delivered by PlayBeat with a full-duration stability warranty.",
     "price": 400,
@@ -95,7 +97,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "YouTube Premium",
-      "1 Month"
+      "1 Month",
+      "4 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -116,136 +119,48 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Activation on your own email"
     ],
     "brand": "YouTube Premium",
-    "imageKey": "youtube-premium"
-  },
-  {
-    "id": "pb-str-002",
-    "sku": "PB-STR-002",
-    "name": "YouTube Premium Full Private 1 Year",
-    "slug": "youtube-premium-full-private-1-year",
-    "category": "Streaming",
-    "description": "Official YouTube Premium plan — ad-free videos, background and offline playback, plus YouTube Music Premium included. Delivered by PlayBeat with a full-duration stability warranty.",
-    "price": 5000,
-    "originalPrice": 6000,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/youtube-premium.jpg",
-    "galleryImages": [
-      "/assets/images/products/youtube-premium.jpg"
+    "imageKey": "youtube-premium",
+    "variants": [
+      {
+        "id": "v-PB-STR-001",
+        "name": "Your Own Email 1 Month",
+        "price": 400,
+        "originalPrice": 500,
+        "sku": "PB-STR-001",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-003",
+        "name": "International 1 Month",
+        "price": 1150,
+        "originalPrice": 1500,
+        "sku": "PB-STR-003",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-002",
+        "name": "Full Private 1 Year",
+        "price": 5000,
+        "originalPrice": 6000,
+        "sku": "PB-STR-002",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-004",
+        "name": "International 1 Year",
+        "price": 12500,
+        "originalPrice": 14500,
+        "sku": "PB-STR-004",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "YouTube Premium",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Ad-free videos across YouTube and YouTube Music",
-      "Background play and offline downloads",
-      "Private access credentials provided"
-    ],
-    "brand": "YouTube Premium",
-    "imageKey": "youtube-premium"
-  },
-  {
-    "id": "pb-str-003",
-    "sku": "PB-STR-003",
-    "name": "YouTube Premium International 1 Month",
-    "slug": "youtube-premium-international-1-month",
-    "category": "Streaming",
-    "description": "Official YouTube Premium plan — ad-free videos, background and offline playback, plus YouTube Music Premium included. Delivered by PlayBeat with a full-duration stability warranty.",
-    "price": 1150,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 23,
-    "image": "/assets/images/products/youtube-premium.jpg",
-    "galleryImages": [
-      "/assets/images/products/youtube-premium.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "YouTube Premium",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Ad-free videos across YouTube and YouTube Music",
-      "Background play and offline downloads",
-      "Private access credentials provided"
-    ],
-    "brand": "YouTube Premium",
-    "imageKey": "youtube-premium"
-  },
-  {
-    "id": "pb-str-004",
-    "sku": "PB-STR-004",
-    "name": "YouTube Premium International 1 Year",
-    "slug": "youtube-premium-international-1-year",
-    "category": "Streaming",
-    "description": "Official YouTube Premium plan — ad-free videos, background and offline playback, plus YouTube Music Premium included. Delivered by PlayBeat with a full-duration stability warranty.",
-    "price": 12500,
-    "originalPrice": 14500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/youtube-premium.jpg",
-    "galleryImages": [
-      "/assets/images/products/youtube-premium.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "YouTube Premium",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Ad-free videos across YouTube and YouTube Music",
-      "Background play and offline downloads",
-      "Private access credentials provided"
-    ],
-    "brand": "YouTube Premium",
-    "imageKey": "youtube-premium"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-str-005",
     "sku": "PB-STR-005",
-    "name": "Prime Video 1 Month Shared",
-    "slug": "prime-video-1-month-shared",
+    "name": "Prime Video",
+    "slug": "prime-video",
     "category": "Streaming",
     "description": "Amazon Prime Video subscription with thousands of movies, award-winning Originals and live sports. Stream on up to three devices at once in Full HD and 4K where available.",
     "price": 199,
@@ -259,7 +174,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Amazon Prime Video",
-      "1 Month"
+      "1 Month",
+      "3 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -280,95 +196,40 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Full-duration warranty handled by PlayBeat"
     ],
     "brand": "Amazon Prime Video",
-    "imageKey": "prime-video"
-  },
-  {
-    "id": "pb-str-006",
-    "sku": "PB-STR-006",
-    "name": "Prime Video 6 Month",
-    "slug": "prime-video-6-month",
-    "category": "Streaming",
-    "description": "Amazon Prime Video subscription with thousands of movies, award-winning Originals and live sports. Stream on up to three devices at once in Full HD and 4K where available.",
-    "price": 750,
-    "originalPrice": 900,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/prime-video.png",
-    "galleryImages": [
-      "/assets/images/products/prime-video.png"
+    "imageKey": "prime-video",
+    "variants": [
+      {
+        "id": "v-PB-STR-005",
+        "name": "1 Month Shared",
+        "price": 199,
+        "originalPrice": 250,
+        "sku": "PB-STR-005",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-006",
+        "name": "6 Month",
+        "price": 750,
+        "originalPrice": 900,
+        "sku": "PB-STR-006",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-007",
+        "name": "Full Private 1 Month",
+        "price": 799,
+        "originalPrice": 950,
+        "sku": "PB-STR-007",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Amazon Prime Video",
-      "6 Months"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Hollywood movies, series and Amazon Originals",
-      "Watch on TV, mobile, tablet or console",
-      "Full-duration warranty handled by PlayBeat"
-    ],
-    "brand": "Amazon Prime Video",
-    "imageKey": "prime-video"
-  },
-  {
-    "id": "pb-str-007",
-    "sku": "PB-STR-007",
-    "name": "Prime Video Full Private 1 Month",
-    "slug": "prime-video-full-private-1-month",
-    "category": "Streaming",
-    "description": "Amazon Prime Video subscription with thousands of movies, award-winning Originals and live sports. Stream on up to three devices at once in Full HD and 4K where available.",
-    "price": 799,
-    "originalPrice": 950,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/prime-video.png",
-    "galleryImages": [
-      "/assets/images/products/prime-video.png"
-    ],
-    "tags": [
-      "Instant",
-      "Amazon Prime Video",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Hollywood movies, series and Amazon Originals",
-      "Watch on TV, mobile, tablet or console",
-      "Full-duration warranty handled by PlayBeat"
-    ],
-    "brand": "Amazon Prime Video",
-    "imageKey": "prime-video"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-str-008",
     "sku": "PB-STR-008",
-    "name": "Netflix 1 Month Local Pakistan",
-    "slug": "netflix-1-month-local-pakistan",
+    "name": "Netflix 1 Month",
+    "slug": "netflix-1-month",
     "category": "Streaming",
     "description": "Netflix subscription plan (Pakistan local catalog) with HD/4K streaming of series, films and mobile games. Private profile with watching history kept separate.",
     "price": 600,
@@ -382,7 +243,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Netflix",
-      "1 Month"
+      "1 Month",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -403,54 +265,32 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Replacement warranty for full plan duration"
     ],
     "brand": "Netflix",
-    "imageKey": "netflix"
-  },
-  {
-    "id": "pb-str-009",
-    "sku": "PB-STR-009",
-    "name": "Netflix 1 Month International",
-    "slug": "netflix-1-month-international",
-    "category": "Streaming",
-    "description": "Netflix subscription plan (international catalog) with HD/4K streaming of series, films and mobile games. Private profile with watching history kept separate.",
-    "price": 850,
-    "originalPrice": 1050,
-    "currency": "PKR",
-    "discountPercent": 19,
-    "image": "/assets/images/products/netflix.jpg",
-    "galleryImages": [
-      "/assets/images/products/netflix.jpg"
+    "imageKey": "netflix",
+    "variants": [
+      {
+        "id": "v-PB-STR-008",
+        "name": "Local Pakistan",
+        "price": 600,
+        "originalPrice": 750,
+        "sku": "PB-STR-008",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-009",
+        "name": "International",
+        "price": 850,
+        "originalPrice": 1050,
+        "sku": "PB-STR-009",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Netflix",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "HD / 4K streaming where plan allows",
-      "TV, mobile, tablet and web supported",
-      "Replacement warranty for full plan duration"
-    ],
-    "brand": "Netflix",
-    "imageKey": "netflix"
+    "variantLabel": "Region"
   },
   {
     "id": "pb-str-010",
     "sku": "PB-STR-010",
-    "name": "Netflix + Prime Video 1 Month Local Combo",
-    "slug": "netflix-prime-video-1-month-local-combo",
+    "name": "Netflix + Prime Video Combo",
+    "slug": "netflix-prime-video-combo",
     "category": "Streaming",
     "description": "Bundle pairing a Netflix plan with Amazon Prime Video for one month — double the entertainment at a combo price. Both activations delivered together with warranty support.",
     "price": 699,
@@ -464,7 +304,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Netflix + Prime Video Combo",
-      "1 Month"
+      "1 Month",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -485,54 +326,32 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Full-duration warranty on both plans"
     ],
     "brand": "Netflix + Prime Video Combo",
-    "imageKey": "netflix-prime-combo"
-  },
-  {
-    "id": "pb-str-011",
-    "sku": "PB-STR-011",
-    "name": "Netflix + Prime Video 1 Month International Combo",
-    "slug": "netflix-prime-video-1-month-international-combo",
-    "category": "Streaming",
-    "description": "Bundle pairing a Netflix plan with Amazon Prime Video for one month — double the entertainment at a combo price. Both activations delivered together with warranty support.",
-    "price": 950,
-    "originalPrice": 1150,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/netflix-prime-combo.jpg",
-    "galleryImages": [
-      "/assets/images/products/netflix-prime-combo.jpg"
+    "imageKey": "netflix-prime-combo",
+    "variants": [
+      {
+        "id": "v-PB-STR-010",
+        "name": "1 Month Local Combo",
+        "price": 699,
+        "originalPrice": 850,
+        "sku": "PB-STR-010",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-011",
+        "name": "1 Month International Combo",
+        "price": 950,
+        "originalPrice": 1150,
+        "sku": "PB-STR-011",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Netflix + Prime Video Combo",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Two top streaming services in one order",
-      "Delivered together within minutes",
-      "Full-duration warranty on both plans"
-    ],
-    "brand": "Netflix + Prime Video Combo",
-    "imageKey": "netflix-prime-combo"
+    "variantLabel": "Region"
   },
   {
     "id": "pb-str-012",
     "sku": "PB-STR-012",
-    "name": "Apple TV+ 1 Month",
-    "slug": "apple-tv-1-month",
+    "name": "Apple TV+",
+    "slug": "apple-tv",
     "category": "Streaming",
     "description": "Apple TV+ subscription featuring Apple Originals — Ted Lasso, Severance, Silo and more — in stunning 4K HDR with Dolby Atmos on supported devices.",
     "price": 499,
@@ -546,7 +365,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Apple TV+",
-      "1 Month"
+      "1 Month",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -567,48 +387,26 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Warranty for the full subscription period"
     ],
     "brand": "Apple TV+",
-    "imageKey": "appletv-plus"
-  },
-  {
-    "id": "pb-str-013",
-    "sku": "PB-STR-013",
-    "name": "Apple TV+ International",
-    "slug": "apple-tv-international",
-    "category": "Streaming",
-    "description": "Apple TV+ subscription featuring Apple Originals — Ted Lasso, Severance, Silo and more — in stunning 4K HDR with Dolby Atmos on supported devices.",
-    "price": 750,
-    "originalPrice": 900,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/appletv-plus.jpg",
-    "galleryImages": [
-      "/assets/images/products/appletv-plus.jpg"
+    "imageKey": "appletv-plus",
+    "variants": [
+      {
+        "id": "v-PB-STR-012",
+        "name": "1 Month",
+        "price": 499,
+        "originalPrice": 600,
+        "sku": "PB-STR-012",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STR-013",
+        "name": "International",
+        "price": 750,
+        "originalPrice": 900,
+        "sku": "PB-STR-013",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Apple TV+",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "All Apple Originals in 4K HDR",
-      "Up to six family profiles",
-      "Warranty for the full subscription period"
-    ],
-    "brand": "Apple TV+",
-    "imageKey": "appletv-plus"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-str-014",
@@ -1021,912 +819,10 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "imageKey": "zee5"
   },
   {
-    "id": "pb-stu-001",
-    "sku": "PB-STU-001",
-    "name": "Helium 10 Platinum Plan 1 Month",
-    "slug": "helium-10-platinum-plan-1-month",
-    "category": "Subscriptions",
-    "description": "Helium 10 Platinum plan for Amazon sellers — product research (Black Box), keyword research (Magnet, Cerebro) and listing optimization in one suite.",
-    "price": 1200,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/helium10.jpg",
-    "galleryImages": [
-      "/assets/images/products/helium10.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Helium 10",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Full Platinum toolset for 1 month",
-      "Keyword and product research suite",
-      "Private credentials, instant setup"
-    ],
-    "brand": "Helium 10",
-    "imageKey": "helium10"
-  },
-  {
-    "id": "pb-stu-002",
-    "sku": "PB-STU-002",
-    "name": "Zoom Pro 100 Participants 1 Month",
-    "slug": "zoom-pro-100-participants-1-month",
-    "category": "Subscriptions",
-    "description": "Zoom Pro license for meetings up to 100 participants — unlimited group meetings, cloud recording and advanced meeting controls.",
-    "price": 2000,
-    "originalPrice": 2500,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/zoom.png",
-    "galleryImages": [
-      "/assets/images/products/zoom.png"
-    ],
-    "tags": [
-      "Instant",
-      "Zoom Pro",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Pro host license with cloud recording",
-      "HD video meetings with breakout rooms",
-      "Reliable activation with warranty"
-    ],
-    "brand": "Zoom Pro",
-    "imageKey": "zoom"
-  },
-  {
-    "id": "pb-stu-003",
-    "sku": "PB-STU-003",
-    "name": "Zoom Pro 1 Year",
-    "slug": "zoom-pro-1-year",
-    "category": "Subscriptions",
-    "description": "Zoom Pro license — unlimited group meetings, cloud recording and advanced meeting controls.",
-    "price": 23000,
-    "originalPrice": 26500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/zoom.png",
-    "galleryImages": [
-      "/assets/images/products/zoom.png"
-    ],
-    "tags": [
-      "Instant",
-      "Zoom Pro",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Pro host license with cloud recording",
-      "HD video meetings with breakout rooms",
-      "Reliable activation with warranty"
-    ],
-    "brand": "Zoom Pro",
-    "imageKey": "zoom"
-  },
-  {
-    "id": "pb-stu-004",
-    "sku": "PB-STU-004",
-    "name": "Zoom Pro Officially Paid No Trial",
-    "slug": "zoom-pro-officially-paid-no-trial",
-    "category": "Subscriptions",
-    "description": "Zoom Pro license — unlimited group meetings, cloud recording and advanced meeting controls. Officially paid plan, not a trial.",
-    "price": 3200,
-    "originalPrice": 3500,
-    "currency": "PKR",
-    "discountPercent": 9,
-    "image": "/assets/images/products/zoom.png",
-    "galleryImages": [
-      "/assets/images/products/zoom.png"
-    ],
-    "tags": [
-      "Instant",
-      "Zoom Pro",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Pro host license with cloud recording",
-      "HD video meetings with breakout rooms",
-      "Officially paid — no trial limitations"
-    ],
-    "brand": "Zoom Pro",
-    "imageKey": "zoom"
-  },
-  {
-    "id": "pb-stu-005",
-    "sku": "PB-STU-005",
-    "name": "Microsoft Office 365 Pro Plus 1 Year 5 Devices",
-    "slug": "microsoft-office-365-pro-plus-1-year-5-devices",
-    "category": "Subscriptions",
-    "description": "Microsoft Office 365 Pro Plus for 1 year on 5 devices — Word, Excel, PowerPoint, Outlook, OneNote, Access and Publisher with 1 TB OneDrive.",
-    "price": 3999,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/office-365.jpg",
-    "galleryImages": [
-      "/assets/images/products/office-365.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft 365",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": true,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Office apps on 5 devices",
-      "1 TB OneDrive cloud storage",
-      "Renewable yearly license with support"
-    ],
-    "brand": "Microsoft 365",
-    "imageKey": "office-365"
-  },
-  {
-    "id": "pb-stu-006",
-    "sku": "PB-STU-006",
-    "name": "Adobe Creative Cloud 1 Month",
-    "slug": "adobe-creative-cloud-1-month",
-    "category": "Subscriptions",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 2999,
-    "originalPrice": 3500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-stu-007",
-    "sku": "PB-STU-007",
-    "name": "CapCut Pro 1 Month 3 Devices",
-    "slug": "capcut-pro-1-month-3-devices",
-    "category": "Subscriptions",
-    "description": "CapCut Pro plan on up to 3 devices — pro video editing with 4K export, premium effects, templates and cloud space.",
-    "price": 1499,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 25,
-    "image": "/assets/images/products/capcut.jpg",
-    "galleryImages": [
-      "/assets/images/products/capcut.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "CapCut Pro",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": true,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "All Pro effects, filters and templates",
-      "4K export with no watermark",
-      "Works on 3 of your devices"
-    ],
-    "brand": "CapCut Pro",
-    "imageKey": "capcut"
-  },
-  {
-    "id": "pb-stu-008",
-    "sku": "PB-STU-008",
-    "name": "CapCut Pro Full Private 1 Year",
-    "slug": "capcut-pro-full-private-1-year",
-    "category": "Subscriptions",
-    "description": "CapCut Pro plan (full private — your own activated seat) — pro video editing with 4K export, premium effects, templates and cloud space.",
-    "price": 13999,
-    "originalPrice": 16000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/capcut.jpg",
-    "galleryImages": [
-      "/assets/images/products/capcut.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "CapCut Pro",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "All Pro effects, filters and templates",
-      "4K export with no watermark",
-      "Fully private activation"
-    ],
-    "brand": "CapCut Pro",
-    "imageKey": "capcut"
-  },
-  {
-    "id": "pb-stu-009",
-    "sku": "PB-STU-009",
-    "name": "Freepik Premium 1 Month",
-    "slug": "freepik-premium-1-month",
-    "category": "Subscriptions",
-    "description": "Freepik Premium 1-month plan — unlimited downloads of stock photos, vectors, PSDs, icons and AI-generated assets with full commercial license.",
-    "price": 1599,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/freepik.jpg",
-    "galleryImages": [
-      "/assets/images/products/freepik.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Freepik",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited premium downloads",
-      "Commercial-use license included",
-      "Instant activation on your email"
-    ],
-    "brand": "Freepik",
-    "imageKey": "freepik"
-  },
-  {
-    "id": "pb-stu-010",
-    "sku": "PB-STU-010",
-    "name": "QuillBot Premium 1 Month",
-    "slug": "quillbot-premium-1-month",
-    "category": "Subscriptions",
-    "description": "QuillBot Premium 1-month plan — unlimited paraphrasing, grammar checking, plagiarism checker and summarizer for flawless writing.",
-    "price": 499,
-    "originalPrice": 600,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/quillbot.png",
-    "galleryImages": [
-      "/assets/images/products/quillbot.png"
-    ],
-    "tags": [
-      "Instant",
-      "QuillBot",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited words in paraphraser",
-      "Grammar, plagiarism and summarizer tools",
-      "Activated on your own account"
-    ],
-    "brand": "QuillBot",
-    "imageKey": "quillbot"
-  },
-  {
-    "id": "pb-stu-011",
-    "sku": "PB-STU-011",
-    "name": "Grammarly Premium 1 Month",
-    "slug": "grammarly-premium-1-month",
-    "category": "Subscriptions",
-    "description": "Grammarly Premium 1-month plan — advanced grammar, clarity and tone suggestions plus plagiarism detection, activated on your own account.",
-    "price": 499,
-    "originalPrice": 600,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/grammarly.jpg",
-    "galleryImages": [
-      "/assets/images/products/grammarly.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Grammarly",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Premium writing suggestions everywhere",
-      "Tone and clarity rewrites",
-      "Plagiarism checker included"
-    ],
-    "brand": "Grammarly",
-    "imageKey": "grammarly"
-  },
-  {
-    "id": "pb-vpn-001",
-    "sku": "PB-VPN-001",
-    "name": "NordVPN 1 Month Shared",
-    "slug": "nordvpn-1-month-shared",
-    "category": "Subscriptions",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 499,
-    "originalPrice": 600,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-vpn-002",
-    "sku": "PB-VPN-002",
-    "name": "NordVPN Full Private 1 Month",
-    "slug": "nordvpn-full-private-1-month",
-    "category": "Subscriptions",
-    "description": "NordVPN plan (full private account — only you use it) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 1999,
-    "originalPrice": 2500,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Full private credentials"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-vpn-003",
-    "sku": "PB-VPN-003",
-    "name": "NordVPN Full Private 1 Year",
-    "slug": "nordvpn-full-private-1-year",
-    "category": "Subscriptions",
-    "description": "NordVPN plan (full private account — only you use it) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 8500,
-    "originalPrice": 10000,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Full private credentials"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-vpn-004",
-    "sku": "PB-VPN-004",
-    "name": "Surfshark VPN 1 Month Shared",
-    "slug": "surfshark-vpn-1-month-shared",
-    "category": "Subscriptions",
-    "description": "Surfshark VPN plan (shared) — CleanWeb ad blocking, NoBorders mode and 3,200+ servers in 100 countries.",
-    "price": 499,
-    "originalPrice": 600,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/surfshark.jpg",
-    "galleryImages": [
-      "/assets/images/products/surfshark.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Surfshark",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited simultaneous devices",
-      "CleanWeb ads and tracker blocker",
-      "24/7 protection with warranty"
-    ],
-    "brand": "Surfshark",
-    "imageKey": "surfshark"
-  },
-  {
-    "id": "pb-vpn-005",
-    "sku": "PB-VPN-005",
-    "name": "Surfshark VPN Full Private 1 Month",
-    "slug": "surfshark-vpn-full-private-1-month",
-    "category": "Subscriptions",
-    "description": "Surfshark VPN plan (full private — unlimited devices) — CleanWeb ad blocking, NoBorders mode and 3,200+ servers in 100 countries.",
-    "price": 1999,
-    "originalPrice": 2500,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/surfshark.jpg",
-    "galleryImages": [
-      "/assets/images/products/surfshark.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Surfshark",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited simultaneous devices",
-      "CleanWeb ads and tracker blocker",
-      "24/7 protection with warranty"
-    ],
-    "brand": "Surfshark",
-    "imageKey": "surfshark"
-  },
-  {
-    "id": "pb-vpn-006",
-    "sku": "PB-VPN-006",
-    "name": "Surfshark VPN Full Private 1 Year",
-    "slug": "surfshark-vpn-full-private-1-year",
-    "category": "Subscriptions",
-    "description": "Surfshark VPN plan (full private — unlimited devices) — CleanWeb ad blocking, NoBorders mode and 3,200+ servers in 100 countries.",
-    "price": 8500,
-    "originalPrice": 10000,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/surfshark.jpg",
-    "galleryImages": [
-      "/assets/images/products/surfshark.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Surfshark",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited simultaneous devices",
-      "CleanWeb ads and tracker blocker",
-      "24/7 protection with warranty"
-    ],
-    "brand": "Surfshark",
-    "imageKey": "surfshark"
-  },
-  {
-    "id": "pb-vpn-007",
-    "sku": "PB-VPN-007",
-    "name": "ExpressVPN 1 Month Single Device",
-    "slug": "expressvpn-1-month-single-device",
-    "category": "Subscriptions",
-    "description": "ExpressVPN plan (single device) — Lightning-fast servers in 105 countries with TrustedServer technology and full privacy audit.",
-    "price": 1600,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/expressvpn.jpg",
-    "galleryImages": [
-      "/assets/images/products/expressvpn.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "ExpressVPN",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Servers in 105 countries",
-      "TrustedServer RAM-only technology",
-      "Works on PC and mobile"
-    ],
-    "brand": "ExpressVPN",
-    "imageKey": "expressvpn"
-  },
-  {
-    "id": "pb-vpn-008",
-    "sku": "PB-VPN-008",
-    "name": "ExpressVPN For PC",
-    "slug": "expressvpn-for-pc",
-    "category": "Subscriptions",
-    "description": "ExpressVPN plan for Windows PC — Lightning-fast servers in 105 countries with TrustedServer technology and full privacy audit.",
-    "price": 900,
-    "originalPrice": 1100,
-    "currency": "PKR",
-    "discountPercent": 18,
-    "image": "/assets/images/products/expressvpn.jpg",
-    "galleryImages": [
-      "/assets/images/products/expressvpn.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "ExpressVPN",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Servers in 105 countries",
-      "TrustedServer RAM-only technology",
-      "Works on PC and mobile"
-    ],
-    "brand": "ExpressVPN",
-    "imageKey": "expressvpn"
-  },
-  {
-    "id": "pb-vpn-009",
-    "sku": "PB-VPN-009",
-    "name": "Proton VPN 1 Month",
-    "slug": "proton-vpn-1-month",
-    "category": "Subscriptions",
-    "description": "Proton VPN 1-month premium — Secure Core servers, NetShield ad-blocker and strict Swiss no-logs privacy policy.",
-    "price": 650,
-    "originalPrice": 800,
-    "currency": "PKR",
-    "discountPercent": 19,
-    "image": "/assets/images/products/protonvpn.png",
-    "galleryImages": [
-      "/assets/images/products/protonvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "Proton VPN",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Swiss privacy, no-logs policy",
-      "NetShield ad and malware blocking",
-      "Secure Core double-hop routing"
-    ],
-    "brand": "Proton VPN",
-    "imageKey": "protonvpn"
-  },
-  {
-    "id": "pb-vpn-010",
-    "sku": "PB-VPN-010",
-    "name": "IPVanish VPN 1 Month",
-    "slug": "ipvanish-vpn-1-month",
-    "category": "Subscriptions",
-    "description": "IPVanish VPN 1-month plan — unlimited device connections, 2,400+ servers and zero-traffic-logs policy.",
-    "price": 650,
-    "originalPrice": 800,
-    "currency": "PKR",
-    "discountPercent": 19,
-    "image": "/assets/images/products/ipvanish.jpg",
-    "galleryImages": [
-      "/assets/images/products/ipvanish.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "IPVanish",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited simultaneous devices",
-      "2,400+ servers in 90+ locations",
-      "Strict no-logs policy"
-    ],
-    "brand": "IPVanish",
-    "imageKey": "ipvanish"
-  },
-  {
-    "id": "pb-vpn-011",
-    "sku": "PB-VPN-011",
-    "name": "Hotspot Shield VPN 1 Month",
-    "slug": "hotspot-shield-vpn-1-month",
-    "category": "Subscriptions",
-    "description": "Hotspot Shield Premium 1-month — Catapult Hydra protocol for blazing speeds on 115+ virtual locations with military-grade encryption.",
-    "price": 499,
-    "originalPrice": 600,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/hotspot-shield.jpg",
-    "galleryImages": [
-      "/assets/images/products/hotspot-shield.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Hotspot Shield",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Catapult Hydra speed protocol",
-      "115+ virtual locations",
-      "Automatic kill switch"
-    ],
-    "brand": "Hotspot Shield",
-    "imageKey": "hotspot-shield"
-  },
-  {
     "id": "pb-ait-001",
     "sku": "PB-AIT-001",
-    "name": "ChatGPT 5 1 Month Semi-Private",
-    "slug": "chatgpt-5-1-month-semi-private",
+    "name": "ChatGPT 5",
+    "slug": "chatgpt-5",
     "category": "Subscriptions",
     "description": "ChatGPT plan (Plus tier) on a fully private account — GPT-5 access, advanced reasoning, file analysis, image generation and custom GPTs.",
     "price": 2499,
@@ -1940,7 +836,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "ChatGPT",
-      "1 Month"
+      "1 Month",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -1961,48 +858,26 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Fully private account"
     ],
     "brand": "ChatGPT",
-    "imageKey": "chatgpt"
-  },
-  {
-    "id": "pb-ait-002",
-    "sku": "PB-AIT-002",
-    "name": "ChatGPT 5 Full Private 1 Month",
-    "slug": "chatgpt-5-full-private-1-month",
-    "category": "Subscriptions",
-    "description": "ChatGPT plan (Plus tier) on a fully private account — GPT-5 access, advanced reasoning, file analysis, image generation and custom GPTs.",
-    "price": 4000,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/chatgpt.jpg",
-    "galleryImages": [
-      "/assets/images/products/chatgpt.jpg"
+    "imageKey": "chatgpt",
+    "variants": [
+      {
+        "id": "v-PB-AIT-001",
+        "name": "1 Month Semi-Private",
+        "price": 2499,
+        "originalPrice": 3000,
+        "sku": "PB-AIT-001",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-AIT-002",
+        "name": "Full Private 1 Month",
+        "price": 4000,
+        "originalPrice": 4500,
+        "sku": "PB-AIT-002",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "ChatGPT",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": true,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "GPT-5 with advanced reasoning",
-      "File uploads, vision and data analysis",
-      "Fully private account"
-    ],
-    "brand": "ChatGPT",
-    "imageKey": "chatgpt"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-ait-003",
@@ -2292,10 +1167,1090 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "imageKey": "hailio-ai"
   },
   {
+    "id": "pb-stu-001",
+    "sku": "PB-STU-001",
+    "name": "Helium 10 Platinum Plan 1 Month",
+    "slug": "helium-10-platinum-plan-1-month",
+    "category": "Subscriptions",
+    "description": "Helium 10 Platinum plan for Amazon sellers — product research (Black Box), keyword research (Magnet, Cerebro) and listing optimization in one suite.",
+    "price": 1200,
+    "originalPrice": 1500,
+    "currency": "PKR",
+    "discountPercent": 20,
+    "image": "/assets/images/products/helium10.jpg",
+    "galleryImages": [
+      "/assets/images/products/helium10.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Helium 10",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Full Platinum toolset for 1 month",
+      "Keyword and product research suite",
+      "Private credentials, instant setup"
+    ],
+    "brand": "Helium 10",
+    "imageKey": "helium10"
+  },
+  {
+    "id": "pb-stu-002",
+    "sku": "PB-STU-002",
+    "name": "Zoom Pro",
+    "slug": "zoom-pro",
+    "category": "Subscriptions",
+    "description": "Zoom Pro license for meetings up to 100 participants — unlimited group meetings, cloud recording and advanced meeting controls.",
+    "price": 2000,
+    "originalPrice": 2500,
+    "currency": "PKR",
+    "discountPercent": 20,
+    "image": "/assets/images/products/zoom.png",
+    "galleryImages": [
+      "/assets/images/products/zoom.png"
+    ],
+    "tags": [
+      "Instant",
+      "Zoom Pro",
+      "1 Month",
+      "3 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Pro host license with cloud recording",
+      "HD video meetings with breakout rooms",
+      "Reliable activation with warranty"
+    ],
+    "brand": "Zoom Pro",
+    "imageKey": "zoom",
+    "variants": [
+      {
+        "id": "v-PB-STU-002",
+        "name": "100 Participants 1 Month",
+        "price": 2000,
+        "originalPrice": 2500,
+        "sku": "PB-STU-002",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STU-004",
+        "name": "Officially Paid No Trial",
+        "price": 3200,
+        "originalPrice": 3500,
+        "sku": "PB-STU-004",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STU-003",
+        "name": "1 Year",
+        "price": 23000,
+        "originalPrice": 26500,
+        "sku": "PB-STU-003",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
+  },
+  {
+    "id": "pb-stu-007",
+    "sku": "PB-STU-007",
+    "name": "CapCut Pro",
+    "slug": "capcut-pro",
+    "category": "Subscriptions",
+    "description": "CapCut Pro plan on up to 3 devices — pro video editing with 4K export, premium effects, templates and cloud space.",
+    "price": 1499,
+    "originalPrice": 2000,
+    "currency": "PKR",
+    "discountPercent": 25,
+    "image": "/assets/images/products/capcut.jpg",
+    "galleryImages": [
+      "/assets/images/products/capcut.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "CapCut Pro",
+      "1 Month",
+      "2 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": true,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "All Pro effects, filters and templates",
+      "4K export with no watermark",
+      "Works on 3 of your devices"
+    ],
+    "brand": "CapCut Pro",
+    "imageKey": "capcut",
+    "variants": [
+      {
+        "id": "v-PB-STU-007",
+        "name": "1 Month 3 Devices",
+        "price": 1499,
+        "originalPrice": 2000,
+        "sku": "PB-STU-007",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STU-008",
+        "name": "Full Private 1 Year",
+        "price": 13999,
+        "originalPrice": 16000,
+        "sku": "PB-STU-008",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
+  },
+  {
+    "id": "pb-stu-009",
+    "sku": "PB-STU-009",
+    "name": "Freepik Premium 1 Month",
+    "slug": "freepik-premium-1-month",
+    "category": "Subscriptions",
+    "description": "Freepik Premium 1-month plan — unlimited downloads of stock photos, vectors, PSDs, icons and AI-generated assets with full commercial license.",
+    "price": 1599,
+    "originalPrice": 2000,
+    "currency": "PKR",
+    "discountPercent": 20,
+    "image": "/assets/images/products/freepik.jpg",
+    "galleryImages": [
+      "/assets/images/products/freepik.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Freepik",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Unlimited premium downloads",
+      "Commercial-use license included",
+      "Instant activation on your email"
+    ],
+    "brand": "Freepik",
+    "imageKey": "freepik"
+  },
+  {
+    "id": "pb-stu-010",
+    "sku": "PB-STU-010",
+    "name": "QuillBot Premium 1 Month",
+    "slug": "quillbot-premium-1-month",
+    "category": "Subscriptions",
+    "description": "QuillBot Premium 1-month plan — unlimited paraphrasing, grammar checking, plagiarism checker and summarizer for flawless writing.",
+    "price": 499,
+    "originalPrice": 600,
+    "currency": "PKR",
+    "discountPercent": 17,
+    "image": "/assets/images/products/quillbot.png",
+    "galleryImages": [
+      "/assets/images/products/quillbot.png"
+    ],
+    "tags": [
+      "Instant",
+      "QuillBot",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Unlimited words in paraphraser",
+      "Grammar, plagiarism and summarizer tools",
+      "Activated on your own account"
+    ],
+    "brand": "QuillBot",
+    "imageKey": "quillbot"
+  },
+  {
+    "id": "pb-stu-011",
+    "sku": "PB-STU-011",
+    "name": "Grammarly Premium 1 Month",
+    "slug": "grammarly-premium-1-month",
+    "category": "Subscriptions",
+    "description": "Grammarly Premium 1-month plan — advanced grammar, clarity and tone suggestions plus plagiarism detection, activated on your own account.",
+    "price": 499,
+    "originalPrice": 600,
+    "currency": "PKR",
+    "discountPercent": 17,
+    "image": "/assets/images/products/grammarly.jpg",
+    "galleryImages": [
+      "/assets/images/products/grammarly.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Grammarly",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Premium writing suggestions everywhere",
+      "Tone and clarity rewrites",
+      "Plagiarism checker included"
+    ],
+    "brand": "Grammarly",
+    "imageKey": "grammarly"
+  },
+  {
+    "id": "pb-vpn-004",
+    "sku": "PB-VPN-004",
+    "name": "Surfshark VPN",
+    "slug": "surfshark-vpn",
+    "category": "Subscriptions",
+    "description": "Surfshark VPN plan (shared) — CleanWeb ad blocking, NoBorders mode and 3,200+ servers in 100 countries.",
+    "price": 499,
+    "originalPrice": 600,
+    "currency": "PKR",
+    "discountPercent": 17,
+    "image": "/assets/images/products/surfshark.png",
+    "galleryImages": [
+      "/assets/images/products/surfshark.png"
+    ],
+    "tags": [
+      "Instant",
+      "Surfshark",
+      "1 Month",
+      "3 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Unlimited simultaneous devices",
+      "CleanWeb ads and tracker blocker",
+      "24/7 protection with warranty"
+    ],
+    "brand": "Surfshark",
+    "imageKey": "surfshark",
+    "variants": [
+      {
+        "id": "v-PB-VPN-004",
+        "name": "1 Month Shared",
+        "price": 499,
+        "originalPrice": 600,
+        "sku": "PB-VPN-004",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-VPN-005",
+        "name": "Full Private 1 Month",
+        "price": 1999,
+        "originalPrice": 2500,
+        "sku": "PB-VPN-005",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-VPN-006",
+        "name": "Full Private 1 Year",
+        "price": 8500,
+        "originalPrice": 10000,
+        "sku": "PB-VPN-006",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
+  },
+  {
+    "id": "pb-vpn-007",
+    "sku": "PB-VPN-007",
+    "name": "ExpressVPN 1 Month Single Device",
+    "slug": "expressvpn-1-month-single-device",
+    "category": "Subscriptions",
+    "description": "ExpressVPN plan (single device) — Lightning-fast servers in 105 countries with TrustedServer technology and full privacy audit.",
+    "price": 1600,
+    "originalPrice": 2000,
+    "currency": "PKR",
+    "discountPercent": 20,
+    "image": "/assets/images/products/expressvpn.jpg",
+    "galleryImages": [
+      "/assets/images/products/expressvpn.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "ExpressVPN",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Servers in 105 countries",
+      "TrustedServer RAM-only technology",
+      "Works on PC and mobile"
+    ],
+    "brand": "ExpressVPN",
+    "imageKey": "expressvpn"
+  },
+  {
+    "id": "pb-vpn-008",
+    "sku": "PB-VPN-008",
+    "name": "ExpressVPN For PC",
+    "slug": "expressvpn-for-pc",
+    "category": "Subscriptions",
+    "description": "ExpressVPN plan for Windows PC — Lightning-fast servers in 105 countries with TrustedServer technology and full privacy audit.",
+    "price": 900,
+    "originalPrice": 1100,
+    "currency": "PKR",
+    "discountPercent": 18,
+    "image": "/assets/images/products/expressvpn.jpg",
+    "galleryImages": [
+      "/assets/images/products/expressvpn.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "ExpressVPN",
+      "Digital"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Servers in 105 countries",
+      "TrustedServer RAM-only technology",
+      "Works on PC and mobile"
+    ],
+    "brand": "ExpressVPN",
+    "imageKey": "expressvpn"
+  },
+  {
+    "id": "pb-vpn-009",
+    "sku": "PB-VPN-009",
+    "name": "Proton VPN 1 Month",
+    "slug": "proton-vpn-1-month",
+    "category": "Subscriptions",
+    "description": "Proton VPN 1-month premium — Secure Core servers, NetShield ad-blocker and strict Swiss no-logs privacy policy.",
+    "price": 650,
+    "originalPrice": 800,
+    "currency": "PKR",
+    "discountPercent": 19,
+    "image": "/assets/images/products/protonvpn.png",
+    "galleryImages": [
+      "/assets/images/products/protonvpn.png"
+    ],
+    "tags": [
+      "Instant",
+      "Proton VPN",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Swiss privacy, no-logs policy",
+      "NetShield ad and malware blocking",
+      "Secure Core double-hop routing"
+    ],
+    "brand": "Proton VPN",
+    "imageKey": "protonvpn"
+  },
+  {
+    "id": "pb-vpn-010",
+    "sku": "PB-VPN-010",
+    "name": "IPVanish VPN 1 Month",
+    "slug": "ipvanish-vpn-1-month",
+    "category": "Subscriptions",
+    "description": "IPVanish VPN 1-month plan — unlimited device connections, 2,400+ servers and zero-traffic-logs policy.",
+    "price": 650,
+    "originalPrice": 800,
+    "currency": "PKR",
+    "discountPercent": 19,
+    "image": "/assets/images/products/ipvanish.jpg",
+    "galleryImages": [
+      "/assets/images/products/ipvanish.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "IPVanish",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Unlimited simultaneous devices",
+      "2,400+ servers in 90+ locations",
+      "Strict no-logs policy"
+    ],
+    "brand": "IPVanish",
+    "imageKey": "ipvanish"
+  },
+  {
+    "id": "pb-vpn-011",
+    "sku": "PB-VPN-011",
+    "name": "Hotspot Shield VPN 1 Month",
+    "slug": "hotspot-shield-vpn-1-month",
+    "category": "Subscriptions",
+    "description": "Hotspot Shield Premium 1-month — Catapult Hydra protocol for blazing speeds on 115+ virtual locations with military-grade encryption.",
+    "price": 499,
+    "originalPrice": 600,
+    "currency": "PKR",
+    "discountPercent": 17,
+    "image": "/assets/images/products/hotspot-shield.jpg",
+    "galleryImages": [
+      "/assets/images/products/hotspot-shield.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Hotspot Shield",
+      "1 Month"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Catapult Hydra speed protocol",
+      "115+ virtual locations",
+      "Automatic kill switch"
+    ],
+    "brand": "Hotspot Shield",
+    "imageKey": "hotspot-shield"
+  },
+  {
+    "id": "pb-gft-001",
+    "sku": "PB-GFT-001",
+    "name": "Xbox Live Gift Card",
+    "slug": "xbox-live-gift-card",
+    "category": "Gift Cards",
+    "description": "Xbox Live gift card ($1 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
+    "price": 440,
+    "originalPrice": 550,
+    "currency": "PKR",
+    "discountPercent": 20,
+    "image": "/assets/images/products/xbox-giftcard.jpg",
+    "galleryImages": [
+      "/assets/images/products/xbox-giftcard.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Gift Card",
+      "Global",
+      "9 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Official Microsoft code — never expires",
+      "Redeem on Xbox console or Microsoft Store",
+      "Region-locked to USA accounts"
+    ],
+    "brand": "Xbox Live",
+    "imageKey": "xbox-giftcard",
+    "variants": [
+      {
+        "id": "v-PB-GFT-001",
+        "name": "Gift Card 1 USD",
+        "price": 440,
+        "originalPrice": 550,
+        "sku": "PB-GFT-001"
+      },
+      {
+        "id": "v-PB-GFT-002",
+        "name": "Gift Card 5 USD",
+        "price": 1451,
+        "originalPrice": 1500,
+        "sku": "PB-GFT-002"
+      },
+      {
+        "id": "v-PB-GFT-003",
+        "name": "Gift Card 10 USD",
+        "price": 2698,
+        "originalPrice": 3000,
+        "sku": "PB-GFT-003"
+      },
+      {
+        "id": "v-PB-GFT-004",
+        "name": "Gift Card 15 USD",
+        "price": 3850,
+        "originalPrice": 4500,
+        "sku": "PB-GFT-004"
+      },
+      {
+        "id": "v-PB-GFT-005",
+        "name": "Gift Card 25 USD",
+        "price": 6324,
+        "originalPrice": 7500,
+        "sku": "PB-GFT-005"
+      },
+      {
+        "id": "v-PB-GFT-006",
+        "name": "Gift Card 50 USD",
+        "price": 13548,
+        "originalPrice": 15500,
+        "sku": "PB-GFT-006"
+      },
+      {
+        "id": "v-PB-GFT-007",
+        "name": "Gift Card 100 USD",
+        "price": 28415,
+        "originalPrice": 32500,
+        "sku": "PB-GFT-007"
+      },
+      {
+        "id": "v-PB-GFT-008",
+        "name": "Gift Card 160 USD",
+        "price": 40719,
+        "originalPrice": 47000,
+        "sku": "PB-GFT-008"
+      },
+      {
+        "id": "v-PB-GFT-009",
+        "name": "Gift Card 225 USD",
+        "price": 57339,
+        "originalPrice": 66000,
+        "sku": "PB-GFT-009"
+      }
+    ],
+    "variantLabel": "Denomination"
+  },
+  {
+    "id": "pb-gft-010",
+    "sku": "PB-GFT-010",
+    "name": "PlayStation Network Gift Card",
+    "slug": "playstation-network-gift-card",
+    "category": "Gift Cards",
+    "description": "PlayStation Network gift card ($10 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
+    "price": 2820,
+    "originalPrice": 3000,
+    "currency": "PKR",
+    "discountPercent": 6,
+    "image": "/assets/images/products/playstation-giftcard.jpg",
+    "galleryImages": [
+      "/assets/images/products/playstation-giftcard.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Gift Card",
+      "Global",
+      "6 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": true,
+    "isHot": true,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Official Sony USA code",
+      "Redeem on PS5 / PS4 store",
+      "Funds never expire once redeemed"
+    ],
+    "brand": "PlayStation Network",
+    "imageKey": "playstation-giftcard",
+    "variants": [
+      {
+        "id": "v-PB-GFT-010",
+        "name": "Gift Card 10 USD",
+        "price": 2820,
+        "originalPrice": 3000,
+        "sku": "PB-GFT-010"
+      },
+      {
+        "id": "v-PB-GFT-011",
+        "name": "Gift Card 20 USD",
+        "price": 5451,
+        "originalPrice": 6500,
+        "sku": "PB-GFT-011"
+      },
+      {
+        "id": "v-PB-GFT-012",
+        "name": "Gift Card 25 USD",
+        "price": 6739,
+        "originalPrice": 8000,
+        "sku": "PB-GFT-012"
+      },
+      {
+        "id": "v-PB-GFT-013",
+        "name": "Gift Card 50 USD",
+        "price": 13304,
+        "originalPrice": 15500,
+        "sku": "PB-GFT-013"
+      },
+      {
+        "id": "v-PB-GFT-014",
+        "name": "Gift Card 100 USD",
+        "price": 29163,
+        "originalPrice": 33500,
+        "sku": "PB-GFT-014"
+      },
+      {
+        "id": "v-PB-GFT-015",
+        "name": "Gift Card 180 USD",
+        "price": 45705,
+        "originalPrice": 52500,
+        "sku": "PB-GFT-015"
+      }
+    ],
+    "variantLabel": "Denomination"
+  },
+  {
+    "id": "pb-gft-016",
+    "sku": "PB-GFT-016",
+    "name": "Steam Gift Card",
+    "slug": "steam-gift-card",
+    "category": "Gift Cards",
+    "description": "Steam wallet gift card ($4 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
+    "price": 1255,
+    "originalPrice": 1500,
+    "currency": "PKR",
+    "discountPercent": 16,
+    "image": "/assets/images/products/steam-giftcard.jpg",
+    "galleryImages": [
+      "/assets/images/products/steam-giftcard.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Gift Card",
+      "Pakistan",
+      "11 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Pakistan",
+    "features": [
+      "Works with Pakistan-region Steam wallets",
+      "Instant code delivery by email",
+      "Funds never expire on Steam wallet"
+    ],
+    "brand": "Steam",
+    "imageKey": "steam-giftcard",
+    "variants": [
+      {
+        "id": "v-PB-GFT-016",
+        "name": "4 USD Pakistan Region",
+        "price": 1255,
+        "originalPrice": 1500,
+        "sku": "PB-GFT-016"
+      },
+      {
+        "id": "v-PB-GFT-017",
+        "name": "5 USD Global",
+        "price": 1385,
+        "originalPrice": 1500,
+        "sku": "PB-GFT-017"
+      },
+      {
+        "id": "v-PB-GFT-018",
+        "name": "6 USD Pakistan Region",
+        "price": 1554,
+        "originalPrice": 2000,
+        "sku": "PB-GFT-018"
+      },
+      {
+        "id": "v-PB-GFT-019",
+        "name": "8 USD Pakistan Region",
+        "price": 2200,
+        "originalPrice": 2500,
+        "sku": "PB-GFT-019"
+      },
+      {
+        "id": "v-PB-GFT-020",
+        "name": "10 USD Global",
+        "price": 2892,
+        "originalPrice": 3500,
+        "sku": "PB-GFT-020"
+      },
+      {
+        "id": "v-PB-GFT-021",
+        "name": "10 USD Pakistan Region",
+        "price": 3800,
+        "originalPrice": 4500,
+        "sku": "PB-GFT-021"
+      },
+      {
+        "id": "v-PB-GFT-022",
+        "name": "15 USD Pakistan Region",
+        "price": 4100,
+        "originalPrice": 4500,
+        "sku": "PB-GFT-022"
+      },
+      {
+        "id": "v-PB-GFT-023",
+        "name": "20 USD Global",
+        "price": 5781,
+        "originalPrice": 6500,
+        "sku": "PB-GFT-023"
+      },
+      {
+        "id": "v-PB-GFT-024",
+        "name": "20 USD Pakistan Region",
+        "price": 7000,
+        "originalPrice": 8000,
+        "sku": "PB-GFT-024"
+      },
+      {
+        "id": "v-PB-GFT-025",
+        "name": "50 USD Global",
+        "price": 13850,
+        "originalPrice": 16000,
+        "sku": "PB-GFT-025"
+      },
+      {
+        "id": "v-PB-GFT-026",
+        "name": "100 USD Global",
+        "price": 27348,
+        "originalPrice": 31500,
+        "sku": "PB-GFT-026"
+      }
+    ],
+    "variantLabel": "Denomination"
+  },
+  {
+    "id": "pb-gft-027",
+    "sku": "PB-GFT-027",
+    "name": "Razer Gold Gift Card",
+    "slug": "razer-gold-gift-card",
+    "category": "Gift Cards",
+    "description": "Razer Gold gift card ($5 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
+    "price": 1471,
+    "originalPrice": 1500,
+    "currency": "PKR",
+    "discountPercent": 2,
+    "image": "/assets/images/products/razer-gold.jpg",
+    "galleryImages": [
+      "/assets/images/products/razer-gold.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Gift Card",
+      "Global",
+      "6 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "42,000+ supported games and apps",
+      "Earn Razer Silver loyalty points",
+      "Instant code delivery"
+    ],
+    "brand": "Razer Gold",
+    "imageKey": "razer-gold",
+    "variants": [
+      {
+        "id": "v-PB-GFT-027",
+        "name": "Gift Card 5 USD",
+        "price": 1471,
+        "originalPrice": 1500,
+        "sku": "PB-GFT-027"
+      },
+      {
+        "id": "v-PB-GFT-028",
+        "name": "Gift Card 10 USD",
+        "price": 2875,
+        "originalPrice": 3500,
+        "sku": "PB-GFT-028"
+      },
+      {
+        "id": "v-PB-GFT-029",
+        "name": "Gift Card 20 USD",
+        "price": 5997,
+        "originalPrice": 7000,
+        "sku": "PB-GFT-029"
+      },
+      {
+        "id": "v-PB-GFT-030",
+        "name": "Gift Card 30 USD",
+        "price": 9127,
+        "originalPrice": 10500,
+        "sku": "PB-GFT-030"
+      },
+      {
+        "id": "v-PB-GFT-031",
+        "name": "Gift Card 50 USD",
+        "price": 14681,
+        "originalPrice": 17000,
+        "sku": "PB-GFT-031"
+      },
+      {
+        "id": "v-PB-GFT-032",
+        "name": "Gift Card 100 USD",
+        "price": 27700,
+        "originalPrice": 32000,
+        "sku": "PB-GFT-032"
+      }
+    ],
+    "variantLabel": "Denomination"
+  },
+  {
+    "id": "pb-gft-033",
+    "sku": "PB-GFT-033",
+    "name": "Apple Gift Card",
+    "slug": "apple-gift-card",
+    "category": "Gift Cards",
+    "description": "Apple Gift Card ($5 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
+    "price": 1471,
+    "originalPrice": 1500,
+    "currency": "PKR",
+    "discountPercent": 2,
+    "image": "/assets/images/products/apple-giftcard.jpg",
+    "galleryImages": [
+      "/assets/images/products/apple-giftcard.jpg"
+    ],
+    "tags": [
+      "Instant",
+      "Gift Card",
+      "Global",
+      "9 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "Official Apple USA code",
+      "App Store, iCloud+, Music and more",
+      "Never expires"
+    ],
+    "brand": "Apple",
+    "imageKey": "apple-giftcard",
+    "variants": [
+      {
+        "id": "v-PB-GFT-033",
+        "name": "5 USD",
+        "price": 1471,
+        "originalPrice": 1500,
+        "sku": "PB-GFT-033"
+      },
+      {
+        "id": "v-PB-GFT-034",
+        "name": "10 USD",
+        "price": 2903,
+        "originalPrice": 3500,
+        "sku": "PB-GFT-034"
+      },
+      {
+        "id": "v-PB-GFT-035",
+        "name": "15 USD",
+        "price": 3642,
+        "originalPrice": 4000,
+        "sku": "PB-GFT-035"
+      },
+      {
+        "id": "v-PB-GFT-036",
+        "name": "20 USD",
+        "price": 5817,
+        "originalPrice": 6500,
+        "sku": "PB-GFT-036"
+      },
+      {
+        "id": "v-PB-GFT-037",
+        "name": "25 USD",
+        "price": 7064,
+        "originalPrice": 8000,
+        "sku": "PB-GFT-037"
+      },
+      {
+        "id": "v-PB-GFT-038",
+        "name": "40 USD",
+        "price": 11634,
+        "originalPrice": 13500,
+        "sku": "PB-GFT-038"
+      },
+      {
+        "id": "v-PB-GFT-039",
+        "name": "50 USD",
+        "price": 14803,
+        "originalPrice": 17000,
+        "sku": "PB-GFT-039"
+      },
+      {
+        "id": "v-PB-GFT-040",
+        "name": "100 USD",
+        "price": 29085,
+        "originalPrice": 33500,
+        "sku": "PB-GFT-040"
+      },
+      {
+        "id": "v-PB-GFT-041",
+        "name": "220 USD",
+        "price": 60940,
+        "originalPrice": 70000,
+        "sku": "PB-GFT-041"
+      }
+    ],
+    "variantLabel": "Denomination"
+  },
+  {
     "id": "pb-gam-001",
     "sku": "PB-GAM-001",
-    "name": "Xbox Game Pass Ultimate 1 Device Shared",
-    "slug": "xbox-game-pass-ultimate-1-device-shared",
+    "name": "Xbox Game Pass Ultimate",
+    "slug": "xbox-game-pass-ultimate",
     "category": "Gaming",
     "description": "Xbox Game Pass Ultimate shared slot for one device — 500+ high-quality games on console, PC and cloud including day-one releases.",
     "price": 2999,
@@ -2309,7 +2264,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Xbox Game Pass Ultimate",
-      "Digital"
+      "Digital",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -2330,1216 +2286,47 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Shared slot on one device"
     ],
     "brand": "Xbox Game Pass Ultimate",
-    "imageKey": "xbox-game-pass"
+    "imageKey": "xbox-game-pass",
+    "variants": [
+      {
+        "id": "v-PB-GAM-001",
+        "name": "1 Device Shared",
+        "price": 2999,
+        "originalPrice": 3500,
+        "sku": "PB-GAM-001",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-GAM-002",
+        "name": "Full Private 1 Month",
+        "price": 7500,
+        "originalPrice": 8500,
+        "sku": "PB-GAM-002",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
   },
   {
-    "id": "pb-gam-002",
-    "sku": "PB-GAM-002",
-    "name": "Xbox Game Pass Ultimate Full Private 1 Month",
-    "slug": "xbox-game-pass-ultimate-full-private-1-month",
-    "category": "Gaming",
-    "description": "Xbox Game Pass Ultimate — full private membership for one month — 500+ high-quality games on console, PC and cloud including day-one releases.",
-    "price": 7500,
-    "originalPrice": 8500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/xbox-game-pass.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-game-pass.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Xbox Game Pass Ultimate",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Day-one Xbox and Bethesda releases",
-      "EA Play and cloud gaming included",
-      "Full private membership"
-    ],
-    "brand": "Xbox Game Pass Ultimate",
-    "imageKey": "xbox-game-pass"
-  },
-  {
-    "id": "pb-gft-001",
-    "sku": "PB-GFT-001",
-    "name": "Xbox Live Gift Card 1 USD",
-    "slug": "xbox-live-gift-card-1-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($1 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 440,
-    "originalPrice": 550,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-002",
-    "sku": "PB-GFT-002",
-    "name": "Xbox Live Gift Card 5 USD",
-    "slug": "xbox-live-gift-card-5-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($5 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 1451,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 3,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-003",
-    "sku": "PB-GFT-003",
-    "name": "Xbox Live Gift Card 10 USD",
-    "slug": "xbox-live-gift-card-10-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($10 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 2698,
-    "originalPrice": 3000,
-    "currency": "PKR",
-    "discountPercent": 10,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-004",
-    "sku": "PB-GFT-004",
-    "name": "Xbox Live Gift Card 15 USD",
-    "slug": "xbox-live-gift-card-15-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($15 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 3850,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-005",
-    "sku": "PB-GFT-005",
-    "name": "Xbox Live Gift Card 25 USD",
-    "slug": "xbox-live-gift-card-25-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($25 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 6324,
-    "originalPrice": 7500,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-006",
-    "sku": "PB-GFT-006",
-    "name": "Xbox Live Gift Card 50 USD",
-    "slug": "xbox-live-gift-card-50-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($50 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 13548,
-    "originalPrice": 15500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-007",
-    "sku": "PB-GFT-007",
-    "name": "Xbox Live Gift Card 100 USD",
-    "slug": "xbox-live-gift-card-100-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($100 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 28415,
-    "originalPrice": 32500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-008",
-    "sku": "PB-GFT-008",
-    "name": "Xbox Live Gift Card 160 USD",
-    "slug": "xbox-live-gift-card-160-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($160 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 40719,
-    "originalPrice": 47000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-009",
-    "sku": "PB-GFT-009",
-    "name": "Xbox Live Gift Card 225 USD",
-    "slug": "xbox-live-gift-card-225-usd",
-    "category": "Gift Cards",
-    "description": "Xbox Live gift card ($225 USD) — official Microsoft digital code to top up any Xbox or Microsoft account for games, DLC, Game Pass and add-ons.",
-    "price": 57339,
-    "originalPrice": 66000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Microsoft code — never expires",
-      "Redeem on Xbox console or Microsoft Store",
-      "Region-locked to USA accounts"
-    ],
-    "brand": "Xbox Live",
-    "imageKey": "xbox-giftcard"
-  },
-  {
-    "id": "pb-gft-010",
-    "sku": "PB-GFT-010",
-    "name": "PlayStation Network Gift Card 10 USD",
-    "slug": "playstation-network-gift-card-10-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($10 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 2820,
-    "originalPrice": 3000,
-    "currency": "PKR",
-    "discountPercent": 6,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": true,
-    "isHot": true,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-011",
-    "sku": "PB-GFT-011",
-    "name": "PlayStation Network Gift Card 20 USD",
-    "slug": "playstation-network-gift-card-20-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($20 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 5451,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-012",
-    "sku": "PB-GFT-012",
-    "name": "PlayStation Network Gift Card 25 USD",
-    "slug": "playstation-network-gift-card-25-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($25 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 6739,
-    "originalPrice": 8000,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-013",
-    "sku": "PB-GFT-013",
-    "name": "PlayStation Network Gift Card 50 USD",
-    "slug": "playstation-network-gift-card-50-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($50 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 13304,
-    "originalPrice": 15500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-014",
-    "sku": "PB-GFT-014",
-    "name": "PlayStation Network Gift Card 100 USD",
-    "slug": "playstation-network-gift-card-100-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($100 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 29163,
-    "originalPrice": 33500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-015",
-    "sku": "PB-GFT-015",
-    "name": "PlayStation Network Gift Card 180 USD",
-    "slug": "playstation-network-gift-card-180-usd",
-    "category": "Gift Cards",
-    "description": "PlayStation Network gift card ($180 USD) — official Sony digital code for PS5 and PS4 wallet top-up: games, add-ons, PS Plus and media.",
-    "price": 45705,
-    "originalPrice": 52500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Sony USA code",
-      "Redeem on PS5 / PS4 store",
-      "Funds never expire once redeemed"
-    ],
-    "brand": "PlayStation Network",
-    "imageKey": "playstation-giftcard"
-  },
-  {
-    "id": "pb-gft-016",
-    "sku": "PB-GFT-016",
-    "name": "Steam Gift Card 4 USD Pakistan Region",
-    "slug": "steam-gift-card-4-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($4 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 1255,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-017",
-    "sku": "PB-GFT-017",
-    "name": "Steam Gift Card 5 USD Global",
-    "slug": "steam-gift-card-5-usd-global",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($5 USD) — Global digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 1385,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 8,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Global redeem code",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-018",
-    "sku": "PB-GFT-018",
-    "name": "Steam Gift Card 6 USD Pakistan Region",
-    "slug": "steam-gift-card-6-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($6 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 1554,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 22,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-019",
-    "sku": "PB-GFT-019",
-    "name": "Steam Gift Card 8 USD Pakistan Region",
-    "slug": "steam-gift-card-8-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($8 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 2200,
-    "originalPrice": 2500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-020",
-    "sku": "PB-GFT-020",
-    "name": "Steam Gift Card 10 USD Global",
-    "slug": "steam-gift-card-10-usd-global",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($10 USD) — Global digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 2892,
+    "id": "pb-stu-006",
+    "sku": "PB-STU-006",
+    "name": "Adobe Creative Cloud",
+    "slug": "adobe-creative-cloud",
+    "category": "Software",
+    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
+    "price": 1498,
     "originalPrice": 3500,
     "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": true,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Global redeem code",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-021",
-    "sku": "PB-GFT-021",
-    "name": "Steam Gift Card 10 USD Pakistan Region",
-    "slug": "steam-gift-card-10-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($10 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 3800,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-022",
-    "sku": "PB-GFT-022",
-    "name": "Steam Gift Card 15 USD Pakistan Region",
-    "slug": "steam-gift-card-15-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($15 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 4100,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 9,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-023",
-    "sku": "PB-GFT-023",
-    "name": "Steam Gift Card 20 USD Global",
-    "slug": "steam-gift-card-20-usd-global",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($20 USD) — Global digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 5781,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Global redeem code",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-024",
-    "sku": "PB-GFT-024",
-    "name": "Steam Gift Card 20 USD Pakistan Region",
-    "slug": "steam-gift-card-20-usd-pakistan-region",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($20 USD) — Pakistan region digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 7000,
-    "originalPrice": 8000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Pakistan"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Pakistan",
-    "features": [
-      "Works with Pakistan-region Steam wallets",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-025",
-    "sku": "PB-GFT-025",
-    "name": "Steam Gift Card 50 USD Global",
-    "slug": "steam-gift-card-50-usd-global",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($50 USD) — Global digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 13850,
-    "originalPrice": 16000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Global redeem code",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-026",
-    "sku": "PB-GFT-026",
-    "name": "Steam Gift Card 100 USD Global",
-    "slug": "steam-gift-card-100-usd-global",
-    "category": "Gift Cards",
-    "description": "Steam wallet gift card ($100 USD) — Global digital code redeemable on Steam for games, DLC, in-game items and Market purchases.",
-    "price": 27348,
-    "originalPrice": 31500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/steam-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Global redeem code",
-      "Instant code delivery by email",
-      "Funds never expire on Steam wallet"
-    ],
-    "brand": "Steam",
-    "imageKey": "steam-giftcard"
-  },
-  {
-    "id": "pb-gft-027",
-    "sku": "PB-GFT-027",
-    "name": "Razer Gold Gift Card 5 USD",
-    "slug": "razer-gold-gift-card-5-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($5 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 1471,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 2,
-    "image": "/assets/images/products/razer-gold.jpg",
-    "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
-    ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-028",
-    "sku": "PB-GFT-028",
-    "name": "Razer Gold Gift Card 10 USD",
-    "slug": "razer-gold-gift-card-10-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($10 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 2875,
-    "originalPrice": 3500,
-    "currency": "PKR",
-    "discountPercent": 18,
-    "image": "/assets/images/products/razer-gold.jpg",
-    "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
-    ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-029",
-    "sku": "PB-GFT-029",
-    "name": "Razer Gold Gift Card 20 USD",
-    "slug": "razer-gold-gift-card-20-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($20 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 5997,
-    "originalPrice": 7000,
-    "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/razer-gold.jpg",
+    "image": "/assets/images/products/adobe-cc.jpg",
     "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
+      "/assets/images/products/adobe-cc.jpg"
     ],
     "tags": [
       "Instant",
-      "Gift Card",
-      "Global"
+      "Adobe Creative Cloud",
+      "1 Month",
+      "11 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -3555,756 +2342,109 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
     "region": "Global",
     "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
+      "Genuine Adobe activation",
+      "Windows PC supported",
+      "Full-duration warranty with replacement"
     ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-030",
-    "sku": "PB-GFT-030",
-    "name": "Razer Gold Gift Card 30 USD",
-    "slug": "razer-gold-gift-card-30-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($30 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 9127,
-    "originalPrice": 10500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/razer-gold.jpg",
-    "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
+    "brand": "Adobe Creative Cloud",
+    "imageKey": "adobe-cc",
+    "variants": [
+      {
+        "id": "v-PB-SWF-023",
+        "name": "Photography Plan 1 Month 20GB Global",
+        "price": 1498,
+        "originalPrice": 2000,
+        "sku": "PB-SWF-023",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-015",
+        "name": "Pro PC 1 Month Global",
+        "price": 2715,
+        "originalPrice": 3000,
+        "sku": "PB-SWF-015",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STU-006",
+        "name": "1 Month",
+        "price": 2999,
+        "originalPrice": 3500,
+        "sku": "PB-STU-006",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-017",
+        "name": "Pro PC 1 Year ROW Region",
+        "price": 5557,
+        "originalPrice": 6500,
+        "sku": "PB-SWF-017",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-016",
+        "name": "Pro PC 3 Months Global",
+        "price": 20300,
+        "originalPrice": 23500,
+        "sku": "PB-SWF-016",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-020",
+        "name": "Pro Student & Teacher PC 1 Year",
+        "price": 36860,
+        "originalPrice": 42500,
+        "sku": "PB-SWF-020",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-022",
+        "name": "Pro Student & Teacher PC Mac 1 Year US",
+        "price": 40392,
+        "originalPrice": 46500,
+        "sku": "PB-SWF-022",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-024",
+        "name": "Photography Plan 1 Year 20GB Global",
+        "price": 50541,
+        "originalPrice": 58000,
+        "sku": "PB-SWF-024",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-021",
+        "name": "Pro Student & Teacher PC Mac 1 Year Global",
+        "price": 51408,
+        "originalPrice": 59000,
+        "sku": "PB-SWF-021",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-018",
+        "name": "Pro PC Mac 1 Year Europe",
+        "price": 58261,
+        "originalPrice": 67000,
+        "sku": "PB-SWF-018",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-019",
+        "name": "Pro PC 1 Year Japan",
+        "price": 61688,
+        "originalPrice": 71000,
+        "sku": "PB-SWF-019",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
-    ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-031",
-    "sku": "PB-GFT-031",
-    "name": "Razer Gold Gift Card 50 USD",
-    "slug": "razer-gold-gift-card-50-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($50 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 14681,
-    "originalPrice": 17000,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/razer-gold.jpg",
-    "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
-    ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-032",
-    "sku": "PB-GFT-032",
-    "name": "Razer Gold Gift Card 100 USD",
-    "slug": "razer-gold-gift-card-100-usd",
-    "category": "Gift Cards",
-    "description": "Razer Gold gift card ($100 USD) — unified virtual credit for 42,000+ games and entertainment content, with Razer Silver rewards on every spend.",
-    "price": 27700,
-    "originalPrice": 32000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/razer-gold.jpg",
-    "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "42,000+ supported games and apps",
-      "Earn Razer Silver loyalty points",
-      "Instant code delivery"
-    ],
-    "brand": "Razer Gold",
-    "imageKey": "razer-gold"
-  },
-  {
-    "id": "pb-gft-033",
-    "sku": "PB-GFT-033",
-    "name": "Apple Gift Card 5 USD",
-    "slug": "apple-gift-card-5-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($5 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 1471,
-    "originalPrice": 1500,
-    "currency": "PKR",
-    "discountPercent": 2,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-034",
-    "sku": "PB-GFT-034",
-    "name": "Apple Gift Card 10 USD",
-    "slug": "apple-gift-card-10-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($10 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 2903,
-    "originalPrice": 3500,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-035",
-    "sku": "PB-GFT-035",
-    "name": "Apple Gift Card 15 USD",
-    "slug": "apple-gift-card-15-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($15 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 3642,
-    "originalPrice": 4000,
-    "currency": "PKR",
-    "discountPercent": 9,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-036",
-    "sku": "PB-GFT-036",
-    "name": "Apple Gift Card 20 USD",
-    "slug": "apple-gift-card-20-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($20 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 5817,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-037",
-    "sku": "PB-GFT-037",
-    "name": "Apple Gift Card 25 USD",
-    "slug": "apple-gift-card-25-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($25 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 7064,
-    "originalPrice": 8000,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-038",
-    "sku": "PB-GFT-038",
-    "name": "Apple Gift Card 40 USD",
-    "slug": "apple-gift-card-40-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($40 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 11634,
-    "originalPrice": 13500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-039",
-    "sku": "PB-GFT-039",
-    "name": "Apple Gift Card 50 USD",
-    "slug": "apple-gift-card-50-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($50 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 14803,
-    "originalPrice": 17000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-040",
-    "sku": "PB-GFT-040",
-    "name": "Apple Gift Card 100 USD",
-    "slug": "apple-gift-card-100-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($100 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 29085,
-    "originalPrice": 33500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-gft-041",
-    "sku": "PB-GFT-041",
-    "name": "Apple Gift Card 220 USD",
-    "slug": "apple-gift-card-220-usd",
-    "category": "Gift Cards",
-    "description": "Apple Gift Card ($220 USD) — official Apple digital code for App Store, iCloud+, Apple Music, accessories and everything Apple (USA store).",
-    "price": 60940,
-    "originalPrice": 70000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/apple-giftcard.jpg",
-    "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Gift Card",
-      "Global"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Official Apple USA code",
-      "App Store, iCloud+, Music and more",
-      "Never expires"
-    ],
-    "brand": "Apple",
-    "imageKey": "apple-giftcard"
-  },
-  {
-    "id": "pb-swf-001",
-    "sku": "PB-SWF-001",
-    "name": "Microsoft Office 2024 LTSC Professional Plus PC Global",
-    "slug": "microsoft-office-2024-ltsc-professional-plus-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2024 LTSC edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 4853,
-    "originalPrice": 5500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-002",
-    "sku": "PB-SWF-002",
-    "name": "Microsoft Office 2024 LTSC Standard PC Global",
-    "slug": "microsoft-office-2024-ltsc-standard-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2024 LTSC edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 3989,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-003",
-    "sku": "PB-SWF-003",
-    "name": "Microsoft Office 2024 Home & Business PC Global",
-    "slug": "microsoft-office-2024-home-and-business-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2024 LTSC edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 4956,
-    "originalPrice": 5500,
-    "currency": "PKR",
-    "discountPercent": 10,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-004",
-    "sku": "PB-SWF-004",
-    "name": "Microsoft Office 2024 Home & Business PC Mac Global",
-    "slug": "microsoft-office-2024-home-and-business-pc-mac-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2024 LTSC edition) for Windows and macOS — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 34262,
-    "originalPrice": 39500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-005",
-    "sku": "PB-SWF-005",
-    "name": "Microsoft Office 2024 Home PC Mac Global",
-    "slug": "microsoft-office-2024-home-pc-mac-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2024 LTSC edition) for Windows and macOS — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 34265,
-    "originalPrice": 39500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-006",
-    "sku": "PB-SWF-006",
-    "name": "Microsoft Office Professional Plus 2021 PC Global",
-    "slug": "microsoft-office-professional-plus-2021-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2021 edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 4853,
-    "originalPrice": 5500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-007",
     "sku": "PB-SWF-007",
-    "name": "Microsoft Office Professional 2019 PC 1 Device Global",
-    "slug": "microsoft-office-professional-2019-pc-1-device-global",
+    "name": "Microsoft Office",
+    "slug": "microsoft-office",
     "category": "Software",
     "description": "Genuine Microsoft Office retail license (2019 edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
     "price": 2945,
@@ -4318,7 +2458,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Microsoft Office",
-      "Digital"
+      "Digital",
+      "10 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -4339,95 +2480,96 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Official Microsoft activation with updates"
     ],
     "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-008",
-    "sku": "PB-SWF-008",
-    "name": "Microsoft Office Home & Business 2019 PC Global",
-    "slug": "microsoft-office-home-and-business-2019-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Office retail license (2019 edition) for Windows PC — lifetime activation with Word, Excel, PowerPoint, Outlook and more.",
-    "price": 5659,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/office.jpg",
-    "galleryImages": [
-      "/assets/images/products/office.jpg"
+    "imageKey": "office",
+    "variants": [
+      {
+        "id": "v-PB-SWF-007",
+        "name": "Professional 2019 PC 1 Device Global",
+        "price": 2945,
+        "originalPrice": 3500,
+        "sku": "PB-SWF-007",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-002",
+        "name": "2024 LTSC Standard PC Global",
+        "price": 3989,
+        "originalPrice": 4500,
+        "sku": "PB-SWF-002",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-STU-005",
+        "name": "365 Pro Plus 1 Year 5 Devices",
+        "price": 3999,
+        "originalPrice": 4500,
+        "sku": "PB-STU-005",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-001",
+        "name": "2024 LTSC Professional Plus PC Global",
+        "price": 4853,
+        "originalPrice": 5500,
+        "sku": "PB-SWF-001",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-006",
+        "name": "Professional Plus 2021 PC Global",
+        "price": 4853,
+        "originalPrice": 5500,
+        "sku": "PB-SWF-006",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-003",
+        "name": "2024 Home & Business PC Global",
+        "price": 4956,
+        "originalPrice": 5500,
+        "sku": "PB-SWF-003",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-008",
+        "name": "Home & Business 2019 PC Global",
+        "price": 5659,
+        "originalPrice": 6500,
+        "sku": "PB-SWF-008",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-009",
+        "name": "Pro 2021 + Windows 11 Pro Bundle",
+        "price": 9692,
+        "originalPrice": 11000,
+        "sku": "PB-SWF-009",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-004",
+        "name": "2024 Home & Business PC Mac Global",
+        "price": 34262,
+        "originalPrice": 39500,
+        "sku": "PB-SWF-004",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-005",
+        "name": "2024 Home PC Mac Global",
+        "price": 34265,
+        "originalPrice": 39500,
+        "sku": "PB-SWF-005",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Microsoft Office",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime retail key — one-time purchase",
-      "Instant digital delivery by email",
-      "Official Microsoft activation with updates"
-    ],
-    "brand": "Microsoft Office",
-    "imageKey": "office"
-  },
-  {
-    "id": "pb-swf-009",
-    "sku": "PB-SWF-009",
-    "name": "Microsoft Office Pro 2021 + Windows 11 Pro Bundle",
-    "slug": "microsoft-office-pro-2021-windows-11-pro-bundle",
-    "category": "Software",
-    "description": "Genuine Microsoft Windows 11 Pro retail license (retail) for one PC, with lifetime activation and official updates.",
-    "price": 9692,
-    "originalPrice": 11000,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/windows-11.jpg",
-    "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Windows 11",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime activation key",
-      "All official Windows Update features",
-      "Instant email delivery"
-    ],
-    "brand": "Windows 11",
-    "imageKey": "windows-11"
+    "variantLabel": "Edition"
   },
   {
     "id": "pb-swf-010",
     "sku": "PB-SWF-010",
-    "name": "Microsoft Windows 11 Home PC Global Retail",
-    "slug": "microsoft-windows-11-home-pc-global-retail",
+    "name": "Microsoft Windows 11",
+    "slug": "microsoft-windows-11",
     "category": "Software",
     "description": "Genuine Microsoft Windows 11 Home retail license (retail) for one PC, with lifetime activation and official updates.",
     "price": 5429,
@@ -4441,7 +2583,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Windows 11",
-      "Digital"
+      "Digital",
+      "5 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -4462,915 +2605,56 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Instant email delivery"
     ],
     "brand": "Windows 11",
-    "imageKey": "windows-11"
-  },
-  {
-    "id": "pb-swf-011",
-    "sku": "PB-SWF-011",
-    "name": "Microsoft Windows 11 Home N PC Global",
-    "slug": "microsoft-windows-11-home-n-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Windows 11 Home retail license (retail) for one PC, with lifetime activation and official updates.",
-    "price": 6197,
-    "originalPrice": 7000,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/windows-11.jpg",
-    "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Windows 11",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime activation key",
-      "All official Windows Update features",
-      "Instant email delivery"
-    ],
-    "brand": "Windows 11",
-    "imageKey": "windows-11"
-  },
-  {
-    "id": "pb-swf-012",
-    "sku": "PB-SWF-012",
-    "name": "Microsoft Windows 11 Pro PC Global Retail",
-    "slug": "microsoft-windows-11-pro-pc-global-retail",
-    "category": "Software",
-    "description": "Genuine Microsoft Windows 11 Pro retail license (retail) for one PC, with lifetime activation and official updates.",
-    "price": 5551,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/windows-11.jpg",
-    "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Windows 11",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": true,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime activation key",
-      "All official Windows Update features",
-      "Instant email delivery"
-    ],
-    "brand": "Windows 11",
-    "imageKey": "windows-11"
-  },
-  {
-    "id": "pb-swf-013",
-    "sku": "PB-SWF-013",
-    "name": "Microsoft Windows 11 Pro OEM PC Global",
-    "slug": "microsoft-windows-11-pro-oem-pc-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Windows 11 Pro retail license (OEM) for one PC, with lifetime activation and official updates.",
-    "price": 6252,
-    "originalPrice": 7000,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/windows-11.jpg",
-    "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Windows 11",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime activation key",
-      "All official Windows Update features",
-      "Instant email delivery"
-    ],
-    "brand": "Windows 11",
-    "imageKey": "windows-11"
-  },
-  {
-    "id": "pb-swf-014",
-    "sku": "PB-SWF-014",
-    "name": "Microsoft Windows 11 Pro x4 Bundle Global",
-    "slug": "microsoft-windows-11-pro-x4-bundle-global",
-    "category": "Software",
-    "description": "Genuine Microsoft Windows 11 Pro retail license (retail) — bundle of 4 activation keys for one PC, with lifetime activation and official updates.",
-    "price": 10953,
-    "originalPrice": 12500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/windows-11.jpg",
-    "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Windows 11",
-      "Digital"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Lifetime activation key",
-      "All official Windows Update features",
-      "4 keys included in bundle"
-    ],
-    "brand": "Windows 11",
-    "imageKey": "windows-11"
-  },
-  {
-    "id": "pb-swf-015",
-    "sku": "PB-SWF-015",
-    "name": "Adobe Creative Cloud Pro PC 1 Month Global",
-    "slug": "adobe-creative-cloud-pro-pc-1-month-global",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 2715,
-    "originalPrice": 3000,
-    "currency": "PKR",
-    "discountPercent": 10,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-016",
-    "sku": "PB-SWF-016",
-    "name": "Adobe Creative Cloud Pro PC 3 Months Global",
-    "slug": "adobe-creative-cloud-pro-pc-3-months-global",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 20300,
-    "originalPrice": 23500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "3 Months"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-017",
-    "sku": "PB-SWF-017",
-    "name": "Adobe Creative Cloud Pro PC 1 Year ROW Region",
-    "slug": "adobe-creative-cloud-pro-pc-1-year-row-region",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 5557,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-018",
-    "sku": "PB-SWF-018",
-    "name": "Adobe Creative Cloud Pro PC Mac 1 Year Europe",
-    "slug": "adobe-creative-cloud-pro-pc-mac-1-year-europe",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. Works on both Windows and macOS.",
-    "price": 58261,
-    "originalPrice": 67000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows + macOS supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-019",
-    "sku": "PB-SWF-019",
-    "name": "Adobe Creative Cloud Pro PC 1 Year Japan",
-    "slug": "adobe-creative-cloud-pro-pc-1-year-japan",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 61688,
-    "originalPrice": 71000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Japan",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-020",
-    "sku": "PB-SWF-020",
-    "name": "Adobe Creative Cloud Pro Student & Teacher PC 1 Year",
-    "slug": "adobe-creative-cloud-pro-student-and-teacher-pc-1-year",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. For Windows PC.",
-    "price": 36860,
-    "originalPrice": 42500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-021",
-    "sku": "PB-SWF-021",
-    "name": "Adobe Creative Cloud Pro Student & Teacher PC Mac 1 Year Global",
-    "slug": "adobe-creative-cloud-pro-student-and-teacher-pc-mac-1-year-global",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. Works on both Windows and macOS.",
-    "price": 51408,
-    "originalPrice": 59000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows + macOS supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-022",
-    "sku": "PB-SWF-022",
-    "name": "Adobe Creative Cloud Pro Student & Teacher PC Mac 1 Year US",
-    "slug": "adobe-creative-cloud-pro-student-and-teacher-pc-mac-1-year-us",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan with all apps — Photoshop, Illustrator, Premiere Pro, After Effects and more. Works on both Windows and macOS.",
-    "price": 40392,
-    "originalPrice": 46500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "USA",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows + macOS supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-023",
-    "sku": "PB-SWF-023",
-    "name": "Adobe Creative Cloud Photography Plan 1 Month 20GB Global",
-    "slug": "adobe-creative-cloud-photography-plan-1-month-20gb-global",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan (Photography Plan with Lightroom + Photoshop). For Windows PC.",
-    "price": 1498,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 25,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-024",
-    "sku": "PB-SWF-024",
-    "name": "Adobe Creative Cloud Photography Plan 1 Year 20GB Global",
-    "slug": "adobe-creative-cloud-photography-plan-1-year-20gb-global",
-    "category": "Software",
-    "description": "Adobe Creative Cloud Pro plan (Photography Plan with Lightroom + Photoshop). For Windows PC.",
-    "price": 50541,
-    "originalPrice": 58000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/adobe-cc.jpg",
-    "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Adobe Creative Cloud",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Genuine Adobe activation",
-      "Windows PC supported",
-      "Full-duration warranty with replacement"
-    ],
-    "brand": "Adobe Creative Cloud",
-    "imageKey": "adobe-cc"
-  },
-  {
-    "id": "pb-swf-025",
-    "sku": "PB-SWF-025",
-    "name": "NordVPN Basic 1 Month Global",
-    "slug": "nordvpn-basic-1-month-global",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 1518,
-    "originalPrice": 2000,
-    "currency": "PKR",
-    "discountPercent": 24,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Month"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-026",
-    "sku": "PB-SWF-026",
-    "name": "NordVPN Basic 3 Months Global",
-    "slug": "nordvpn-basic-3-months-global",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 2413,
-    "originalPrice": 3000,
-    "currency": "PKR",
-    "discountPercent": 20,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "3 Months"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-027",
-    "sku": "PB-SWF-027",
-    "name": "NordVPN Basic 1 Year Global",
-    "slug": "nordvpn-basic-1-year-global",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 4629,
-    "originalPrice": 5500,
-    "currency": "PKR",
-    "discountPercent": 16,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-028",
-    "sku": "PB-SWF-028",
-    "name": "NordVPN Basic 1 Year Europe",
-    "slug": "nordvpn-basic-1-year-europe",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 3964,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-029",
-    "sku": "PB-SWF-029",
-    "name": "NordVPN Basic 2 Years Global",
-    "slug": "nordvpn-basic-2-years-global",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 10592,
-    "originalPrice": 12000,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-030",
-    "sku": "PB-SWF-030",
-    "name": "NordVPN Basic 2 Years Europe",
-    "slug": "nordvpn-basic-2-years-europe",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 29415,
-    "originalPrice": 34000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-031",
-    "sku": "PB-SWF-031",
-    "name": "NordVPN Complete 1 Year with NordPass Global",
-    "slug": "nordvpn-complete-1-year-with-nordpass-global",
-    "category": "Software",
-    "description": "NordVPN plan (shared line) with NordPass password manager included — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
-    "price": 4811,
-    "originalPrice": 5500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/nordvpn.png",
-    "galleryImages": [
-      "/assets/images/products/nordvpn.png"
-    ],
-    "tags": [
-      "Instant",
-      "NordVPN",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "6,000+ RAM-only servers worldwide",
-      "Threat Protection malware blocker",
-      "Managed shared access"
-    ],
-    "brand": "NordVPN",
-    "imageKey": "nordvpn"
-  },
-  {
-    "id": "pb-swf-032",
-    "sku": "PB-SWF-032",
-    "name": "CyberGhost VPN 7 Devices 1 Year Global",
-    "slug": "cyberghost-vpn-7-devices-1-year-global",
-    "category": "Software",
-    "description": "CyberGhost VPN plan for 7 devices — 11,000+ servers worldwide, NoSpy servers and strict no-logs policy, audited by Deloitte.",
-    "price": 10673,
-    "originalPrice": 12500,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/cyberghost.jpg",
-    "galleryImages": [
-      "/assets/images/products/cyberghost.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "CyberGhost VPN",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "11,000+ servers in 100 countries",
-      "Up to 7 devices per subscription",
-      "Deloitte-audited no-logs policy"
-    ],
-    "brand": "CyberGhost VPN",
-    "imageKey": "cyberghost"
+    "imageKey": "windows-11",
+    "variants": [
+      {
+        "id": "v-PB-SWF-010",
+        "name": "Home PC Global Retail",
+        "price": 5429,
+        "originalPrice": 6000,
+        "sku": "PB-SWF-010",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-012",
+        "name": "Pro PC Global Retail",
+        "price": 5551,
+        "originalPrice": 6500,
+        "sku": "PB-SWF-012",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-011",
+        "name": "Home N PC Global",
+        "price": 6197,
+        "originalPrice": 7000,
+        "sku": "PB-SWF-011",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-013",
+        "name": "Pro OEM PC Global",
+        "price": 6252,
+        "originalPrice": 7000,
+        "sku": "PB-SWF-013",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-014",
+        "name": "Pro x4 Bundle Global",
+        "price": 10953,
+        "originalPrice": 12500,
+        "sku": "PB-SWF-014",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Edition"
   },
   {
     "id": "pb-swf-033",
     "sku": "PB-SWF-033",
-    "name": "CyberGhost VPN 5 Devices 2 Years Global",
-    "slug": "cyberghost-vpn-5-devices-2-years-global",
+    "name": "CyberGhost VPN",
+    "slug": "cyberghost-vpn",
     "category": "Software",
     "description": "CyberGhost VPN plan for 5 devices — 11,000+ servers worldwide, NoSpy servers and strict no-logs policy, audited by Deloitte.",
     "price": 10592,
@@ -5384,7 +2668,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "CyberGhost VPN",
-      "2 Years"
+      "2 Years",
+      "3 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -5405,54 +2690,40 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Deloitte-audited no-logs policy"
     ],
     "brand": "CyberGhost VPN",
-    "imageKey": "cyberghost"
-  },
-  {
-    "id": "pb-swf-034",
-    "sku": "PB-SWF-034",
-    "name": "CyberGhost VPN 5 Devices 5 Years Global",
-    "slug": "cyberghost-vpn-5-devices-5-years-global",
-    "category": "Software",
-    "description": "CyberGhost VPN plan for 5 devices — 11,000+ servers worldwide, NoSpy servers and strict no-logs policy, audited by Deloitte.",
-    "price": 12329,
-    "originalPrice": 14000,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/cyberghost.jpg",
-    "galleryImages": [
-      "/assets/images/products/cyberghost.jpg"
+    "imageKey": "cyberghost",
+    "variants": [
+      {
+        "id": "v-PB-SWF-033",
+        "name": "5 Devices 2 Years Global",
+        "price": 10592,
+        "originalPrice": 12000,
+        "sku": "PB-SWF-033",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-032",
+        "name": "7 Devices 1 Year Global",
+        "price": 10673,
+        "originalPrice": 12500,
+        "sku": "PB-SWF-032",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-034",
+        "name": "5 Devices 5 Years Global",
+        "price": 12329,
+        "originalPrice": 14000,
+        "sku": "PB-SWF-034",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "CyberGhost VPN",
-      "5 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "11,000+ servers in 100 countries",
-      "Up to 7 devices per subscription",
-      "Deloitte-audited no-logs policy"
-    ],
-    "brand": "CyberGhost VPN",
-    "imageKey": "cyberghost"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-035",
     "sku": "PB-SWF-035",
-    "name": "Perplexity Pro 1 Month Global",
-    "slug": "perplexity-pro-1-month-global",
+    "name": "Perplexity Pro",
+    "slug": "perplexity-pro",
     "category": "Software",
     "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
     "price": 3834,
@@ -5466,7 +2737,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Perplexity",
-      "1 Month"
+      "1 Month",
+      "9 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -5487,505 +2759,88 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Private activation with warranty"
     ],
     "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-036",
-    "sku": "PB-SWF-036",
-    "name": "Perplexity Pro 3 Months Global",
-    "slug": "perplexity-pro-3-months-global",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 14509,
-    "originalPrice": 16500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
+    "imageKey": "perplexity",
+    "variants": [
+      {
+        "id": "v-PB-SWF-035",
+        "name": "1 Month Global",
+        "price": 3834,
+        "originalPrice": 4500,
+        "sku": "PB-SWF-035",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-042",
+        "name": "1 Year Netherlands",
+        "price": 14296,
+        "originalPrice": 16500,
+        "sku": "PB-SWF-042",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-038",
+        "name": "1 Year UK",
+        "price": 14329,
+        "originalPrice": 16500,
+        "sku": "PB-SWF-038",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-041",
+        "name": "1 Year France",
+        "price": 14329,
+        "originalPrice": 16500,
+        "sku": "PB-SWF-041",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-043",
+        "name": "1 Year Australia",
+        "price": 14329,
+        "originalPrice": 16500,
+        "sku": "PB-SWF-043",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-036",
+        "name": "3 Months Global",
+        "price": 14509,
+        "originalPrice": 16500,
+        "sku": "PB-SWF-036",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-037",
+        "name": "1 Year Europe",
+        "price": 17708,
+        "originalPrice": 20500,
+        "sku": "PB-SWF-037",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-039",
+        "name": "1 Year Global Key",
+        "price": 55087,
+        "originalPrice": 63500,
+        "sku": "PB-SWF-039",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-040",
+        "name": "1 Year Global Account",
+        "price": 62422,
+        "originalPrice": 72000,
+        "sku": "PB-SWF-040",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "3 Months"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-037",
-    "sku": "PB-SWF-037",
-    "name": "Perplexity Pro 1 Year Europe",
-    "slug": "perplexity-pro-1-year-europe",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 17708,
-    "originalPrice": 20500,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-038",
-    "sku": "PB-SWF-038",
-    "name": "Perplexity Pro 1 Year UK",
-    "slug": "perplexity-pro-1-year-uk",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 14329,
-    "originalPrice": 16500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "UK",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-039",
-    "sku": "PB-SWF-039",
-    "name": "Perplexity Pro 1 Year Global Key",
-    "slug": "perplexity-pro-1-year-global-key",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 55087,
-    "originalPrice": 63500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-040",
-    "sku": "PB-SWF-040",
-    "name": "Perplexity Pro 1 Year Global Account",
-    "slug": "perplexity-pro-1-year-global-account",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 62422,
-    "originalPrice": 72000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-041",
-    "sku": "PB-SWF-041",
-    "name": "Perplexity Pro 1 Year France",
-    "slug": "perplexity-pro-1-year-france",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 14329,
-    "originalPrice": 16500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-042",
-    "sku": "PB-SWF-042",
-    "name": "Perplexity Pro 1 Year Netherlands",
-    "slug": "perplexity-pro-1-year-netherlands",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 14296,
-    "originalPrice": 16500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-043",
-    "sku": "PB-SWF-043",
-    "name": "Perplexity Pro 1 Year Australia",
-    "slug": "perplexity-pro-1-year-australia",
-    "category": "Software",
-    "description": "Perplexity Pro subscription — unlimited Pro searches with GPT-5, Claude and Sonar models, file uploads and dedicated AI inference.",
-    "price": 14329,
-    "originalPrice": 16500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/perplexity.jpg",
-    "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Perplexity",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Australia",
-    "features": [
-      "Unlimited Pro-tier AI searches",
-      "Choose GPT-5, Claude or Sonar models",
-      "Private activation with warranty"
-    ],
-    "brand": "Perplexity",
-    "imageKey": "perplexity"
-  },
-  {
-    "id": "pb-swf-044",
-    "sku": "PB-SWF-044",
-    "name": "Bitdefender Total Security 1 Year Global",
-    "slug": "bitdefender-total-security-1-year-global",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 3942,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-045",
-    "sku": "PB-SWF-045",
-    "name": "Bitdefender Total Security 1 Year US",
-    "slug": "bitdefender-total-security-1-year-us",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 3942,
-    "originalPrice": 4500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "USA",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-046",
-    "sku": "PB-SWF-046",
-    "name": "Bitdefender Total Security 1 Year Europe",
-    "slug": "bitdefender-total-security-1-year-europe",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 6836,
-    "originalPrice": 8000,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Europe",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-047",
-    "sku": "PB-SWF-047",
-    "name": "Bitdefender Total Security 1 Year UK",
-    "slug": "bitdefender-total-security-1-year-uk",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 8257,
-    "originalPrice": 9500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "UK",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-048",
     "sku": "PB-SWF-048",
-    "name": "Bitdefender Total Security 3 Months Global",
-    "slug": "bitdefender-total-security-3-months-global",
+    "name": "Bitdefender Total Security",
+    "slug": "bitdefender-total-security",
     "category": "Software",
     "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
     "price": 1753,
@@ -5999,7 +2854,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Bitdefender",
-      "3 Months"
+      "3 Months",
+      "10 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -6020,218 +2876,96 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Covers all major platforms"
     ],
     "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-049",
-    "sku": "PB-SWF-049",
-    "name": "Bitdefender Total Security 2 Years Global",
-    "slug": "bitdefender-total-security-2-years-global",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 17332,
-    "originalPrice": 20000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
+    "imageKey": "bitdefender",
+    "variants": [
+      {
+        "id": "v-PB-SWF-048",
+        "name": "3 Months Global",
+        "price": 1753,
+        "originalPrice": 2000,
+        "sku": "PB-SWF-048",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-044",
+        "name": "1 Year Global",
+        "price": 3942,
+        "originalPrice": 4500,
+        "sku": "PB-SWF-044",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-045",
+        "name": "1 Year US",
+        "price": 3942,
+        "originalPrice": 4500,
+        "sku": "PB-SWF-045",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-046",
+        "name": "1 Year Europe",
+        "price": 6836,
+        "originalPrice": 8000,
+        "sku": "PB-SWF-046",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-047",
+        "name": "1 Year UK",
+        "price": 8257,
+        "originalPrice": 9500,
+        "sku": "PB-SWF-047",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-053",
+        "name": "3 Years India",
+        "price": 11753,
+        "originalPrice": 13500,
+        "sku": "PB-SWF-053",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-050",
+        "name": "2 Years US",
+        "price": 14642,
+        "originalPrice": 17000,
+        "sku": "PB-SWF-050",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-049",
+        "name": "2 Years Global",
+        "price": 17332,
+        "originalPrice": 20000,
+        "sku": "PB-SWF-049",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-051",
+        "name": "3 Years Global PC",
+        "price": 23806,
+        "originalPrice": 27500,
+        "sku": "PB-SWF-051",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-052",
+        "name": "3 Years Global All Devices",
+        "price": 47722,
+        "originalPrice": 55000,
+        "sku": "PB-SWF-052",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-050",
-    "sku": "PB-SWF-050",
-    "name": "Bitdefender Total Security 2 Years US",
-    "slug": "bitdefender-total-security-2-years-us",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 14642,
-    "originalPrice": 17000,
-    "currency": "PKR",
-    "discountPercent": 14,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "USA",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-051",
-    "sku": "PB-SWF-051",
-    "name": "Bitdefender Total Security 3 Years Global PC",
-    "slug": "bitdefender-total-security-3-years-global-pc",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 23806,
-    "originalPrice": 27500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "3 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-052",
-    "sku": "PB-SWF-052",
-    "name": "Bitdefender Total Security 3 Years Global All Devices",
-    "slug": "bitdefender-total-security-3-years-global-all-devices",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 47722,
-    "originalPrice": 55000,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "3 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-053",
-    "sku": "PB-SWF-053",
-    "name": "Bitdefender Total Security 3 Years India",
-    "slug": "bitdefender-total-security-3-years-india",
-    "category": "Software",
-    "description": "Bitdefender Total Security license — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 11753,
-    "originalPrice": 13500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "3 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Asia",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers all major platforms"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-054",
     "sku": "PB-SWF-054",
-    "name": "Bitdefender Internet Security 1 Device 1 Year",
-    "slug": "bitdefender-internet-security-1-device-1-year",
+    "name": "Bitdefender Internet Security",
+    "slug": "bitdefender-internet-security",
     "category": "Software",
     "description": "Bitdefender Internet Security license for 1 device(s) — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
     "price": 604,
@@ -6245,7 +2979,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Bitdefender",
-      "1 Year"
+      "1 Year",
+      "3 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -6266,136 +3001,40 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Covers 1 device(s)"
     ],
     "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-055",
-    "sku": "PB-SWF-055",
-    "name": "Bitdefender Internet Security 10 Devices 1 Year",
-    "slug": "bitdefender-internet-security-10-devices-1-year",
-    "category": "Software",
-    "description": "Bitdefender Internet Security license for 10 device(s) — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 5263,
-    "originalPrice": 6000,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
+    "imageKey": "bitdefender",
+    "variants": [
+      {
+        "id": "v-PB-SWF-054",
+        "name": "1 Device 1 Year",
+        "price": 604,
+        "originalPrice": 750,
+        "sku": "PB-SWF-054",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-055",
+        "name": "10 Devices 1 Year",
+        "price": 5263,
+        "originalPrice": 6000,
+        "sku": "PB-SWF-055",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-056",
+        "name": "3 Devices 2026 2 Years",
+        "price": 24911,
+        "originalPrice": 28500,
+        "sku": "PB-SWF-056",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers 10 device(s)"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-056",
-    "sku": "PB-SWF-056",
-    "name": "Bitdefender Internet Security 3 Devices 2026 2 Years",
-    "slug": "bitdefender-internet-security-3-devices-2026-2-years",
-    "category": "Software",
-    "description": "Bitdefender Internet Security license for 3 device(s) — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 24911,
-    "originalPrice": 28500,
-    "currency": "PKR",
-    "discountPercent": 13,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers 3 device(s)"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
-  },
-  {
-    "id": "pb-swf-057",
-    "sku": "PB-SWF-057",
-    "name": "Bitdefender Antivirus Plus 5 Devices 3 Years 2025",
-    "slug": "bitdefender-antivirus-plus-5-devices-3-years-2025",
-    "category": "Software",
-    "description": "Bitdefender Antivirus Plus license for 5 device(s) — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
-    "price": 5360,
-    "originalPrice": 6000,
-    "currency": "PKR",
-    "discountPercent": 11,
-    "image": "/assets/images/products/bitdefender.jpg",
-    "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
-    ],
-    "tags": [
-      "Instant",
-      "Bitdefender",
-      "3 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Multi-layer ransomware protection",
-      "Anti-phishing and anti-fraud guard",
-      "Covers 5 device(s)"
-    ],
-    "brand": "Bitdefender",
-    "imageKey": "bitdefender"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-058",
     "sku": "PB-SWF-058",
-    "name": "Bitdefender Antivirus Plus 1 Device 2 Years",
-    "slug": "bitdefender-antivirus-plus-1-device-2-years",
+    "name": "Bitdefender Antivirus Plus",
+    "slug": "bitdefender-antivirus-plus",
     "category": "Software",
     "description": "Bitdefender Antivirus Plus license for 1 device(s) — multi-layer ransomware protection, web attack prevention and anti-fraud for the full term.",
     "price": 2523,
@@ -6409,7 +3048,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "Bitdefender",
-      "2 Years"
+      "2 Years",
+      "2 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -6430,13 +3070,32 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Covers 1 device(s)"
     ],
     "brand": "Bitdefender",
-    "imageKey": "bitdefender"
+    "imageKey": "bitdefender",
+    "variants": [
+      {
+        "id": "v-PB-SWF-058",
+        "name": "1 Device 2 Years",
+        "price": 2523,
+        "originalPrice": 3000,
+        "sku": "PB-SWF-058",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-057",
+        "name": "5 Devices 3 Years 2025",
+        "price": 5360,
+        "originalPrice": 6000,
+        "sku": "PB-SWF-057",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-059",
     "sku": "PB-SWF-059",
-    "name": "McAfee Total Protection 1 Device 1 Year",
-    "slug": "mcafee-total-protection-1-device-1-year",
+    "name": "McAfee Total Protection",
+    "slug": "mcafee-total-protection",
     "category": "Software",
     "description": "McAfee Total Protection license for 1 device(s) — antivirus, identity monitoring, safe web browsing and a password manager included.",
     "price": 1313,
@@ -6450,7 +3109,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "tags": [
       "Instant",
       "McAfee",
-      "1 Year"
+      "1 Year",
+      "5 Options"
     ],
     "digital": true,
     "productType": "digital",
@@ -6471,171 +3131,50 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Secure VPN on unlimited devices"
     ],
     "brand": "McAfee",
-    "imageKey": "mcafee"
-  },
-  {
-    "id": "pb-swf-060",
-    "sku": "PB-SWF-060",
-    "name": "McAfee Total Protection 1 Device 3 Years",
-    "slug": "mcafee-total-protection-1-device-3-years",
-    "category": "Software",
-    "description": "McAfee Total Protection license for 1 device(s) — antivirus, identity monitoring, safe web browsing and a password manager included.",
-    "price": 4155,
-    "originalPrice": 5000,
-    "currency": "PKR",
-    "discountPercent": 17,
-    "image": "/assets/images/products/mcafee.png",
-    "galleryImages": [
-      "/assets/images/products/mcafee.png"
+    "imageKey": "mcafee",
+    "variants": [
+      {
+        "id": "v-PB-SWF-059",
+        "name": "1 Device 1 Year",
+        "price": 1313,
+        "originalPrice": 1500,
+        "sku": "PB-SWF-059",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-061",
+        "name": "3 Devices 1 Year",
+        "price": 2210,
+        "originalPrice": 2500,
+        "sku": "PB-SWF-061",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-060",
+        "name": "1 Device 3 Years",
+        "price": 4155,
+        "originalPrice": 5000,
+        "sku": "PB-SWF-060",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-062",
+        "name": "5 Devices 2 Years",
+        "price": 5537,
+        "originalPrice": 6500,
+        "sku": "PB-SWF-062",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-063",
+        "name": "10 Devices 1 Year",
+        "price": 5537,
+        "originalPrice": 6500,
+        "sku": "PB-SWF-063",
+        "badge": "Instant"
+      }
     ],
-    "tags": [
-      "Instant",
-      "McAfee",
-      "3 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Real-time antivirus protection",
-      "Identity and privacy monitoring",
-      "Secure VPN on unlimited devices"
-    ],
-    "brand": "McAfee",
-    "imageKey": "mcafee"
-  },
-  {
-    "id": "pb-swf-061",
-    "sku": "PB-SWF-061",
-    "name": "McAfee Total Protection 3 Devices 1 Year",
-    "slug": "mcafee-total-protection-3-devices-1-year",
-    "category": "Software",
-    "description": "McAfee Total Protection license for 3 device(s) — antivirus, identity monitoring, safe web browsing and a password manager included.",
-    "price": 2210,
-    "originalPrice": 2500,
-    "currency": "PKR",
-    "discountPercent": 12,
-    "image": "/assets/images/products/mcafee.png",
-    "galleryImages": [
-      "/assets/images/products/mcafee.png"
-    ],
-    "tags": [
-      "Instant",
-      "McAfee",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Real-time antivirus protection",
-      "Identity and privacy monitoring",
-      "Secure VPN on unlimited devices"
-    ],
-    "brand": "McAfee",
-    "imageKey": "mcafee"
-  },
-  {
-    "id": "pb-swf-062",
-    "sku": "PB-SWF-062",
-    "name": "McAfee Total Protection 5 Devices 2 Years",
-    "slug": "mcafee-total-protection-5-devices-2-years",
-    "category": "Software",
-    "description": "McAfee Total Protection license for 5 device(s) — antivirus, identity monitoring, safe web browsing and a password manager included.",
-    "price": 5537,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/mcafee.png",
-    "galleryImages": [
-      "/assets/images/products/mcafee.png"
-    ],
-    "tags": [
-      "Instant",
-      "McAfee",
-      "2 Years"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Real-time antivirus protection",
-      "Identity and privacy monitoring",
-      "Secure VPN on unlimited devices"
-    ],
-    "brand": "McAfee",
-    "imageKey": "mcafee"
-  },
-  {
-    "id": "pb-swf-063",
-    "sku": "PB-SWF-063",
-    "name": "McAfee Total Protection 10 Devices 1 Year",
-    "slug": "mcafee-total-protection-10-devices-1-year",
-    "category": "Software",
-    "description": "McAfee Total Protection license for 10 device(s) — antivirus, identity monitoring, safe web browsing and a password manager included.",
-    "price": 5537,
-    "originalPrice": 6500,
-    "currency": "PKR",
-    "discountPercent": 15,
-    "image": "/assets/images/products/mcafee.png",
-    "galleryImages": [
-      "/assets/images/products/mcafee.png"
-    ],
-    "tags": [
-      "Instant",
-      "McAfee",
-      "1 Year"
-    ],
-    "digital": true,
-    "productType": "digital",
-    "stock": 999,
-    "status": "in_stock",
-    "active": true,
-    "rating": 0,
-    "reviewCount": 0,
-    "isFeatured": false,
-    "isHot": false,
-    "isFlashDeal": false,
-    "deliveryType": "Instant Auto-Email",
-    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
-    "region": "Global",
-    "features": [
-      "Real-time antivirus protection",
-      "Identity and privacy monitoring",
-      "Secure VPN on unlimited devices"
-    ],
-    "brand": "McAfee",
-    "imageKey": "mcafee"
+    "variantLabel": "Plan"
   },
   {
     "id": "pb-swf-064",
@@ -6720,6 +3259,131 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "imageKey": "kaspersky"
   },
   {
+    "id": "pb-vpn-001",
+    "sku": "PB-VPN-001",
+    "name": "NordVPN",
+    "slug": "nordvpn",
+    "category": "Software",
+    "description": "NordVPN plan (shared line) — 6,000+ servers in 111 countries with Threat Protection and Meshnet.",
+    "price": 499,
+    "originalPrice": 600,
+    "currency": "PKR",
+    "discountPercent": 17,
+    "image": "/assets/images/products/nordvpn.png",
+    "galleryImages": [
+      "/assets/images/products/nordvpn.png"
+    ],
+    "tags": [
+      "Instant",
+      "NordVPN",
+      "1 Month",
+      "10 Options"
+    ],
+    "digital": true,
+    "productType": "digital",
+    "stock": 999,
+    "status": "in_stock",
+    "active": true,
+    "rating": 0,
+    "reviewCount": 0,
+    "isFeatured": false,
+    "isHot": false,
+    "isFlashDeal": false,
+    "deliveryType": "Instant Auto-Email",
+    "deliveryInfo": "Delivered to your email and PlayBeat account within minutes of payment confirmation, with full-duration warranty support.",
+    "region": "Global",
+    "features": [
+      "6,000+ RAM-only servers worldwide",
+      "Threat Protection malware blocker",
+      "Managed shared access"
+    ],
+    "brand": "NordVPN",
+    "imageKey": "nordvpn",
+    "variants": [
+      {
+        "id": "v-PB-VPN-001",
+        "name": "1 Month Shared",
+        "price": 499,
+        "originalPrice": 600,
+        "sku": "PB-VPN-001",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-025",
+        "name": "Basic 1 Month Global",
+        "price": 1518,
+        "originalPrice": 2000,
+        "sku": "PB-SWF-025",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-VPN-002",
+        "name": "Full Private 1 Month",
+        "price": 1999,
+        "originalPrice": 2500,
+        "sku": "PB-VPN-002",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-026",
+        "name": "Basic 3 Months Global",
+        "price": 2413,
+        "originalPrice": 3000,
+        "sku": "PB-SWF-026",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-028",
+        "name": "Basic 1 Year Europe",
+        "price": 3964,
+        "originalPrice": 4500,
+        "sku": "PB-SWF-028",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-027",
+        "name": "Basic 1 Year Global",
+        "price": 4629,
+        "originalPrice": 5500,
+        "sku": "PB-SWF-027",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-031",
+        "name": "Complete 1 Year with NordPass Global",
+        "price": 4811,
+        "originalPrice": 5500,
+        "sku": "PB-SWF-031",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-VPN-003",
+        "name": "Full Private 1 Year",
+        "price": 8500,
+        "originalPrice": 10000,
+        "sku": "PB-VPN-003",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-029",
+        "name": "Basic 2 Years Global",
+        "price": 10592,
+        "originalPrice": 12000,
+        "sku": "PB-SWF-029",
+        "badge": "Instant"
+      },
+      {
+        "id": "v-PB-SWF-030",
+        "name": "Basic 2 Years Europe",
+        "price": 29415,
+        "originalPrice": 34000,
+        "sku": "PB-SWF-030",
+        "badge": "Instant"
+      }
+    ],
+    "variantLabel": "Plan"
+  },
+  {
     "id": "pb-zbp-001",
     "sku": "PB-ZBP-001",
     "name": "190cm Stand for Projector",
@@ -6802,6 +3466,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "4K Decoding",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-a10",
     "projectorSpec": {
       "nativeResolution": "1280x720P Native",
       "brightnessAnsi": 300,
@@ -6810,9 +3476,7 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "specialFeatures": [
         "4K Decoding"
       ]
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-a10"
+    }
   },
   {
     "id": "pb-zbp-003",
@@ -6854,6 +3518,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "4K Decoding",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-f18",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "os": "Android 10",
@@ -6861,9 +3527,7 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "specialFeatures": [
         "4K Decoding"
       ]
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-f18"
+    }
   },
   {
     "id": "pb-zbp-004",
@@ -6905,6 +3569,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "4K Decoding",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hcs350max",
     "projectorSpec": {
       "nativeResolution": "1280x720P Native",
       "os": "Android 11",
@@ -6912,9 +3578,7 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "specialFeatures": [
         "4K Decoding"
       ]
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hcs350max"
+    }
   },
   {
     "id": "pb-zbp-005",
@@ -6956,6 +3620,8 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "4K Decoding",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hcs350pro",
     "projectorSpec": {
       "nativeResolution": "1280x720P Native",
       "os": "Android 11",
@@ -6963,9 +3629,7 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "specialFeatures": [
         "4K Decoding"
       ]
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hcs350pro"
+    }
   },
   {
     "id": "pb-zbp-006",
@@ -7007,14 +3671,14 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hongtop-p10",
     "projectorSpec": {
       "nativeResolution": "1280x720P Native",
       "brightnessAnsi": 300,
       "os": "Android 10",
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hongtop-p10"
+    }
   },
   {
     "id": "pb-zbp-007",
@@ -7056,14 +3720,14 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi 6 wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy300-plus",
     "projectorSpec": {
       "nativeResolution": "1280x720P Native",
       "brightnessAnsi": 300,
       "os": "Android 11",
       "wifi": "WiFi 6"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy300-plus"
+    }
   },
   {
     "id": "pb-zbp-008",
@@ -7103,14 +3767,14 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "Netflix Licensed",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy320-ntv",
     "projectorSpec": {
       "wifi": "WiFi",
       "specialFeatures": [
         "Netflix Licensed"
       ]
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy320-ntv"
+    }
   },
   {
     "id": "pb-zbp-009",
@@ -7193,13 +3857,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy300-pro",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy300-pro"
+    }
   },
   {
     "id": "pb-zbp-011",
@@ -7240,13 +3904,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy300pro-plus",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy300pro-plus"
+    }
   },
   {
     "id": "pb-zbp-012",
@@ -7287,13 +3951,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy300x",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy300x"
+    }
   },
   {
     "id": "pb-zbp-013",
@@ -7334,13 +3998,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy310",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy310"
+    }
   },
   {
     "id": "pb-zbp-014",
@@ -7381,13 +4045,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy320mini",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy320mini"
+    }
   },
   {
     "id": "pb-zbp-015",
@@ -7428,13 +4092,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy320pro",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy320pro"
+    }
   },
   {
     "id": "pb-zbp-016",
@@ -7475,13 +4139,13 @@ const RAW_PRODUCTS_CATALOG: any[] = [
       "WiFi wireless",
       "1-year PlayBeat hardware warranty"
     ],
+    "brand": "PlayBeat Projectors",
+    "imageKey": "proj-hy350",
     "projectorSpec": {
       "nativeResolution": "1920x1080P Native",
       "brightnessAnsi": 1100,
       "wifi": "WiFi"
-    },
-    "brand": "PlayBeat Projectors",
-    "imageKey": "proj-hy350"
+    }
   }
 ]
 

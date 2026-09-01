@@ -167,7 +167,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#0B1536] border border-amber-400/30 hover:border-amber-400/60 text-xs text-white font-mono transition"
               >
                 <span className="truncate text-left flex items-center gap-1.5">
-                  <span className="text-[10px] text-amber-400 uppercase tracking-wider">Denomination:</span>
+                  <span className="text-[10px] text-amber-400 uppercase tracking-wider">{product.variantLabel || 'Option'}:</span>
                   <span className="text-white font-semibold">{selectedVariant?.name || 'Select option'}</span>
                 </span>
                 <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform shrink-0 ${variantMenuOpen ? 'rotate-180' : ''}`} />

@@ -72,6 +72,8 @@ export interface Product {
   isFlashDeal?: boolean
   flashDealEnds?: string
   variants?: ProductVariant[]
+  variantLabel?: string // dropdown label for variants: 'Denomination' | 'Plan' | 'Edition' | 'Region' ...
+  consolidatedParentId?: string // set on child products hidden after variant consolidation
   projectorSpec?: ProjectorSpec
   deliveryType?: 'Instant Auto-Email' | 'Courier Shipping (1-3 Days)' | 'Direct Activation' | string
   deliveryInfo?: string

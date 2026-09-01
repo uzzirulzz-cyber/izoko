@@ -205,7 +205,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               {product.variants && product.variants.length > 0 && (
                 <div className="mb-4">
                   <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
-                    Available Packages:
+                    {product.variantLabel ? `Select ${product.variantLabel}:` : 'Available Packages:'}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {product.variants.map((v) => {

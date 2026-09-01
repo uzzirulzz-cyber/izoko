@@ -327,7 +327,7 @@ export function App() {
 
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('playbeat_products_catalog_v5')
+    const saved = localStorage.getItem('playbeat_products_catalog_v6')
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -395,7 +395,8 @@ export function App() {
   useEffect(() => {
     localStorage.removeItem('playbeat_products_catalog_v4')
     localStorage.removeItem('playbeat_products_catalog_v5')
-    localStorage.setItem('playbeat_products_catalog_v5', JSON.stringify(products))
+    localStorage.removeItem('playbeat_products_catalog_v6')
+    localStorage.setItem('playbeat_products_catalog_v6', JSON.stringify(products))
   }, [products])
 
   // Hydrate the catalog from MongoDB (server is source of truth when reachable).
@@ -405,7 +406,7 @@ export function App() {
     let cancelled = false
     const hydrateFromApi = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products?limit=200`, {
+        const res = await fetch(`${API_BASE}/api/products?limit=200&active=all`, {
           credentials: 'include',
         })
         const data = await res.json()
@@ -642,12 +643,16 @@ export function App() {
     return wishlist.some((p) => p.id === productId)
   }
 
+  // Storefront-visible products (consolidated variant children stay hidden here,
+  // while the admin catalog view still receives the full document set)
+  const visibleProducts = useMemo(() => products.filter((p) => p.active !== false), [products])
+
   // Top 8 Popular Products (tiled across stretched storefront)
   const popularProducts = useMemo(() => {
     // Curated mix: hot items first, then featured, then a round-robin spread across categories
-    const hot = products.filter((p) => p.isHot)
-    const featured = products.filter((p) => p.isFeatured && !p.isHot)
-    const rest = products.filter((p) => !p.isHot && !p.isFeatured)
+    const hot = visibleProducts.filter((p) => p.isHot)
+    const featured = visibleProducts.filter((p) => p.isFeatured && !p.isHot)
+    const rest = visibleProducts.filter((p) => !p.isHot && !p.isFeatured)
     const byCat: Record<string, Product[]> = {}
     rest.forEach((p) => {
       ;(byCat[p.category] = byCat[p.category] || []).push(p)
@@ -665,11 +670,11 @@ export function App() {
       }
     }
     return [...hot, ...featured, ...spread].slice(0, 8)
-  }, [products])
+  }, [visibleProducts])
 
   // Filtered & Sorted Products
   const filteredProducts = useMemo(() => {
-    return products
+    return visibleProducts
       .filter((p) => {
         // Search Filter
         if (searchQuery.trim()) {
@@ -707,14 +712,14 @@ export function App() {
         if (!a.isHot && b.isHot) return 1
         return 0
       })
-  }, [products, searchQuery, selectedCategory, priceFilter, sortBy])
+  }, [visibleProducts, searchQuery, selectedCategory, priceFilter, sortBy])
 
   // Projectors for Spec Matrix
   const projectorProducts = useMemo(() => {
-    const list = products.filter((p) => p.category === 'Smart Projectors')
+    const list = visibleProducts.filter((p) => p.category === 'Smart Projectors')
     const isStand = (p: Product) => /stand/i.test(p.name)
     return [...list.filter((p) => !isStand(p)), ...list.filter(isStand)]
-  }, [products])
+  }, [visibleProducts])
 
   // Cart Subtotal & Total Count
   const cartTotal = useMemo(() => {
@@ -886,7 +891,7 @@ export function App() {
           {/* Hero Section (Matching Screenshot 1) */}
           {selectedCategory === 'all' && !searchQuery && (
             <HeroBanner
-              productsCount={products.length}
+              productsCount={visibleProducts.length}
               categoriesCount={6}
               onExploreProducts={() => {
                 const el = document.getElementById('popular-products-section')
@@ -902,7 +907,7 @@ export function App() {
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               onViewAll={() => setSelectedCategory('all')}
-              products={products}
+              products={visibleProducts}
             />
           )}
 

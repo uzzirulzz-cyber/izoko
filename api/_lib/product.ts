@@ -42,6 +42,8 @@ export function formatProduct(doc: any) {
     featured: rest.featured !== undefined ? Boolean(rest.featured) : Boolean(rest.isFeatured),
     active: rest.active !== undefined ? Boolean(rest.active) : true,
     variants: Array.isArray(rest.variants) ? rest.variants : [],
+    variantLabel: rest.variantLabel || undefined,
+    consolidatedParentId: rest.consolidatedParentId || undefined,
     projectorSpec: rest.projectorSpec,
     deliveryType: rest.deliveryType || (digital ? "Instant Auto-Email" : "Courier Shipping (1-3 Days)"),
     deliveryInfo: rest.deliveryInfo || (digital ? "Instant 15-Second Key Delivery" : "Express Dispatched with Tracking"),

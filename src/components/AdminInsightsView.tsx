@@ -2466,8 +2466,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                     className="w-10 h-10 rounded-lg object-cover bg-zinc-900 shrink-0"
                                   />
                                   <div>
-                                    <div className="font-semibold text-white line-clamp-1">
+                                    <div className="font-semibold text-white line-clamp-1 flex items-center gap-1.5">
                                       {p.name}
+                                      {p.variants && p.variants.length > 0 && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                                          {p.variants.length} {p.variantLabel || 'variant'}{p.variants.length > 1 ? 's' : ''}
+                                        </span>
+                                      )}
+                                      {p.consolidatedParentId && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30 shrink-0">
+                                          variant child
+                                        </span>
+                                      )}
+                                      {p.active === false && !p.consolidatedParentId && (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
+                                          hidden
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-[10px] font-mono text-zinc-400">
                                       {p.sku}
