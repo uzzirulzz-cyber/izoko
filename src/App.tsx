@@ -327,7 +327,7 @@ export function App() {
 
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('playbeat_products_catalog_v6')
+    const saved = localStorage.getItem('playbeat_products_catalog_v7')
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -396,7 +396,7 @@ export function App() {
     localStorage.removeItem('playbeat_products_catalog_v4')
     localStorage.removeItem('playbeat_products_catalog_v5')
     localStorage.removeItem('playbeat_products_catalog_v6')
-    localStorage.setItem('playbeat_products_catalog_v6', JSON.stringify(products))
+    localStorage.setItem('playbeat_products_catalog_v7', JSON.stringify(products))
   }, [products])
 
   // Hydrate the catalog from MongoDB (server is source of truth when reachable).
@@ -406,14 +406,18 @@ export function App() {
     let cancelled = false
     const hydrateFromApi = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/products?limit=200&active=all`, {
+        // Fetch only ACTIVE products — consolidated children (active=false)
+        // are hidden from the public storefront but remain in the DB.
+        const res = await fetch(`${API_BASE}/api/products?limit=200`, {
           credentials: 'include',
         })
         const data = await res.json()
         if (cancelled) return
 
         if (data?.success && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products)
+          // Extra safety: filter out any inactive products that slip through
+          const activeProducts = data.products.filter((p: Product) => p.active !== false)
+          setProducts(activeProducts)
           return
         }
 
@@ -433,7 +437,9 @@ export function App() {
           }).catch(() => null)
           const refetchData = refetch ? await refetch.json().catch(() => null) : null
           if (!cancelled && refetchData?.success && Array.isArray(refetchData.products) && refetchData.products.length > 0) {
-            setProducts(refetchData.products)
+            // Filter out inactive (consolidated children) for the storefront
+            const activeProducts = refetchData.products.filter((p: Product) => p.active !== false)
+            setProducts(activeProducts)
           }
         }
       } catch {
