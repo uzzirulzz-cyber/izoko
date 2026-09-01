@@ -43,6 +43,7 @@ import {
 import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME } from "../_lib/config.js";
 import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
+import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from "../_lib/appRelease.js";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1442,23 +1443,114 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   }
 
   // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============
+  // Reads the live `app_release` doc (editable by super admin) with constant fallback.
   if (route === "app/version" && req.method === "GET") {
+    const release = await getAppRelease();
     return jsonOk(res, {
       success: true,
       app: {
         name: "Playbeat Admin",
         platform: "Android",
-        version: APP_RELEASE.version,
-        versionCode: APP_RELEASE.versionCode,
-        apkUrl: APP_RELEASE.apkUrl,
-        sizeBytes: APP_RELEASE.sizeBytes,
-        sha256: APP_RELEASE.sha256,
-        updatedAt: APP_RELEASE.updatedAt,
-        minAndroid: "7.0 (API 24)",
-        targetAndroid: "Android 14 (API 34)",
-        changelog: APP_RELEASE.changelog,
+        version: release.version,
+        versionCode: release.versionCode,
+        apkUrl: release.apkUrl,
+        aabUrl: release.aabUrl || "",
+        sizeBytes: release.sizeBytes,
+        sha256: release.sha256,
+        minSupportedVersion: release.minSupportedVersion,
+        forceUpdate: Boolean(release.forceUpdate),
+        buildDate: release.buildDate,
+        updatedAt: (release as any).updatedAt || release.buildDate,
+        minAndroid: release.minAndroid,
+        targetAndroid: release.targetAndroid,
+        changelog: release.releaseNotes,
       },
     });
+  }
+
+  // ============ PUT /api/admin/app/release (super admin: manage app release) ============
+  // Editable fields: minSupportedVersion, forceUpdate, version, versionCode,
+  // apkUrl, aabUrl, sizeBytes, sha256, buildDate, releaseNotes.
+  if (route === "app/release" && (req.method === "PUT" || req.method === "POST")) {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = typeof req.body === "object" && req.body !== null ? req.body : {};
+      if (body.minSupportedVersion !== undefined) {
+        const v = String(body.minSupportedVersion).trim();
+        if (!/^\d+\.\d+\.\d+$/.test(v)) {
+          return jsonError(res, "minSupportedVersion must be semver (e.g. 1.0.0)", 400);
+        }
+      }
+      if (body.version !== undefined && !/^\d+\.\d+\.\d+$/.test(String(body.version).trim())) {
+        return jsonError(res, "version must be semver (e.g. 2.0.0)", 400);
+      }
+      const release = await setAppRelease(body);
+      const admin = req.user as any;
+      await db.collection("admin_activity").insertOne({
+        type: "app_release_update",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: `Updated Android app release config (version ${release.version}, min ${release.minSupportedVersion}, forceUpdate ${release.forceUpdate ? "ON" : "OFF"})`,
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, release });
+    } catch (err: any) {
+      console.error("PUT /api/admin/app/release error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/app/notifications (mobile notification feed) ============
+  // Aggregated admin-relevant events: recent activity, pending orders,
+  // new customers, security events. Powers the native notification center.
+  if (route === "app/notifications" && req.method === "GET") {
+    try {
+      const activityCol = db.collection("admin_activity");
+      const ordersCol = db.collection("orders");
+      const usersCol = db.collection("users");
+      const since = new Date(Date.now() - 72 * 60 * 60 * 1000);
+      const [activity, pendingOrders, recentOrders, newUsers, devicesOnline] = await Promise.all([
+        activityCol.find({ createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(20).toArray(),
+        ordersCol.countDocuments({ status: "pending" }),
+        ordersCol.find({ createdAt: { $gte: since } }).sort({ createdAt: -1 }).limit(10).toArray(),
+        usersCol.countDocuments({ createdAt: { $gte: since }, role: { $exists: false } }),
+        db
+          .collection("admin_app_devices")
+          .countDocuments({ lastSeenAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) }, revoked: { $ne: true } }),
+      ]);
+      const items: any[] = [];
+      for (const o of recentOrders) {
+        const isPending = o.status === "pending";
+        items.push({
+          id: `order-${o._id}`, category: "order", title: isPending ? "New order received" : "Order updated",
+          body: `${o.customerName || o.customerEmail || "Customer"} — ${o.totalAmount ?? ""} ${o.currency || "PKR"}`.trim(),
+          deepLink: "orders", createdAt: o.createdAt, read: !isPending,
+        });
+      }
+      for (const a of activity) {
+        if (a.type === "login") continue;
+        const security = a.type === "app_device_control" || a.type === "password_change";
+        items.push({
+          id: `act-${a._id}`, category: security ? "security" : "admin", title: security ? "Security event" : "Admin activity",
+          body: a.detail || a.type, deepLink: security ? "mobileapp" : null,
+          createdAt: a.createdAt, read: true,
+        });
+      }
+      items.push({
+        id: "users-72h", category: "user", title: `${newUsers} new customer${newUsers === 1 ? "" : "s"} in 72h`,
+        body: "Customer registrations from the storefront", deepLink: "customers", createdAt: new Date(), read: true,
+      });
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return jsonOk(res, {
+        success: true,
+        summary: { pendingOrders, newUsers, devicesOnline },
+        notifications: items.slice(0, 30),
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/app/notifications error:", err);
+      return jsonError(res, err.message, 500);
+    }
   }
 
   // ============ POST /api/admin/app/heartbeat (Android app live status ping) ============
@@ -1496,11 +1588,25 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         },
         { upsert: true }
       );
-      const onlineNow = await devicesCol.countDocuments({
-        lastSeenAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
-        revoked: { $ne: true },
+      const [onlineNow, pendingOrders, ordersToday, unreadMessages] = await Promise.all([
+        devicesCol.countDocuments({
+          lastSeenAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+          revoked: { $ne: true },
+        }),
+        db.collection("orders").countDocuments({ status: "pending" }),
+        db.collection("orders").countDocuments({
+          createdAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+        }),
+        db
+          .collection("contact_messages")
+          .countDocuments({ status: { $in: ["new", "unread", null] }, resolved: { $ne: true } }),
+      ]);
+      return jsonOk(res, {
+        success: true,
+        serverTime: now.toISOString(),
+        onlineNow,
+        ops: { pendingOrders, ordersToday, unreadMessages },
       });
-      return jsonOk(res, { success: true, serverTime: now.toISOString(), onlineNow });
     } catch (err: any) {
       console.error("POST /api/admin/app/heartbeat error:", err);
       return jsonError(res, err.message, 500);

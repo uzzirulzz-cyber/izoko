@@ -13,6 +13,8 @@
     { "source": "/api/analytics", "destination": "/api/analytics" },
     { "source": "/api/cms/:path*", "destination": "/api/cms" },
     { "source": "/api/cms", "destination": "/api/cms" },
+    { "source": "/api/app/:path*", "destination": "/api/app" },
+    { "source": "/api/app", "destination": "/api/app" },
     { "source": "/admin", "destination": "/index.html" },
     { "source": "/admin/login", "destination": "/index.html" },
     { "source": "/admin/:path*", "destination": "/index.html" },

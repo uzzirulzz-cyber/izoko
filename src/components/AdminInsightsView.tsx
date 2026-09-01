@@ -137,7 +137,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   }, [])
 
   // Navigation & Sub-views
-  const [activeNav, setActiveNav] = useState<string>('dashboard')
+  const [activeNav, setActiveNav] = useState<string>(() => {
+    // Deep-link support: /admin#orders, #products, #mobileapp ... (used by the
+    // native Android bottom navigation + push deep links)
+    try {
+      const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
+      if (h && /^[a-z-]+$/.test(h)) return h
+    } catch { /* noop */ }
+    return 'dashboard'
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
   const [timeFilter, setTimeFilter] = useState<'Today' | 'This Week' | 'This Month'>('This Week')
   const [chartMetric, setChartMetric] = useState<'Revenue' | 'Orders' | 'Customers'>('Revenue')
@@ -169,6 +177,34 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   // Stock editor
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
   const [tempStockValue, setTempStockValue] = useState<number>(0)
+
+  // ===== Deep-link sync (native Android app bottom navigation) =====
+  // Keep the URL hash in sync with the active section and react to external
+  // hash changes (e.g. the Android shell navigating to /admin#orders).
+  useEffect(() => {
+    const VALID = new Set([
+      'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
+      'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
+      'vault', 'backup', 'staff', 'mobileapp', 'profile',
+    ])
+    const applyHash = () => {
+      const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
+      if (h && VALID.has(h)) setActiveNav((prev) => (prev === h ? prev : h))
+    }
+    applyHash()
+    window.addEventListener('hashchange', applyHash)
+    return () => window.removeEventListener('hashchange', applyHash)
+  }, [])
+
+  useEffect(() => {
+    try {
+      const want = `#${activeNav}`
+      if (window.location.hash !== want) {
+        history.replaceState(null, '', want)
+      }
+    } catch { /* noop */ }
+  }, [activeNav])
+
 
   // ============================================
   // LIVE DATA: users, staff, admin stats (fetched from /api/admin/* on demand)

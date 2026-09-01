@@ -16,6 +16,9 @@ import {
   MonitorSmartphone,
   CheckCircle2,
   Info,
+  Settings2,
+  Save,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface MobileAppPanelProps {
@@ -43,9 +46,13 @@ interface AppMeta {
   version: string
   versionCode: number
   apkUrl: string
+  aabUrl?: string
   sizeBytes: number
   sha256: string
   updatedAt: string
+  minSupportedVersion?: string
+  forceUpdate?: boolean
+  buildDate?: string
   minAndroid: string
   targetAndroid: string
   changelog: string[]
@@ -79,6 +86,12 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
   const [loading, setLoading] = useState(true)
   const [busyDevice, setBusyDevice] = useState<string | null>(null)
   const [lastSync, setLastSync] = useState<Date | null>(null)
+  // Release management (super admin)
+  const [relMin, setRelMin] = useState('')
+  const [relForce, setRelForce] = useState(false)
+  const [relNotes, setRelNotes] = useState('')
+  const [relSaving, setRelSaving] = useState(false)
+  const [relEditing, setRelEditing] = useState(false)
 
   const loadDevices = useCallback(async () => {
     try {
@@ -106,11 +119,18 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
         credentials: 'include',
       })
       const data = await res.json()
-      if (data?.success) setApp(data.app)
+      if (data?.success) {
+        setApp(data.app)
+        if (!relEditing) {
+          setRelMin(data.app.minSupportedVersion || '1.0.0')
+          setRelForce(Boolean(data.app.forceUpdate))
+          setRelNotes((data.app.changelog || []).join('\n'))
+        }
+      }
     } catch {
       /* silent */
     }
-  }, [])
+  }, [relEditing])
 
   useEffect(() => {
     loadDevices()
@@ -120,6 +140,12 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
   }, [loadDevices, loadAppMeta])
 
   const toggleRevoke = async (device: AppDevice) => {
+    const action = device.revoked ? 'restore' : 'force-logout + revoke'
+    if (!window.confirm(
+      device.revoked
+        ? `Restore access for "${device.deviceModel}"?`
+        : `FORCE LOGOUT "${device.deviceModel}"?\n\nThe device is blocked at the API instantly and the app returns to the login screen.`
+    )) return
     setBusyDevice(device.deviceId)
     try {
       const res = await fetch(`${API_BASE}/api/admin/app/devices/revoke`, {
@@ -129,11 +155,11 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
           Authorization: `Bearer ${getAdminToken()}`,
         },
         credentials: 'include',
-        body: JSON.stringify({ deviceId: device.deviceId, revoked: !device.revoked }),
+        body: JSON.stringify({ deviceId: device.deviceId, revoked: !device.revoked, action }),
       })
       const data = await res.json()
       if (data?.success) {
-        onToast(data.revoked ? 'Device revoked — heartbeat access blocked.' : 'Device restored.')
+        onToast(data.revoked ? 'Device force-logged-out — blocked at the API instantly.' : 'Device restored.')
         loadDevices()
       } else {
         onToast(data?.error || 'Failed to update device.')
@@ -142,6 +168,41 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
       onToast(err.message || 'Network error')
     } finally {
       setBusyDevice(null)
+    }
+  }
+
+  const saveRelease = async () => {
+    if (!/^\d+\.\d+\.\d+$/.test(relMin.trim())) {
+      onToast('Minimum supported version must be semver, e.g. 1.0.0')
+      return
+    }
+    setRelSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/app/release`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          minSupportedVersion: relMin.trim(),
+          forceUpdate: relForce,
+          releaseNotes: relNotes.split('\n').map((l) => l.trim()).filter(Boolean),
+        }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        onToast(`Release config saved — min v${data.release.minSupportedVersion}, force update ${data.release.forceUpdate ? 'ON' : 'OFF'}`)
+        setRelEditing(false)
+        loadAppMeta()
+      } else {
+        onToast(data?.error || 'Failed to save release config.')
+      }
+    } catch (err: any) {
+      onToast(err.message || 'Network error')
+    } finally {
+      setRelSaving(false)
     }
   }
 
@@ -193,18 +254,35 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-sm font-extrabold text-white">Playbeat Admin</h3>
                 <span className="px-1.5 py-0.5 rounded bg-fuchsia-500/15 border border-fuchsia-400/30 text-fuchsia-300 text-[9px] font-mono font-bold">
-                  v{app?.version || '1.0.0'}
+                  v{app?.version || '2.0.0'}
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[9px] font-mono font-bold">
                   OFFICIAL
                 </span>
+                {app?.minSupportedVersion && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${
+                      app.forceUpdate
+                        ? 'bg-rose-500/15 border-rose-400/30 text-rose-300'
+                        : 'bg-sky-500/15 border-sky-400/30 text-sky-300'
+                    }`}
+                    title="Devices below this version are forced to update before sign-in"
+                  >
+                    MIN v{app.minSupportedVersion}
+                  </span>
+                )}
+                {app?.forceUpdate && (
+                  <span className="px-1.5 py-0.5 rounded bg-rose-500/15 border border-rose-400/30 text-rose-300 text-[9px] font-mono font-bold">
+                    FORCE UPDATE ON
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">
                 digital.playbeat.adminapp · APK {app ? fmtBytes(app.sizeBytes) : '—'} · updated{' '}
                 {app ? fmtAgo(app.updatedAt) : '—'}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2.5">
-                {['Android 7.0+', 'Role-restricted', 'Live heartbeat', 'Device revoke'].map((t) => (
+                {['Android 7.0+', 'Biometric unlock', 'Role-restricted', 'Live heartbeat', 'Device revoke', 'Secure Keystore'].map((t) => (
                   <span
                     key={t}
                     className="px-2 py-0.5 rounded-lg bg-[#060B1E] border border-slate-400/15 text-[9px] font-mono text-zinc-400"
@@ -217,12 +295,12 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
           </div>
 
           <a
-            href={app?.apkUrl || '/downloads/playbeat-admin-v1.0.0.apk'}
+            href={app?.apkUrl || '/downloads/playbeat-admin-v2.0.0.apk'}
             download
             className="mt-4 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl btn-gold-gradient text-slate-950 font-extrabold text-xs active:scale-[0.98] transition shadow-lg"
           >
             <Download className="w-4 h-4" />
-            Download APK — v{app?.version || '1.0.0'}
+            Download APK — v{app?.version || '2.0.0'}
           </a>
 
           <div className="mt-3 flex items-start gap-2.5 rounded-xl bg-[#060B1E] border border-slate-400/10 p-3">
@@ -293,6 +371,138 @@ export const MobileAppPanel: React.FC<MobileAppPanelProps> = ({ isSuperAdmin, on
           </div>
         </div>
       </div>
+
+      {/* ============ RELEASE MANAGEMENT (super admin) ============ */}
+      {isSuperAdmin && (
+        <div className="rounded-2xl bg-[#0A122E]/80 border border-sky-400/20 p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-sky-400" />
+              <h3 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
+                Release Management — Update Enforcement
+              </h3>
+            </div>
+            {!relEditing ? (
+              <button
+                onClick={() => setRelEditing(true)}
+                className="px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-400/30 text-sky-300 text-[10px] font-bold hover:bg-sky-500/20 transition"
+              >
+                Edit
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setRelEditing(false)
+                    if (app) {
+                      setRelMin(app.minSupportedVersion || '1.0.0')
+                      setRelForce(Boolean(app.forceUpdate))
+                      setRelNotes((app.changelog || []).join('\n'))
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-zinc-400 text-[10px] font-bold hover:bg-white/10 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveRelease}
+                  disabled={relSaving}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 border border-sky-400/30 text-sky-200 text-[10px] font-bold hover:bg-sky-500/25 transition disabled:opacity-50"
+                >
+                  {relSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[10px] text-zinc-500 mb-3.5 font-sans leading-relaxed">
+            Controls what installed Android apps experience at launch. Devices running a version below
+            <span className="text-zinc-300 font-mono"> min supported</span> are blocked with
+            <span className="text-rose-300"> “Update Required”</span> until they install the latest APK.
+            Applied server-side via <span className="font-mono text-zinc-400">/api/app/version</span> — no app-store review needed.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+                Min supported version
+              </label>
+              <input
+                value={relEditing ? relMin : `v${app?.minSupportedVersion || '1.0.0'}`}
+                onChange={(e) => setRelMin(e.target.value)}
+                readOnly={!relEditing}
+                className={`w-full px-3 py-2 rounded-xl bg-[#060B1E] border text-xs font-mono text-white outline-none transition ${
+                  relEditing ? 'border-sky-400/30 focus:border-sky-400/60' : 'border-white/10 opacity-70'
+                }`}
+                placeholder="1.0.0"
+              />
+            </div>
+            <div>
+              <label className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+                Force update (all devices)
+              </label>
+              <button
+                onClick={() => relEditing && setRelForce(!relForce)}
+                disabled={!relEditing}
+                className={`w-full px-3 py-2 rounded-xl border text-[11px] font-bold transition flex items-center justify-between ${
+                  relForce
+                    ? 'bg-rose-500/10 border-rose-400/40 text-rose-300'
+                    : 'bg-emerald-500/10 border-emerald-400/30 text-emerald-300'
+                } ${relEditing ? 'hover:brightness-125' : 'opacity-70 cursor-default'}`}
+              >
+                <span>{relForce ? 'ON — blocking gate active' : 'OFF — optional update banner'}</span>
+                <span
+                  className={`w-8 h-4 rounded-full relative transition ${relForce ? 'bg-rose-400/70' : 'bg-emerald-400/60'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${
+                      relForce ? 'left-4' : 'left-0.5'
+                    }`}
+                  />
+                </span>
+              </button>
+            </div>
+            <div>
+              <label className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+                Latest release
+              </label>
+              <div className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs font-mono text-zinc-300">
+                v{app?.version || '—'}
+                {app?.buildDate && (
+                  <span className="text-zinc-600 text-[9px] ml-2">{new Date(app.buildDate).toLocaleDateString()}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-[9px] font-mono font-bold text-zinc-500 uppercase tracking-wider mb-1.5">
+              Release notes (one per line — shown in the app update dialog)
+            </label>
+            <textarea
+              value={relEditing ? relNotes : (app?.changelog || []).join('\n')}
+              onChange={(e) => setRelNotes(e.target.value)}
+              readOnly={!relEditing}
+              rows={4}
+              className={`w-full px-3 py-2 rounded-xl bg-[#060B1E] border text-[11px] font-sans text-zinc-200 outline-none transition resize-y ${
+                relEditing ? 'border-sky-400/30 focus:border-sky-400/60' : 'border-white/10 opacity-70'
+              }`}
+              placeholder="What's new in this release…"
+            />
+          </div>
+
+          {relForce && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl bg-rose-500/10 border border-rose-400/25 p-3">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
+              <p className="text-[10px] text-rose-200/90 leading-relaxed font-sans">
+                Force update is ON — every device below <span className="font-mono">v{relMin || app?.minSupportedVersion}</span> is
+                locked out of the app until it updates. Sign-in is prevented; only the update button works.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ============ LIVE DEVICES ============ */}
       <div className="rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 overflow-hidden">

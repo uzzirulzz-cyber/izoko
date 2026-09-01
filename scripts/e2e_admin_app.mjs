@@ -86,9 +86,43 @@ const revokedHb = await fetch(`${BASE}/api/admin/app/heartbeat`, {
 console.log("8. heartbeat after revoke ->", revokedHb.status, revokedHb.status === 403 ? "OK (device blocked)" : "FAIL");
 await devicesCol.updateOne({ deviceId: DEVICE_ID }, { $set: { revoked: false } });
 
-// 9. app version endpoint
+// 9. app version endpoint (admin view)
 const ver = await (await fetch(`${BASE}/api/admin/app/version`, { headers: auth })).json();
 console.log("9. app/version:", ver.success ? `v${ver.app.version} ${ver.app.sizeBytes}b ${ver.app.apkUrl}` : "FAIL");
+
+// 9b. PUBLIC version gate (pre-login) — installed=1.0.0 vs min version
+const pubVer = await (await fetch(`${BASE}/api/app/version?installed=1.0.0`)).json();
+const pv = pubVer?.app || {};
+console.log(
+  "9b. public version gate: v" + pv.version,
+  "| min", pv.minSupportedVersion,
+  "| forceUpdate", pv.forceUpdate,
+  "| updateRequired(1.0.0)", pv.updateRequired
+);
+if (!pubVer.success || !pv.version) { console.error("PUBLIC VERSION GATE FAILED"); process.exit(1); }
+
+// 9c. server-side update decision must flip with an up-to-date installed version
+const pubVer2 = await (await fetch(`${BASE}/api/app/version?installed=${pv.version}`)).json();
+console.log(
+  "9c. updateRequired(current)", pubVer2?.app?.updateRequired,
+  pubVer2?.app?.updateRequired === false ? "OK" : "FAIL"
+);
+
+// 9d. mobile notifications feed
+const notifs = await (await fetch(`${BASE}/api/admin/app/notifications`, { headers: auth })).json();
+console.log(
+  "9d. notifications feed:", notifs.success,
+  "| pendingOrders", notifs.summary?.pendingOrders,
+  "| devicesOnline", notifs.summary?.devicesOnline,
+  "| items", (notifs.notifications || []).length
+);
+
+// 9e. staff CANNOT manage the release config (super-admin only)
+const staffRelease = await fetch(`${BASE}/api/admin/app/release`, {
+  method: "PUT", headers: auth,
+  body: JSON.stringify({ minSupportedVersion: "9.9.9" }),
+});
+console.log("9e. staff release-management attempt ->", staffRelease.status, staffRelease.status === 403 ? "OK (restricted)" : "FAIL");
 
 // 10. cleanup: delete temp staff + test device
 await usersCol.deleteMany({ email: TEST_EMAIL });
