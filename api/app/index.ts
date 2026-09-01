@@ -20,10 +20,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const release = await getAppRelease();
       // Optional installed-version hint → server-side update decision
       const installed = String((req.query?.installed as string) || "").trim();
-      const updateRequired = installed
+      const belowMin = installed
         ? !semverGte(installed, release.minSupportedVersion)
         : false;
-      const updateAvailable = installed ? !semverGte(installed, release.version) : true;
+      // forceUpdate ON = blocking gate for EVERYONE below the latest release
+      const belowLatest = installed ? !semverGte(installed, release.version) : true;
+      const updateRequired = belowMin || (Boolean(release.forceUpdate) && belowLatest);
+      const updateAvailable = installed ? belowLatest : true;
       return jsonOk(res, {
         success: true,
         app: {
