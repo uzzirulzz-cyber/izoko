@@ -6,6 +6,7 @@ import {
   Check,
   Zap,
   Truck,
+  ChevronDown,
 } from 'lucide-react'
 import { Product, CurrencyCode, ProductVariant } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -43,6 +44,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     product.variants && product.variants.length > 0 ? product.variants[0] : undefined
   )
   const [addedAnimation, setAddedAnimation] = useState(false)
+  const [variantMenuOpen, setVariantMenuOpen] = useState(false)
+  const hasVariants = product.variants && product.variants.length > 1
 
   const currentPrice = selectedVariant ? selectedVariant.price : product.price
   const originalPrice = selectedVariant?.originalPrice || product.originalPrice
@@ -68,6 +71,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation()
     onInstantBuy(product, selectedVariant)
+  }
+
+  const handleSelectVariant = (e: React.MouseEvent, v: ProductVariant) => {
+    e.stopPropagation()
+    setSelectedVariant(v)
+    setVariantMenuOpen(false)
   }
 
   return (
@@ -148,6 +157,80 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             )}
           </div>
+
+          {/* Variant Dropdown Selector — only shown when product has multiple variants */}
+          {hasVariants && (
+            <div className="relative mb-2" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setVariantMenuOpen(!variantMenuOpen) }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#0B1536] border border-amber-400/30 hover:border-amber-400/60 text-xs text-white font-mono transition"
+              >
+                <span className="truncate text-left flex items-center gap-1.5">
+                  <span className="text-[10px] text-amber-400 uppercase tracking-wider">Denomination:</span>
+                  <span className="text-white font-semibold">{selectedVariant?.name || 'Select option'}</span>
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-amber-400 transition-transform shrink-0 ${variantMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {variantMenuOpen && (
+                <>
+                  {/* Click-away overlay */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={(e) => { e.stopPropagation(); setVariantMenuOpen(false) }}
+                  />
+                  <div className="absolute left-0 right-0 mt-1 z-20 max-h-56 overflow-y-auto rounded-xl bg-[#0B1536] border border-amber-400/40 shadow-2xl shadow-black/60 py-1 backdrop-blur-xl">
+                    {product.variants!.map((v) => {
+                      const isActive = selectedVariant?.id === v.id
+                      const vDiscount = v.originalPrice && v.originalPrice > v.price
+                        ? Math.round(((v.originalPrice - v.price) / v.originalPrice) * 100)
+                        : 0
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={(e) => handleSelectVariant(e, v)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-left transition ${
+                            isActive
+                              ? 'bg-amber-400/15 text-amber-300'
+                              : 'text-slate-200 hover:bg-white/5'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold truncate">{v.name}</div>
+                            <div className="flex items-baseline gap-1.5 mt-0.5">
+                              <span className="text-[11px] font-mono font-bold text-white">
+                                {formatPrice(v.price, currency)}
+                              </span>
+                              {v.originalPrice && v.originalPrice > v.price && (
+                                <span className="text-[10px] text-slate-500 line-through font-mono">
+                                  {formatPrice(v.originalPrice, currency)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {vDiscount > 0 && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                -{vDiscount}%
+                              </span>
+                            )}
+                            {v.badge && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                {v.badge}
+                              </span>
+                            )}
+                            {isActive && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Price */}
           <div className="mt-auto pt-2 flex items-baseline gap-2 mb-3">

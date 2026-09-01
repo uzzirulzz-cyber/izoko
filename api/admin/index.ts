@@ -44,6 +44,10 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME } from "../_lib/config.js"
 import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
   if (!requireAdmin(req, res)) return;
@@ -235,6 +239,146 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           role: u.role || "user", staffId: u.staffId || null,
           provider: u.provider || "local", createdAt: u.createdAt,
         })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/consolidate-giftcards ============
+  // Consolidates multiple denomination products (e.g. "Apple Gift Card 5 USD",
+  // "Apple Gift Card 10 USD", ...) into a single parent product with variants.
+  // Body: { matchPrefix: "Apple Gift Card", category: "Gift Cards" }
+  if (route === "consolidate-giftcards" && req.method === "POST") {
+    try {
+      const productsCol = db.collection("products");
+      const { matchPrefix, category, parentName, parentSlug } = req.body || {};
+      if (!matchPrefix || !category) {
+        return jsonError(res, "matchPrefix and category are required.", 400);
+      }
+
+      // Find all products in this category whose name starts with matchPrefix,
+      // sorted by price ascending so variants appear in denomination order.
+      const matching = await productsCol
+        .find({
+          category: { $regex: new RegExp(`^${category}$`, "i") },
+          name: { $regex: new RegExp(`^${escapeRegExp(matchPrefix)}\\s+`, "i") },
+        })
+        .sort({ price: 1 })
+        .toArray();
+
+      if (matching.length < 2) {
+        return jsonOk(res, {
+          success: true,
+          message: `Found ${matching.length} product(s) matching "${matchPrefix}". Need at least 2 to consolidate.`,
+          consolidated: false,
+          matching: matching.length,
+        });
+      }
+
+      // Build variants from the matching products (excluding any that already
+      // have variants themselves — those are already parents)
+      const standalone = matching.filter((p: any) => !p.variants || p.variants.length === 0);
+      if (standalone.length < 2) {
+        return jsonOk(res, {
+          success: true,
+          message: `Found ${standalone.length} standalone product(s) (others are already parents). Nothing to consolidate.`,
+          consolidated: false,
+          matching: matching.length,
+        });
+      }
+
+      const variants = standalone.map((p: any) => ({
+        id: `v-${p.sku || p._id.toString()}`,
+        name: p.name.replace(new RegExp(`^${escapeRegExp(matchPrefix)}\\s*`, "i"), "").trim() || p.name,
+        price: Number(p.price) || 0,
+        originalPrice: p.originalPrice ? Number(p.originalPrice) : undefined,
+        sku: p.sku,
+        badge: (p.tags || []).includes("INSTANT") ? "Instant" : undefined,
+      }));
+
+      // Use the cheapest as the parent's display price; use the first match's image
+      const parent = standalone[0];
+      const finalParentName = parentName || matchPrefix;
+      const finalParentSlug = parentSlug || parent.slug || matchPrefix.toLowerCase().replace(/\s+/g, "-");
+      const parentPrice = Number(parent.price) || 0;
+      const parentOriginalPrice = parent.originalPrice ? Number(parent.originalPrice) : undefined;
+
+      // Collect IDs to deactivate (the standalone children — they're now variants)
+      const childIds = standalone.slice(1).map((p: any) => p._id);
+
+      // Update the parent product: set name, slug, variants, and ensure it's active
+      await productsCol.updateOne(
+        { _id: parent._id },
+        {
+          $set: {
+            name: finalParentName,
+            slug: finalParentSlug,
+            price: parentPrice,
+            originalPrice: parentOriginalPrice,
+            variants,
+            active: true,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      // Deactivate the child products (keep them in DB but hide from storefront)
+      if (childIds.length > 0) {
+        await productsCol.updateMany(
+          { _id: { $in: childIds } },
+          { $set: { active: false, consolidatedParentId: parent._id.toString(), updatedAt: new Date() } }
+        );
+      }
+
+      return jsonOk(res, {
+        success: true,
+        message: `Consolidated ${standalone.length} products into "${finalParentName}" with ${variants.length} variants.`,
+        consolidated: true,
+        parentId: parent._id.toString(),
+        parentName: finalParentName,
+        variantsCount: variants.length,
+        deactivatedChildren: childIds.length,
+        variants,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/split-variants ============
+  // Reverses consolidation: removes variants from a parent product and
+  // re-activates its previously-consolidated children.
+  // Body: { parentId: "<ObjectId>" }
+  if (route === "split-variants" && req.method === "POST") {
+    try {
+      const productsCol = db.collection("products");
+      const { parentId } = req.body || {};
+      if (!parentId) {
+        return jsonError(res, "parentId is required.", 400);
+      }
+      const parentFilter: any = ObjectId.isValid(parentId)
+        ? { _id: new ObjectId(parentId) }
+        : { $or: [{ id: parentId }, { sku: parentId }, { slug: parentId }] };
+
+      const parent = await productsCol.findOne(parentFilter);
+      if (!parent) return jsonError(res, "Parent product not found.", 404);
+
+      // Re-activate children
+      await productsCol.updateMany(
+        { consolidatedParentId: parent._id.toString() },
+        { $set: { active: true }, $unset: { consolidatedParentId: "" } }
+      );
+
+      // Remove variants from parent + restore original child name (first variant's source)
+      await productsCol.updateOne(
+        { _id: parent._id },
+        { $set: { variants: [], updatedAt: new Date() } }
+      );
+
+      return jsonOk(res, {
+        success: true,
+        message: `Split "${parent.name}" — re-activated all child products and removed variants.`,
       });
     } catch (err: any) {
       return jsonError(res, err.message, 500);
