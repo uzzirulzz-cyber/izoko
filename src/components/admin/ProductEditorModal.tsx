@@ -13,17 +13,12 @@ interface ProductEditorModalProps {
 }
 
 const CATEGORY_OPTIONS = [
-  'Digital Products',
-  'Gift Cards',
   'Streaming',
   'Subscriptions',
+  'Gift Cards',
   'Gaming',
   'Software',
-  'IPTV & Services',
   'Smart Projectors',
-  'AI & Productivity',
-  'Games',
-  'Bundles',
 ]
 
 const DELIVERY_OPTIONS = [

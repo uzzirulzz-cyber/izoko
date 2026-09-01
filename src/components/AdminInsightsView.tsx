@@ -95,6 +95,19 @@ interface AdminInsightsViewProps {
 // NO MOCK DATA — every dataset in this dashboard is fetched live from MongoDB.
 // Empty states are rendered when collections have no real records yet.
 
+
+// Color-coded category system (matches storefront palette)
+const ADMIN_CATEGORY_COLORS: Record<string, string> = {
+  Streaming: 'bg-rose-500/15 text-rose-300 border border-rose-400/30',
+  Subscriptions: 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30',
+  'Gift Cards': 'bg-amber-500/15 text-amber-300 border border-amber-400/30',
+  Gaming: 'bg-indigo-500/15 text-indigo-300 border border-indigo-400/30',
+  Software: 'bg-purple-500/15 text-purple-300 border border-purple-400/30',
+  'Smart Projectors': 'bg-cyan-500/15 text-cyan-300 border border-cyan-400/30',
+}
+const adminCategoryChip = (cat: string) =>
+  ADMIN_CATEGORY_COLORS[cat] || 'bg-white/5 text-zinc-300 border border-white/10'
+
 export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   products,
   selectedCurrency,
@@ -679,7 +692,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* MAIN SECTION */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-amber-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_currentColor]"></span>
                     Main
                   </div>
                 )}
@@ -713,7 +727,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* WEBSITE & ANALYTICS */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-violet-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 shadow-[0_0_8px_currentColor]"></span>
                     Website & Analytics
                   </div>
                 )}
@@ -721,7 +736,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <button
                     onClick={() => setActiveNav('cms')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'cms' ? 'text-white bg-white/10' : ''
+                      activeNav === 'cms' ? 'text-cyan-300 bg-cyan-400/10 border border-cyan-400/25' : ''
                     }`}
                   >
                     <Globe className="w-4 h-4 text-cyan-400" />
@@ -731,7 +746,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <button
                     onClick={() => setActiveNav('analytics')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'analytics' ? 'text-white bg-white/10' : ''
+                      activeNav === 'analytics' ? 'text-violet-300 bg-violet-400/10 border border-violet-400/25' : ''
                     }`}
                   >
                     <BarChart3 className="w-4 h-4 text-emerald-400" />
@@ -743,7 +758,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* COMMERCE & INVENTORY */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-blue-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_currentColor]"></span>
                     Commerce & Inventory
                   </div>
                 )}
@@ -752,7 +768,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     onClick={() => setActiveNav('orders-log')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'orders-log'
-                        ? 'text-amber-400 bg-amber-400/10'
+                        ? 'text-blue-300 bg-blue-400/10 border border-blue-400/25'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -771,7 +787,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     onClick={() => setActiveNav('orders-log')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'orders'
-                        ? 'text-amber-400 bg-amber-400/10'
+                        ? 'text-sky-300 bg-sky-400/10 border border-sky-400/25'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -785,7 +801,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     onClick={() => setActiveNav('products')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'products'
-                        ? 'text-amber-400 bg-amber-400/10'
+                        ? 'text-amber-300 bg-amber-400/10 border border-amber-400/25'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -855,7 +871,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <button
                     onClick={() => setActiveNav('subscriptions')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'subscriptions' ? 'text-white bg-white/10' : ''
+                      activeNav === 'subscriptions' ? 'text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/25' : ''
                     }`}
                   >
                     <Repeat className="w-4 h-4 text-purple-400" />
@@ -865,7 +881,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <button
                     onClick={() => setActiveNav('coupons')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'coupons' ? 'text-white bg-white/10' : ''
+                      activeNav === 'coupons' ? 'text-rose-300 bg-rose-400/10 border border-rose-400/25' : ''
                     }`}
                   >
                     <Tag className="w-4 h-4 text-rose-400" />
@@ -877,7 +893,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* CUSTOMERS & SUPPORT */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-teal-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-[0_0_8px_currentColor]"></span>
                     Customers & Support
                   </div>
                 )}
@@ -886,7 +903,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     onClick={() => setActiveNav('customers')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'customers'
-                        ? 'text-white bg-white/10'
+                        ? 'text-teal-300 bg-teal-400/10 border border-teal-400/25'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -924,7 +941,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     onClick={() => setActiveNav('support')}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                       activeNav === 'support'
-                        ? 'text-white bg-white/10'
+                        ? 'text-indigo-300 bg-indigo-400/10 border border-indigo-400/25'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -944,7 +961,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* IPTV & SERVICES */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-emerald-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_currentColor]"></span>
                     IPTV & Services
                   </div>
                 )}
@@ -952,7 +970,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   onClick={() => setActiveNav('iptv')}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
                     activeNav === 'iptv'
-                      ? 'text-white bg-white/10'
+                      ? 'text-emerald-300 bg-emerald-400/10 border border-emerald-400/25'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -971,7 +989,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* MARKETING & INTEGRATIONS */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-orange-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shadow-[0_0_8px_currentColor]"></span>
                     Marketing & Integrations
                   </div>
                 )}
@@ -979,7 +998,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   onClick={() => setActiveNav('campaigns')}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
                     activeNav === 'campaigns'
-                      ? 'text-white bg-white/10'
+                      ? 'text-orange-300 bg-orange-400/10 border border-orange-400/25'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
@@ -991,7 +1010,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* ACCOUNT */}
               <div>
                 {!sidebarCollapsed && (
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-3 mb-1.5 font-semibold">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-sky-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_currentColor]"></span>
                     Account
                   </div>
                 )}
@@ -999,7 +1019,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   onClick={() => openProfile('identity')}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
                     activeNav === 'profile'
-                      ? 'text-white bg-white/10'
+                      ? 'text-sky-300 bg-sky-400/10 border border-sky-400/25'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
                   title="Profile Settings"
@@ -1360,7 +1380,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                     {/* 3 Metric Pills */}
                     <div className="grid grid-cols-3 gap-1.5 text-center">
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
+                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-blue-500/60">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Orders</div>
                         <div className="text-sm font-black text-white font-mono">
                           {adminStats?.totalOrders ?? '—'}
@@ -1370,7 +1390,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
+                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-purple-500/60">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Products</div>
                         <div className="text-sm font-black text-white font-mono">
                           {adminStats?.totalProducts ?? '—'}
@@ -1378,7 +1398,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <div className="text-[9px] text-purple-400 font-mono">↑ {adminStats?.activeProducts ?? 0} published</div>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5">
+                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-amber-500/60">
                         <div className="text-[9px] text-zinc-400 font-mono">Low Stock Alerts</div>
                         <div className={`text-sm font-black font-mono ${(adminStats?.lowStock || 0) > 0 ? 'text-amber-400' : 'text-white'}`}>
                           {adminStats?.lowStock ?? '—'}
@@ -2391,12 +2411,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       className="px-3 py-2 rounded-xl bg-[#07090E] border border-white/5 text-xs text-zinc-300 focus:outline-none"
                     >
                       <option value="all">All Categories</option>
-                      <option value="Smart Projectors">Smart Projectors</option>
-                      <option value="AI & Productivity">AI & Productivity</option>
-                      <option value="Games">Games</option>
-                      <option value="Software">Software</option>
+                      <option value="Streaming">Streaming</option>
                       <option value="Subscriptions">Subscriptions</option>
                       <option value="Gift Cards">Gift Cards</option>
+                      <option value="Gaming">Gaming</option>
+                      <option value="Software">Software</option>
+                      <option value="Smart Projectors">Smart Projectors</option>
                     </select>
 
                     <div className="flex items-center gap-2">
@@ -2457,7 +2477,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                               </td>
 
                               <td className="p-3.5">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-zinc-300">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${adminCategoryChip(p.category)}`}>
                                   {p.category}
                                 </span>
                               </td>

@@ -175,7 +175,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
           const errors: string[] = []
           const name = String(row.name || row.title || row.Product || row.product_name || `Imported Item ${index + 1}`).trim()
           const rawSku = String(row.sku || row.SKU || row.id || `PB-IMP-${Math.floor(1000 + Math.random() * 9000)}`).trim()
-          const category = (row.category || row.Category || 'Digital Products') as ProductCategory
+          const category = (row.category || row.Category || 'Subscriptions') as ProductCategory
           const price = Number(row.price || row.Price || row.amount || 0)
           const stock = Number(row.stock || row.Stock || row.quantity || 50)
           const digital =
@@ -1065,12 +1065,12 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
                                   }
                                   className="px-2 py-1 rounded bg-[#070A12] border border-white/20 text-xs text-white"
                                 >
+                                  <option>Streaming</option>
                                   <option>Subscriptions</option>
                                   <option>Gift Cards</option>
-                                  <option>Smart Projectors</option>
-                                  <option>AI & Productivity</option>
-                                  <option>Games</option>
+                                  <option>Gaming</option>
                                   <option>Software</option>
+                                  <option>Smart Projectors</option>
                                 </select>
                               ) : (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-zinc-300">

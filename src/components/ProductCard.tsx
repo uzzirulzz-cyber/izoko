@@ -4,16 +4,21 @@ import {
   Heart,
   ShoppingCart,
   Check,
+  Zap,
+  Truck,
 } from 'lucide-react'
 import { Product, CurrencyCode, ProductVariant } from '../types'
 import { formatPrice } from '../lib/currency'
-import {
-  NetflixArtwork,
-  PlayStationArtwork,
-  SpotifyArtwork,
-  DisneyArtwork,
-  XboxArtwork,
-} from './BrandLogos'
+
+// Category chip colors (color-coded storefront)
+const CAT_CHIP: Record<string, string> = {
+  Streaming: 'bg-rose-500/20 text-rose-300 border-rose-400/30',
+  Subscriptions: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
+  'Gift Cards': 'bg-amber-500/20 text-amber-300 border-amber-400/30',
+  Gaming: 'bg-indigo-500/20 text-indigo-300 border-indigo-400/30',
+  Software: 'bg-purple-500/20 text-purple-300 border-purple-400/30',
+  'Smart Projectors': 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30',
+}
 
 interface ProductCardProps {
   product: Product
@@ -39,12 +44,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   )
   const [addedAnimation, setAddedAnimation] = useState(false)
 
-  // Current active price based on variant
   const currentPrice = selectedVariant ? selectedVariant.price : product.price
   const originalPrice = selectedVariant?.originalPrice || product.originalPrice
   const discountPercent = originalPrice
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : product.discountPercent
+  const hasReviews = (product.reviewCount || 0) > 0 || (product.rating || 0) > 0
+  const isDigital = product.digital !== false && product.productType !== 'physical'
+  const catChip = CAT_CHIP[product.category] || 'bg-slate-500/20 text-slate-300 border-slate-400/30'
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -63,103 +70,86 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     onInstantBuy(product, selectedVariant)
   }
 
-  // Render matching brand artwork from screenshots 2 & 3
-  const renderArtwork = () => {
-    if (product.image === 'brand:netflix' || product.id.includes('netflix')) {
-      return <NetflixArtwork className="w-full h-full" />
-    }
-    if (product.image === 'brand:playstation' || product.id.includes('psn')) {
-      return <PlayStationArtwork className="w-full h-full" />
-    }
-    if (product.image === 'brand:spotify' || product.id.includes('spotify')) {
-      return <SpotifyArtwork className="w-full h-full" />
-    }
-    if (product.image === 'brand:disney' || product.id.includes('disney')) {
-      return <DisneyArtwork className="w-full h-full" />
-    }
-    if (product.image === 'brand:xbox' || product.id.includes('xbox')) {
-      return <XboxArtwork className="w-full h-full" />
-    }
-
-    return (
-      <div className="relative w-full h-full bg-[#070D22] overflow-hidden">
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-90"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-transparent"></div>
-      </div>
-    )
-  }
-
-  // Review count formatter (e.g. 2400 -> 2.4K)
-  const formatReviewCount = (cnt: number) => {
-    if (cnt >= 1000) {
-      return (cnt / 1000).toFixed(1).replace('.0', '') + 'K'
-    }
-    return cnt.toString()
-  }
-
   return (
     <div className="relative group">
-      {/* Golden Liquid Water-Glow Layer Beneath Card on Hover (Matching Screenshot 2) */}
-      <div className="absolute -inset-0.5 rounded-[22px] bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 opacity-0 group-hover:opacity-100 blur-sm transition-all duration-300 pointer-events-none"></div>
+      {/* Premium lift + gold halo on hover */}
+      <div className="absolute -inset-0.5 rounded-[24px] bg-gradient-to-b from-amber-300/60 via-yellow-400/25 to-transparent opacity-0 group-hover:opacity-100 blur-[6px] transition-all duration-500 pointer-events-none"></div>
 
       <div
         id={`product-card-${product.id}`}
         onClick={() => onQuickView(product)}
-        className="relative flex flex-col rounded-[20px] bg-[#0B1220] border border-slate-400/15 group-hover:border-yellow-400/80 overflow-hidden transition-all duration-300 cursor-pointer shadow-lg group-hover:shadow-[0_0_25px_rgba(255,193,7,0.35),inset_0_0_15px_rgba(255,193,7,0.12)] p-3"
+        className="relative flex flex-col h-full rounded-[22px] bg-gradient-to-b from-[#0C1428] to-[#0A101F] border border-white/[0.07] group-hover:border-amber-400/50 overflow-hidden transition-all duration-300 cursor-pointer group-hover:-translate-y-1 shadow-[0_8px_28px_rgba(0,0,0,0.45)] group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,193,7,0.18)] p-3"
       >
-        {/* Top Media & Badges */}
+        {/* Media */}
         <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#060D26]">
-          {/* Main Visual */}
-          {renderArtwork()}
+          <div className="relative w-full h-full overflow-hidden">
+            <img
+              src={product.image}
+              alt={product.name}
+              loading="lazy"
+              className="w-full h-full object-cover object-center group-hover:scale-[1.06] transition-transform duration-700 ease-out"
+            />
+            {/* Premium scrim */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0A101F]/70 via-transparent to-transparent pointer-events-none"></div>
+          </div>
 
-          {/* Top Left Badge (e.g. TOP RATED / -20% / -15%) */}
-          <div className="absolute top-2.5 left-2.5 z-20">
-            {product.tags && product.tags.includes('TOP RATED') ? (
-              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#FFC107] text-slate-950 shadow-md uppercase tracking-wider">
-                TOP RATED
-              </span>
-            ) : discountPercent && discountPercent > 0 ? (
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#FFC107] text-slate-950 shadow-md">
+          {/* Discount badge */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1.5">
+            {discountPercent && discountPercent > 0 ? (
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-extrabold bg-gradient-to-r from-amber-300 to-yellow-500 text-slate-950 shadow-lg">
                 -{discountPercent}%
               </span>
             ) : null}
+            {isDigital ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 backdrop-blur-sm">
+                <Zap className="w-2.5 h-2.5 fill-emerald-300" />
+                INSTANT
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 backdrop-blur-sm">
+                <Truck className="w-2.5 h-2.5" />
+                SHIPPED
+              </span>
+            )}
           </div>
 
-          {/* Top Right Wishlist Heart Icon (Exact from Screenshot 2 & 3) */}
+          {/* Wishlist */}
           <button
             id={`wishlist-btn-${product.id}`}
             onClick={handleWishlist}
             aria-label="Wishlist"
-            className="absolute top-2.5 right-2.5 z-20 p-1.5 rounded-lg text-slate-300 hover:text-rose-400 transition"
+            className="absolute top-2.5 right-2.5 z-20 p-1.5 rounded-xl bg-black/30 backdrop-blur-sm text-slate-300 hover:text-rose-400 hover:bg-black/50 transition"
           >
             <Heart
               className={`w-4 h-4 ${
-                isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-slate-300 stroke-[1.8]'
+                isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-slate-200 stroke-[1.8]'
               }`}
             />
           </button>
         </div>
 
-        {/* Card Details */}
+        {/* Details */}
         <div className="flex-1 flex flex-col pt-3 px-1">
-          {/* Product Title */}
-          <h3 className="font-bold text-white text-sm leading-snug line-clamp-2 mb-1 group-hover:text-yellow-300 transition-colors font-sans">
+          <h3 className="font-bold text-white text-sm leading-snug line-clamp-2 mb-1.5 group-hover:text-amber-200 transition-colors">
             {product.name}
           </h3>
 
-          {/* Rating Row (Matching Screenshot 2 & 3: Star, Rating, ReviewCount) */}
-          <div className="flex items-center gap-1.5 text-xs mb-2">
-            <Star className="w-3.5 h-3.5 fill-[#FFC107] text-[#FFC107]" />
-            <span className="font-bold text-white text-xs">{product.rating}</span>
-            <span className="text-slate-400 text-xs">({formatReviewCount(product.reviewCount)})</span>
+          {/* Category chip + rating */}
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            <span
+              className={`px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold border ${catChip}`}
+            >
+              {product.category}
+            </span>
+            {hasReviews && (
+              <span className="inline-flex items-center gap-1 text-xs">
+                <Star className="w-3 h-3 fill-[#FFC107] text-[#FFC107]" />
+                <span className="font-bold text-white">{product.rating}</span>
+              </span>
+            )}
           </div>
 
-          {/* Pricing Row (Matching Screenshot 2 & 3) */}
+          {/* Price */}
           <div className="mt-auto pt-2 flex items-baseline gap-2 mb-3">
             {originalPrice && originalPrice > currentPrice && (
               <span className="text-xs text-slate-500 line-through font-mono">
@@ -171,9 +161,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           </div>
 
-          {/* Action Row: Buy Now + Cart Button (Exact from Screenshot 2 & 3) */}
+          {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Buy Now Button (Glossy Golden Capsule) */}
             <button
               id={`buy-now-btn-${product.id}`}
               onClick={handleBuyNow}
@@ -182,14 +171,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               Buy Now
             </button>
 
-            {/* Cart Icon Button (Dark Navy with Gold Cart Icon) */}
             <button
               id={`add-cart-btn-${product.id}`}
               onClick={handleAddToCart}
               className={`p-2 rounded-xl border transition-all active:scale-95 flex items-center justify-center shrink-0 ${
                 addedAnimation
-                  ? 'bg-yellow-400 text-slate-950 border-yellow-400'
-                  : 'bg-[#0B1536] border-yellow-500/40 text-[#FFC107] hover:border-yellow-400 hover:bg-[#101E4A]'
+                  ? 'bg-emerald-400 text-slate-950 border-emerald-400'
+                  : 'bg-white/[0.04] border-amber-400/30 text-amber-300 hover:border-amber-300 hover:bg-amber-400/10'
               }`}
               title="Add to cart"
             >

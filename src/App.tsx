@@ -327,7 +327,7 @@ export function App() {
 
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('playbeat_products_catalog_v4')
+    const saved = localStorage.getItem('playbeat_products_catalog_v5')
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -393,8 +393,9 @@ export function App() {
 
   // Persist Products Catalog
   useEffect(() => {
-    localStorage.removeItem('playbeat_products_catalog_v3')
-    localStorage.setItem('playbeat_products_catalog_v4', JSON.stringify(products))
+    localStorage.removeItem('playbeat_products_catalog_v4')
+    localStorage.removeItem('playbeat_products_catalog_v5')
+    localStorage.setItem('playbeat_products_catalog_v5', JSON.stringify(products))
   }, [products])
 
   // Hydrate the catalog from MongoDB (server is source of truth when reachable).
@@ -643,7 +644,27 @@ export function App() {
 
   // Top 8 Popular Products (tiled across stretched storefront)
   const popularProducts = useMemo(() => {
-    return products.slice(0, 8)
+    // Curated mix: hot items first, then featured, then a round-robin spread across categories
+    const hot = products.filter((p) => p.isHot)
+    const featured = products.filter((p) => p.isFeatured && !p.isHot)
+    const rest = products.filter((p) => !p.isHot && !p.isFeatured)
+    const byCat: Record<string, Product[]> = {}
+    rest.forEach((p) => {
+      ;(byCat[p.category] = byCat[p.category] || []).push(p)
+    })
+    const spread: Product[] = []
+    let added = true
+    while (added) {
+      added = false
+      for (const cat of Object.keys(byCat)) {
+        const next = byCat[cat].shift()
+        if (next) {
+          spread.push(next)
+          added = true
+        }
+      }
+    }
+    return [...hot, ...featured, ...spread].slice(0, 8)
   }, [products])
 
   // Filtered & Sorted Products
@@ -690,7 +711,9 @@ export function App() {
 
   // Projectors for Spec Matrix
   const projectorProducts = useMemo(() => {
-    return products.filter((p) => p.category === 'Smart Projectors')
+    const list = products.filter((p) => p.category === 'Smart Projectors')
+    const isStand = (p: Product) => /stand/i.test(p.name)
+    return [...list.filter((p) => !isStand(p)), ...list.filter(isStand)]
   }, [products])
 
   // Cart Subtotal & Total Count
@@ -863,6 +886,8 @@ export function App() {
           {/* Hero Section (Matching Screenshot 1) */}
           {selectedCategory === 'all' && !searchQuery && (
             <HeroBanner
+              productsCount={products.length}
+              categoriesCount={6}
               onExploreProducts={() => {
                 const el = document.getElementById('popular-products-section')
                 el?.scrollIntoView({ behavior: 'smooth' })
@@ -877,6 +902,7 @@ export function App() {
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               onViewAll={() => setSelectedCategory('all')}
+              products={products}
             />
           )}
 
@@ -938,7 +964,7 @@ export function App() {
               <div className="flex items-center gap-2.5">
                 <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
                 <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-                  {selectedCategory === 'all' ? 'All Digital Licenses & Cinema Gear' : selectedCategory}
+                  {selectedCategory === 'all' ? 'Complete Catalog — Every Product' : selectedCategory}
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-mono font-semibold text-yellow-300 bg-[#0A122E] border border-yellow-400/25">
                   {filteredProducts.length} items
