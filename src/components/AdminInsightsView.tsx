@@ -57,9 +57,12 @@ import {
   LogOut,
   KeyRound,
   History,
+  Percent,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
+import '../admin-theme.css'
+import { NeonCart, NeonShield, NeonBolt, NeonBrain, ViewHeader, KpiTile } from './admin/enterprise'
 import { CsvImporterModal } from './CsvImporterModal'
 import { ProductEditorModal } from './admin/ProductEditorModal'
 import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
@@ -139,6 +142,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [timeFilter, setTimeFilter] = useState<'Today' | 'This Week' | 'This Month'>('This Week')
   const [chartMetric, setChartMetric] = useState<'Revenue' | 'Orders' | 'Customers'>('Revenue')
   const [chartRange, setChartRange] = useState<'Last 14 Days' | 'Last 30 Days' | 'This Month'>('Last 14 Days')
+  // Interactive revenue chart: hovered point index + selected range (days)
+  const [revHoverIdx, setRevHoverIdx] = useState<number | null>(null)
+  const [revRangeDays, setRevRangeDays] = useState<14 | 30>(14)
+  const [revRangeOpen, setRevRangeOpen] = useState(false)
 
   // Data states — ALL LIVE from MongoDB (no mock entries)
   const [searchQuery, setSearchQuery] = useState('')
@@ -196,6 +203,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   // Live online device count for the Mobile App sidebar badge (polled every 60s)
   const appOnlineCountRef = useRef(0)
   const [appOnlineCount, setAppOnlineCount] = useState(0)
+  // Live support inbox: unread ("new") customer messages for the sidebar badge
+  const [supportNewCount, setSupportNewCount] = useState(0)
 
   // Admin profile dropdown (header avatar button)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -241,6 +250,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         if (!cancelled && data?.success) {
           appOnlineCountRef.current = data.stats?.onlineNow || 0
           setAppOnlineCount(data.stats?.onlineNow || 0)
+        }
+      } catch {
+        /* silent */
+      }
+      try {
+        const res2 = await fetch(`${API_BASE}/api/admin/support-messages`, {
+          headers: { Authorization: `Bearer ${getAdminToken()}` },
+          credentials: 'include',
+        })
+        const data2 = await res2.json()
+        if (!cancelled && data2?.success?.counts) {
+          setSupportNewCount(data2.counts.new || 0)
+        } else if (!cancelled && data2?.counts) {
+          setSupportNewCount(data2.counts.new || 0)
         }
       } catch {
         /* silent */
@@ -447,11 +470,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     }
   }
 
-  const fetchAdminRevenueChart = async () => {
+  const fetchAdminRevenueChart = async (days: number = 14) => {
     setChartLoading(true)
     try {
       const token = getAdminToken()
-      const res = await fetch(`${API_BASE}/api/admin/revenue-chart?days=14`, {
+      const res = await fetch(`${API_BASE}/api/admin/revenue-chart?days=${days}`, {
         headers: { Authorization: `Bearer ${token}` },
         credentials: 'include',
       })
@@ -659,10 +682,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   })
 
   return (
-    <div className="min-h-screen bg-[#07090E] text-zinc-100 font-sans flex flex-col antialiased selection:bg-amber-500 selection:text-black">
+    <div className="pbadmin min-h-screen pa-ambient text-zinc-100 font-sans flex flex-col antialiased selection:bg-amber-500 selection:text-black">
+      {/* Ambient enterprise grid canvas */}
+      <div className="pa-grid-overlay" aria-hidden="true"></div>
+
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-900/95 border border-amber-500/40 text-amber-300 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom duration-300">
+        <div className="pa-toast fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-amber-300 animate-in slide-in-from-bottom duration-300">
           <Sparkles className="w-4 h-4 text-amber-400" />
           <span className="text-xs font-mono">{toastMessage}</span>
         </div>
@@ -674,9 +700,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         {/* LEFT SIDEBAR (Pixel-Perfect PlayBeat Admin) */}
         {/* ========================================================================= */}
         <aside
-          className={`${
+          className={`pa-sidebar ${
             sidebarCollapsed ? 'w-20' : 'w-64'
-          } bg-[#0A0D14] border-r border-white/5 flex flex-col justify-between shrink-0 transition-all duration-300 select-none z-30`}
+          } flex flex-col justify-between shrink-0 transition-all duration-300 select-none z-30`}
         >
           <div className="p-4 space-y-6">
             {/* Top Brand Header */}
@@ -731,10 +757,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <button
                   onClick={() => setActiveNav('dashboard')}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition font-medium ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 transition font-medium ${
                     activeNav === 'dashboard'
-                      ? 'bg-amber-400 text-black font-semibold shadow-lg shadow-amber-400/20'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      ? 'pa-nav-item--active-gold'
+                      : 'pa-nav-item'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -747,9 +773,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </button>
                 <button
                   onClick={() => setActiveNav('health')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition mt-0.5 ${
-                    activeNav === 'health' ? 'text-emerald-300 bg-emerald-400/10' : ''
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 mt-0.5 ${
+                    activeNav === 'health' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
+                  style={
+                    activeNav === 'health'
+                      ? ({ '--nav-a': '#6ee7b7', '--nav-bg': 'rgba(16,185,129,0.09)', '--nav-edge': 'rgba(16,185,129,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
                 >
                   <Activity className="w-4 h-4 text-emerald-400" />
                   {!sidebarCollapsed && <span>System Health</span>}
@@ -767,9 +798,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <div className="space-y-0.5">
                   <button
                     onClick={() => setActiveNav('cms')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'cms' ? 'text-cyan-300 bg-cyan-400/10 border border-cyan-400/25' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'cms' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'cms'
+                        ? ({ '--nav-a': '#67e8f9', '--nav-bg': 'rgba(34,211,238,0.09)', '--nav-edge': 'rgba(34,211,238,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <Globe className="w-4 h-4 text-cyan-400" />
                     {!sidebarCollapsed && <span>Website Builder CMS</span>}
@@ -777,9 +813,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('analytics')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'analytics' ? 'text-violet-300 bg-violet-400/10 border border-violet-400/25' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'analytics' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'analytics'
+                        ? ({ '--nav-a': '#c4b5fd', '--nav-bg': 'rgba(139,92,246,0.09)', '--nav-edge': 'rgba(139,92,246,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <BarChart3 className="w-4 h-4 text-emerald-400" />
                     {!sidebarCollapsed && <span>Analytics & Traffic</span>}
@@ -798,11 +839,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <div className="space-y-0.5">
                   <button
                     onClick={() => setActiveNav('orders-log')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'orders-log'
-                        ? 'text-blue-300 bg-blue-400/10 border border-blue-400/25'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'orders-log' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'orders-log'
+                        ? ({ '--nav-a': '#93c5fd', '--nav-bg': 'rgba(59,130,246,0.09)', '--nav-edge': 'rgba(59,130,246,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <ShoppingBag className="w-4 h-4" />
@@ -817,11 +861,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('orders-log')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'orders'
-                        ? 'text-sky-300 bg-sky-400/10 border border-sky-400/25'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'orders' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'orders'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <ScrollText className="w-4 h-4 text-amber-400" />
@@ -831,11 +878,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('products')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'products'
-                        ? 'text-amber-300 bg-amber-400/10 border border-amber-400/25'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'products' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'products'
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <Package className="w-4 h-4" />
@@ -850,9 +900,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('media')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'media' ? 'text-purple-300 bg-purple-400/10' : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'media' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'media'
+                        ? ({ '--nav-a': '#d8b4fe', '--nav-bg': 'rgba(168,85,247,0.09)', '--nav-edge': 'rgba(168,85,247,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <ImageIcon className="w-4 h-4 text-purple-400" />
@@ -867,7 +922,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setShowCsvImporterModal(true)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-zinc-400 hover:text-amber-300 hover:bg-amber-400/10 transition group"
+                    className="w-full flex items-center justify-between px-3 py-2 pa-nav-item hover:!text-amber-300 hover:!bg-amber-400/10 group"
                   >
                     <div className="flex items-center gap-2.5">
                       <FileSpreadsheet className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition" />
@@ -882,9 +937,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('backup')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'backup' ? 'text-sky-300 bg-sky-400/10' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'backup' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'backup'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <DatabaseBackup className="w-4 h-4 text-sky-400" />
                     {!sidebarCollapsed && <span>Restore Points & Sync</span>}
@@ -892,9 +952,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('vault')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'vault' ? 'text-amber-400 bg-amber-400/10' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'vault' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'vault'
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <Key className="w-4 h-4 text-amber-400" />
                     {!sidebarCollapsed && <span>Digital License Vault</span>}
@@ -902,9 +967,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('subscriptions')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'subscriptions' ? 'text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/25' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'subscriptions' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'subscriptions'
+                        ? ({ '--nav-a': '#f0abfc', '--nav-bg': 'rgba(217,70,239,0.09)', '--nav-edge': 'rgba(217,70,239,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <Repeat className="w-4 h-4 text-purple-400" />
                     {!sidebarCollapsed && <span>Subscriptions</span>}
@@ -912,9 +982,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('coupons')}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition ${
-                      activeNav === 'coupons' ? 'text-rose-300 bg-rose-400/10 border border-rose-400/25' : ''
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'coupons' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'coupons'
+                        ? ({ '--nav-a': '#fda4af', '--nav-bg': 'rgba(244,63,94,0.09)', '--nav-edge': 'rgba(244,63,94,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <Tag className="w-4 h-4 text-rose-400" />
                     {!sidebarCollapsed && <span>Discounts & Coupons</span>}
@@ -933,11 +1008,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <div className="space-y-0.5">
                   <button
                     onClick={() => setActiveNav('customers')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'customers'
-                        ? 'text-teal-300 bg-teal-400/10 border border-teal-400/25'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'customers' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'customers'
+                        ? ({ '--nav-a': '#5eead4', '--nav-bg': 'rgba(20,184,166,0.09)', '--nav-edge': 'rgba(20,184,166,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <Users className="w-4 h-4 text-teal-400" />
@@ -952,11 +1030,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('staff')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'staff'
-                        ? 'text-teal-300 bg-teal-400/10'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'staff' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'staff'
+                        ? ({ '--nav-a': '#5eead4', '--nav-bg': 'rgba(20,184,166,0.09)', '--nav-edge': 'rgba(20,184,166,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <Users2 className="w-4 h-4 text-teal-400" />
@@ -971,19 +1052,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                   <button
                     onClick={() => setActiveNav('support')}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                      activeNav === 'support'
-                        ? 'text-indigo-300 bg-indigo-400/10 border border-indigo-400/25'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'support' ? 'pa-nav-item--active' : 'pa-nav-item'
                     }`}
+                    style={
+                      activeNav === 'support'
+                        ? ({ '--nav-a': '#a5b4fc', '--nav-bg': 'rgba(99,102,241,0.09)', '--nav-edge': 'rgba(99,102,241,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-2.5">
                       <MessageSquare className="w-4 h-4 text-indigo-400" />
                       {!sidebarCollapsed && <span>Support Tickets</span>}
                     </div>
-                    {!sidebarCollapsed && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono text-[10px]">
-                        6
+                    {!sidebarCollapsed && supportNewCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-rose-400 animate-pulse"></span>
+                        {supportNewCount}
                       </span>
                     )}
                   </button>
@@ -1000,19 +1085,25 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <button
                   onClick={() => setActiveNav('iptv')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition ${
-                    activeNav === 'iptv'
-                      ? 'text-emerald-300 bg-emerald-400/10 border border-emerald-400/25'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  className={`w-full flex items-center justify-between px-3 py-2 ${
+                    activeNav === 'iptv' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
+                  style={
+                    activeNav === 'iptv'
+                      ? ({ '--nav-a': '#6ee7b7', '--nav-bg': 'rgba(16,185,129,0.09)', '--nav-edge': 'rgba(16,185,129,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
                 >
                   <div className="flex items-center gap-2.5">
                     <Tv className="w-4 h-4 text-emerald-400" />
-                    {!sidebarCollapsed && <span>IPTV M3U Servers</span>}
+                    {!sidebarCollapsed && <span>IPTV & Streaming</span>}
                   </div>
                   {!sidebarCollapsed && (
                     <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
-                      3
+                      {products.filter((p) => {
+                        const hay = `${p.name} ${p.sku || ''}`.toLowerCase()
+                        return hay.includes('iptv') || hay.includes('m3u')
+                      }).length}
                     </span>
                   )}
                 </button>
@@ -1028,11 +1119,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <button
                   onClick={() => setActiveNav('campaigns')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-                    activeNav === 'campaigns'
-                      ? 'text-orange-300 bg-orange-400/10 border border-orange-400/25'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                    activeNav === 'campaigns' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
+                  style={
+                    activeNav === 'campaigns'
+                      ? ({ '--nav-a': '#fdba74', '--nav-bg': 'rgba(249,115,22,0.09)', '--nav-edge': 'rgba(249,115,22,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
                 >
                   <Megaphone className="w-4 h-4 text-orange-400" />
                   {!sidebarCollapsed && <span>Marketing Campaigns</span>}
@@ -1049,11 +1143,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <button
                   onClick={() => setActiveNav('mobileapp')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-                    activeNav === 'mobileapp'
-                      ? 'text-fuchsia-300 bg-fuchsia-400/10 border border-fuchsia-400/25'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                    activeNav === 'mobileapp' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
+                  style={
+                    activeNav === 'mobileapp'
+                      ? ({ '--nav-a': '#f0abfc', '--nav-bg': 'rgba(217,70,239,0.09)', '--nav-edge': 'rgba(217,70,239,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
                 >
                   <Smartphone className="w-4 h-4 text-fuchsia-400" />
                   {!sidebarCollapsed && <span>Mobile App (Android)</span>}
@@ -1076,11 +1173,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 )}
                 <button
                   onClick={() => openProfile('identity')}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
-                    activeNav === 'profile'
-                      ? 'text-sky-300 bg-sky-400/10 border border-sky-400/25'
-                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                    activeNav === 'profile' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
+                  style={
+                    activeNav === 'profile'
+                      ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
                   title="Profile Settings"
                 >
                   <UserCog className="w-4 h-4 text-sky-400" />
@@ -1092,17 +1192,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
           {/* Bottom Account Card + Reset Button */}
           <div className="p-3 border-t border-white/5 space-y-2">
-            {/* Account Card — opens Profile Settings */}
+            {/* Account Card — opens Profile Settings (enterprise style) */}
             <button
               onClick={() => openProfile('identity')}
-              className={`w-full flex items-center gap-2.5 p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition text-left ${
-                activeNav === 'profile' ? 'border-amber-400/40 bg-amber-400/5' : ''
+              className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl pa-well hover:border-amber-400/30 hover:shadow-[0_0_18px_-6px_rgba(245,184,0,0.35)] transition text-left ${
+                activeNav === 'profile' ? 'border-amber-400/40' : ''
               }`}
               title="Open Profile Settings"
             >
               <div
-                className={`w-8 h-8 rounded-full text-black font-bold flex items-center justify-center text-xs font-mono shrink-0 ${
-                  adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
+                className={`w-9 h-9 rounded-full font-bold flex items-center justify-center text-sm font-mono shrink-0 shadow-[0_0_14px_-2px_rgba(245,184,0,0.5)] ${
+                  adminRole === 'staff' ? 'bg-blue-400 text-black' : 'pa-btn-gold'
                 }`}
               >
                 {adminName.charAt(0).toUpperCase()}
@@ -1112,13 +1212,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="text-xs font-semibold text-white truncate">
                     {adminName}
                   </div>
-                  <div className="text-[10px] text-zinc-400 flex items-center gap-1 font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    <span>{adminRole === 'staff' ? 'Staff · Online' : 'Admin · Online'}</span>
+                  <div className="text-[10px] text-zinc-400 flex items-center gap-1.5 font-mono mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_currentColor] pa-breath"></span>
+                    <span className="truncate">
+                      {adminRole === 'staff' ? 'Staff Plan · Online' : 'Pro Plan · Online'}
+                    </span>
                   </div>
                 </div>
               )}
-              {!sidebarCollapsed && <UserCog className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
+              {!sidebarCollapsed && <ChevronRight className="w-3.5 h-3.5 text-zinc-500 shrink-0" />}
             </button>
 
             {/* Reset Admin Panel Button */}
@@ -1140,9 +1242,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         {/* ========================================================================= */}
         <div className="flex-1 flex flex-col overflow-y-auto max-h-screen">
           {/* Top Bar Header */}
-          <header className="sticky top-0 z-20 bg-[#0A0D14]/90 backdrop-blur-xl border-b border-white/5 px-6 py-3.5 flex items-center justify-between gap-4">
+          <header className="pa-topbar sticky top-0 z-20 px-6 py-3.5 flex items-center justify-between gap-4">
             {/* Search input (Ctrl+K) */}
-            <div className="flex-1 max-w-md relative">
+            <div className="flex-1 max-w-md relative pa-search rounded-xl">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 id="admin-search-input"
@@ -1150,7 +1252,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search products, orders, customers..."
-                className="w-full pl-9 pr-14 py-2 rounded-xl bg-[#121622] border border-white/5 text-xs text-zinc-200 placeholder-zinc-400 focus:outline-none focus:border-amber-400/50 transition font-sans"
+                className="w-full pl-9 pr-14 py-2 rounded-xl bg-[#0D1322]/90 border border-white/8 text-xs text-zinc-200 placeholder-zinc-400 focus:outline-none transition font-sans"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400">
                 Ctrl+K
@@ -1163,9 +1265,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <button
                 id="admin-storefront-btn"
                 onClick={onBackToStorefront}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#121622] hover:bg-[#181d2d] border border-white/10 text-xs font-medium text-zinc-200 hover:text-white transition group"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0D1322]/90 hover:bg-[#141b2e] border border-white/10 hover:border-sky-400/40 text-xs font-medium text-zinc-200 hover:text-white transition group hover:shadow-[0_0_18px_-6px_rgba(56,189,248,0.45)]"
               >
-                <Store className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
+                <Store className="w-4 h-4 text-sky-400 group-hover:scale-110 transition" />
                 <span>Storefront</span>
               </button>
 
@@ -1174,7 +1276,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <button
                   id="admin-quick-add-btn"
                   onClick={() => setShowQuickAddMenu(!showQuickAddMenu)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-semibold text-xs transition shadow-md shadow-amber-400/10"
+                  className="pa-btn-gold flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm transition"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
                   <span>Quick Add</span>
@@ -1230,7 +1332,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               {/* Direct Mail Icon */}
               <button
                 onClick={() => triggerToast('No unread customer support emails')}
-                className="p-2 rounded-xl bg-[#121622] hover:bg-[#181d2d] border border-white/5 text-zinc-400 hover:text-white transition"
+                className="pa-iconbtn p-2"
               >
                 <Mail className="w-4 h-4" />
               </button>
@@ -1244,11 +1346,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       : 'No pending orders — all fulfillments are complete'
                   )
                 }
-                className="relative p-2 rounded-xl bg-[#121622] hover:bg-[#181d2d] border border-white/5 text-zinc-400 hover:text-white transition"
+                className="relative pa-iconbtn p-2"
               >
                 <Bell className="w-4 h-4" />
                 {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono shadow-[0_0_10px_rgba(245,184,0,0.6)]">
                     {adminHealth.alerts.pendingOrders}
                   </span>
                 )}
@@ -1366,13 +1468,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 01: DASHBOARD OVERVIEW */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-blue-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--blue pa-card--hover pa-rise p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 01 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-blue-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          01
-                        </span>
+                        <span className="pa-chip pa-chip--blue">01</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             DASHBOARD OVERVIEW
@@ -1406,7 +1506,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     {/* Total Revenue Box */}
-                    <div className="p-3.5 rounded-xl bg-[#070A12] border border-blue-500/20 space-y-2">
+                    <div className="p-3.5 rounded-xl pa-well pa-well-hi space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
@@ -1439,7 +1539,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                     {/* 3 Metric Pills */}
                     <div className="grid grid-cols-3 gap-1.5 text-center">
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-blue-500/60">
+                      <div className="p-2 rounded-lg pa-well border-l-2 border-l-blue-500/70">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Orders</div>
                         <div className="text-sm font-black text-white font-mono">
                           {adminStats?.totalOrders ?? '—'}
@@ -1449,7 +1549,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-purple-500/60">
+                      <div className="p-2 rounded-lg pa-well border-l-2 border-l-purple-500/70">
                         <div className="text-[9px] text-zinc-400 font-mono">Total Products</div>
                         <div className="text-sm font-black text-white font-mono">
                           {adminStats?.totalProducts ?? '—'}
@@ -1457,7 +1557,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <div className="text-[9px] text-purple-400 font-mono">↑ {adminStats?.activeProducts ?? 0} published</div>
                       </div>
 
-                      <div className="p-2 rounded-lg bg-[#070A12] border border-white/5 border-l-2 border-l-amber-500/60">
+                      <div className="p-2 rounded-lg pa-well border-l-2 border-l-amber-500/70">
                         <div className="text-[9px] text-zinc-400 font-mono">Low Stock Alerts</div>
                         <div className={`text-sm font-black font-mono ${(adminStats?.lowStock || 0) > 0 ? 'text-amber-400' : 'text-white'}`}>
                           {adminStats?.lowStock ?? '—'}
@@ -1467,7 +1567,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     {/* Live 14-Day Performance Box */}
-                    <div className="p-3.5 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
+                    <div className="p-3.5 rounded-xl pa-well space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold text-white">Live 14-Day Performance</span>
                         <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/5 border border-white/5 flex items-center gap-1">
@@ -1567,13 +1667,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 02: REVENUE ANALYTICS */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-amber-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--gold pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 02 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-amber-500 text-black font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          02
-                        </span>
+                        <span className="pa-chip pa-chip--gold">02</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             REVENUE ANALYTICS
@@ -1589,10 +1687,34 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white">Revenue Overview</span>
-                        <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-white/5 border border-white/5 flex items-center gap-1">
-                          {chartLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
-                          14 Days ▾
-                        </span>
+                        <div className="relative">
+                          <button
+                            onClick={() => setRevRangeOpen(!revRangeOpen)}
+                            className="text-[10px] font-mono text-zinc-300 px-2 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-amber-400/40 flex items-center gap-1 transition"
+                          >
+                            {chartLoading && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                            {revRangeDays} Days ▾
+                          </button>
+                          {revRangeOpen && (
+                            <div className="absolute right-0 mt-1 w-28 rounded-xl pa-well p-1 z-30 animate-in fade-in zoom-in-95">
+                              {[14, 30].map((d) => (
+                                <button
+                                  key={d}
+                                  onClick={() => {
+                                    setRevRangeDays(d as 14 | 30)
+                                    setRevRangeOpen(false)
+                                    fetchAdminRevenueChart(d)
+                                  }}
+                                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-mono transition ${
+                                    revRangeDays === d ? 'bg-amber-400/20 text-amber-300' : 'text-zinc-300 hover:bg-white/5'
+                                  }`}
+                                >
+                                  Last {d} Days
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-baseline gap-2">
@@ -1600,66 +1722,156 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           {adminRevenueChart ? `Rs ${Number(adminRevenueChart.totalRevenue || 0).toLocaleString()}` : '—'}
                         </span>
                         <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-0.5">
-                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders (14d)
+                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders ({revRangeDays}d)
                         </span>
                       </div>
                     </div>
 
-                    {/* Line Chart with Highlight Marker — dynamic from /api/admin/revenue-chart */}
-                    <div className="p-3.5 rounded-xl bg-[#070A12] border border-white/5 space-y-2 relative">
-                      {adminRevenueChart?.bestDay && (
-                        <div className="absolute top-2 right-3 px-2 py-0.5 rounded bg-amber-400/15 border border-amber-400/30 text-[9px] font-mono font-bold text-amber-300">
-                          {new Date(adminRevenueChart.bestDay.date).toLocaleDateString('en', { month: 'short', day: '2-digit' })} Rs {Number(adminRevenueChart.bestDay.revenue).toLocaleString()}
-                        </div>
-                      )}
-
-                      <div className="h-28 w-full pt-4">
+                    {/* Interactive Line Chart with hover tooltip — live from /api/admin/revenue-chart */}
+                    <div className="p-3.5 rounded-xl pa-well space-y-2 relative">
+                      <div className="h-32 w-full pt-5 relative">
                         {adminRevenueChart?.series?.length ? (
-                          <svg className="w-full h-full overflow-visible" viewBox="0 0 240 80" preserveAspectRatio="none">
-                            <defs>
-                              <linearGradient id="goldGradient02" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
-                                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-                              </linearGradient>
-                            </defs>
+                          (() => {
+                            const series = adminRevenueChart.series
+                            const W = 240
+                            const H = 90
+                            const max = Math.max(...series.map((s: any) => s.revenue), 1)
+                            const points = series.map((s: any, i: number) => {
+                              const x = (i / (series.length - 1)) * W
+                              const y = H - 14 - (s.revenue / max) * (H - 26)
+                              return { cx: x, cy: y, revenue: s.revenue, date: s.date, orders: s.orders }
+                            })
+                            const linePath = points
+                              .map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`)
+                              .join(' ')
+                            const areaPath = linePath ? `${linePath} L${W},${H} L0,${H} Z` : ''
+                            const bestIdx = points.reduce(
+                              (best: number, p: any, i: number) => (p.revenue > points[best].revenue ? i : best),
+                              0
+                            )
+                            const hovered = revHoverIdx != null ? points[revHoverIdx] : null
+                            return (
+                              <>
+                                <svg
+                                  className="w-full h-full overflow-visible"
+                                  viewBox={`0 0 ${W} ${H}`}
+                                  preserveAspectRatio="none"
+                                  onMouseLeave={() => setRevHoverIdx(null)}
+                                >
+                                  <defs>
+                                    <linearGradient id="goldGradient02" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.42" />
+                                      <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                                    </linearGradient>
+                                    <filter id="goldGlow02" x="-40%" y="-40%" width="180%" height="180%">
+                                      <feGaussianBlur stdDeviation="2.2" result="b" />
+                                      <feMerge>
+                                        <feMergeNode in="b" />
+                                        <feMergeNode in="SourceGraphic" />
+                                      </feMerge>
+                                    </filter>
+                                  </defs>
 
-                            {/* Grid Lines */}
-                            <line x1="0" y1="20" x2="240" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
-                            <line x1="0" y1="50" x2="240" y2="50" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
+                                  {/* Grid Lines */}
+                                  <line x1="0" y1="20" x2={W} y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 3" />
+                                  <line x1="0" y1="48" x2={W} y2="48" stroke="rgba(255,255,255,0.05)" strokeDasharray="2 3" />
+                                  <line x1="0" y1={H - 14} x2={W} y2={H - 14} stroke="rgba(255,255,255,0.08)" />
 
-                            {(() => {
-                              const series = adminRevenueChart.series
-                              const max = Math.max(...series.map((s: any) => s.revenue), 1)
-                              const points = series.map((s: any, i: number) => {
-                                const x = (i / (series.length - 1)) * 240
-                                const y = 70 - (s.revenue / max) * 60
-                                return { cx: x, cy: y, revenue: s.revenue }
-                              })
-                              const linePath = points.length > 0
-                                ? points.map((p: any, i: number) => `${i === 0 ? 'M' : 'L'}${p.cx.toFixed(1)},${p.cy.toFixed(1)}`).join(' ')
-                                : ''
-                              const areaPath = linePath ? `${linePath} L240,80 L0,80 Z` : ''
-                              const bestIdx = points.reduce((best: number, p: any, i: number) => p.revenue > points[best].revenue ? i : best, 0)
-                              return (
-                                <>
+                                  {/* Hover guide line */}
+                                  {hovered && (
+                                    <line
+                                      x1={hovered.cx}
+                                      y1="4"
+                                      x2={hovered.cx}
+                                      y2={H - 14}
+                                      stroke="rgba(251,191,36,0.35)"
+                                      strokeWidth="1"
+                                      strokeDasharray="3 3"
+                                    />
+                                  )}
+
                                   {/* Area Fill */}
                                   {areaPath && <path d={areaPath} fill="url(#goldGradient02)" />}
-                                  {/* Gold Trend Line */}
-                                  {linePath && <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.5" />}
+                                  {/* Gold Trend Line with glow */}
+                                  {linePath && (
+                                    <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.4" filter="url(#goldGlow02)" className="pa-draw" />
+                                  )}
+
+                                  {/* Best day pulse ring */}
+                                  {points[bestIdx]?.revenue > 0 && (
+                                    <circle
+                                      cx={points[bestIdx].cx}
+                                      cy={points[bestIdx].cy}
+                                      r="6.5"
+                                      fill="none"
+                                      stroke="#fbbf24"
+                                      strokeWidth="1"
+                                      opacity="0.5"
+                                      className="pa-breath"
+                                      style={{ color: '#fbbf24' }}
+                                    />
+                                  )}
+
                                   {/* Data points */}
                                   {points.map((p: any, i: number) => (
                                     <circle
                                       key={i}
                                       cx={p.cx}
                                       cy={p.cy}
-                                      r={i === bestIdx && p.revenue > 0 ? 4 : 2.5}
-                                      fill={p.revenue > 0 ? '#fbbf24' : '#374151'}
+                                      r={
+                                        i === revHoverIdx ? 4.2 :
+                                        i === bestIdx && p.revenue > 0 ? 3.6 :
+                                        p.revenue > 0 ? 2.4 : 1.8
+                                      }
+                                      fill={
+                                        i === revHoverIdx ? '#fde68a' :
+                                        p.revenue > 0 ? '#fbbf24' : '#374151'
+                                      }
+                                      stroke={i === revHoverIdx || (i === bestIdx && p.revenue > 0) ? '#fffbeb' : 'none'}
+                                      strokeWidth={i === revHoverIdx ? 1.2 : 0.8}
+                                      style={{ cursor: 'pointer' }}
+                                      onMouseEnter={() => setRevHoverIdx(i)}
+                                    />
+                                    ))}
+                                  {/* Fat invisible hit areas for easy hovering */}
+                                  {points.map((p: any, i: number) => (
+                                    <rect
+                                      key={`h-${i}`}
+                                      x={p.cx - W / series.length / 2}
+                                      y="0"
+                                      width={W / series.length}
+                                      height={H}
+                                      fill="transparent"
+                                      onMouseEnter={() => setRevHoverIdx(i)}
+                                      style={{ cursor: 'crosshair' }}
                                     />
                                   ))}
-                                </>
-                              )
-                            })()}
-                          </svg>
+                                </svg>
+
+                                {/* Floating tooltip */}
+                                {hovered && (
+                                  <div
+                                    className="absolute z-20 pointer-events-none -translate-x-1/2 px-2.5 py-1.5 rounded-lg pa-well border-amber-400/40 min-w-[92px]"
+                                    style={{
+                                      left: `${(hovered.cx / W) * 100}%`,
+                                      top: `${Math.max(0, (hovered.cy / H) * 100 - 62)}%`,
+                                      boxShadow: '0 10px 24px -8px rgba(0,0,0,0.9), 0 0 18px -6px rgba(245,184,0,0.4)',
+                                    }}
+                                  >
+                                    <div className="text-[9px] font-mono text-zinc-400 whitespace-nowrap">
+                                      {new Date(hovered.date).toLocaleDateString('en', { month: 'short', day: '2-digit' })}
+                                    </div>
+                                    <div className="text-[11px] font-mono font-black text-amber-300 whitespace-nowrap">
+                                      Rs {Number(hovered.revenue).toLocaleString()}
+                                    </div>
+                                    <div className="text-[8px] font-mono text-zinc-500 whitespace-nowrap">
+                                      {hovered.orders} order{hovered.orders === 1 ? '' : 's'}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )
+                          })()
                         ) : (
                           <div className="h-full flex items-center justify-center text-[10px] text-zinc-600">
                             {chartLoading ? 'Loading chart…' : 'No revenue data'}
@@ -1670,7 +1882,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <div className="flex justify-between text-[8px] font-mono text-zinc-500">
                         {adminRevenueChart?.series ? (
                           adminRevenueChart.series
-                            .filter((_: any, i: number) => i % 2 === 0 || i === adminRevenueChart.series.length - 1)
+                            .filter((_: any, i: number) =>
+                              i % Math.ceil(adminRevenueChart.series.length / (revRangeDays === 30 ? 6 : 8)) === 0 || i === adminRevenueChart.series.length - 1
+                            )
                             .map((s: any) => {
                               const date = new Date(s.date)
                               const label = date.toLocaleDateString('en', { month: 'short', day: '2-digit' })
@@ -1723,9 +1937,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <div className="text-xs font-bold text-amber-300">Revenue Insights</div>
                         <p className="text-[10px] text-zinc-300 leading-snug">
                           {adminRevenueChart && adminRevenueChart.totalRevenue > 0 ? (
-                            <>You earned <strong className="text-emerald-400">Rs {Number(adminRevenueChart.totalRevenue).toLocaleString()}</strong> in the last 14 days from <strong className="text-amber-400">{adminRevenueChart.totalOrders}</strong> orders. Keep it up!</>
+                            <>You earned <strong className="text-emerald-400">Rs {Number(adminRevenueChart.totalRevenue).toLocaleString()}</strong> in the last {revRangeDays} days from <strong className="text-amber-400">{adminRevenueChart.totalOrders}</strong> orders. Keep it up!</>
                           ) : (
-                            <>No revenue recorded in the last 14 days. Place a test order from the storefront to see live data here.</>
+                            <>No revenue recorded in the last {revRangeDays} days. Place a test order from the storefront to see live data here.</>
                           )}
                         </p>
                       </div>
@@ -1735,13 +1949,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 03: ORDER & TRAFFIC INSIGHTS */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-purple-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--purple pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 03 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-purple-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          03
-                        </span>
+                        <span className="pa-chip pa-chip--purple">03</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             ORDER & TRAFFIC INSIGHTS
@@ -1754,7 +1966,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     {/* Order Breakdown Donut Chart — real data from /api/admin/stats + system-health */}
-                    <div className="p-3 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
+                    <div className="p-3 rounded-xl pa-well space-y-2">
                       <div className="text-xs font-bold text-white">Order Breakdown</div>
                       <div className="flex items-center justify-between">
                         {/* Circular Donut */}
@@ -1812,7 +2024,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     {/* Traffic Sources Progress Bars — REAL data from /api/analytics/summary */}
-                    <div className="p-3 rounded-xl bg-[#070A12] border border-white/5 space-y-2">
+                    <div className="p-3 rounded-xl pa-well space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white">Traffic Sources</span>
                         <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/5">
@@ -1873,13 +2085,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 04: TOP SELLING PRODUCTS */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-orange-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--rose pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 04 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-orange-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          04
-                        </span>
+                        <span className="pa-chip pa-chip--rose">04</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             TOP SELLING PRODUCTS
@@ -1917,7 +2127,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           return (
                             <div
                               key={p.name}
-                              className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between gap-2.5"
+                              className="p-2.5 rounded-xl pa-well flex items-center justify-between gap-2.5"
                             >
                               <div className="flex items-center gap-2.5">
                                 <div className={`w-9 h-9 rounded-lg ${colors[idx] || 'bg-zinc-700'} flex items-center justify-center p-1.5 shrink-0 shadow-md`}>
@@ -1961,13 +2171,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 05: RECENT ORDERS */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-emerald-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--emerald pa-card--hover pa-rise pa-rise-1 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 05 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          05
-                        </span>
+                        <span className="pa-chip pa-chip--emerald">05</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             RECENT ORDERS
@@ -2014,7 +2222,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           return (
                             <div
                               key={o.id}
-                              className="p-2.5 rounded-xl bg-[#070A12] border border-white/5 flex items-center justify-between"
+                              className="p-2.5 rounded-xl pa-well flex items-center justify-between"
                             >
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
@@ -2042,11 +2250,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       )}
                     </div>
 
-                    {/* Footer Tip */}
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                        <ShoppingBag className="w-4 h-4" />
-                      </div>
+                    {/* Footer Tip — neon cart band */}
+                    <div className="pa-neon-stage p-3 flex items-center gap-2">
+                      <NeonCart className="w-20 h-12 shrink-0 pa-neon-flicker" />
                       <p className="text-[10px] text-zinc-300 leading-snug">
                         Monitor recent orders and ensure fast order processing.
                       </p>
@@ -2056,13 +2262,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 06: SYSTEM HEALTH */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-teal-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--teal pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 06 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-teal-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          06
-                        </span>
+                        <span className="pa-chip pa-chip--teal">06</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             SYSTEM HEALTH
@@ -2080,7 +2284,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
 
                     {/* Circular Gauge + real health from /api/admin/system-health */}
-                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#070A12] border border-white/5">
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl pa-well">
                       <div className="relative flex items-center justify-center w-24 h-24 shrink-0">
                         <svg className="w-24 h-24 -rotate-90">
                           <circle
@@ -2162,11 +2366,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Footer Tip — real status */}
-                    <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
+                    {/* Footer Tip — neon shield band, real status */}
+                    <div className="pa-neon-stage p-3 flex items-center gap-2">
+                      <NeonShield className="w-20 h-12 shrink-0 pa-neon-flicker" />
                       <p className="text-[10px] text-zinc-300 leading-snug">
                         {adminHealth?.database?.connected === false
                           ? 'Database unreachable — check the connection immediately.'
@@ -2178,13 +2380,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 07: QUICK ACTIONS & SHORTCUTS */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-yellow-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--amber pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 07 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-yellow-500 text-black font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          07
-                        </span>
+                        <span className="pa-chip pa-chip--amber">07</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             QUICK ACTIONS & SHORTCUTS
@@ -2208,13 +2408,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
                       <button
                         onClick={() => setShowQuickAddMenu(!showQuickAddMenu)}
-                        className="py-2 px-3 rounded-xl bg-[#070A12] hover:bg-white/5 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center gap-1 transition"
+                        className="py-2 px-3 rounded-xl pa-well !bg-transparent hover:bg-white/5 border border-white/10 text-zinc-300 text-xs font-semibold flex items-center gap-1 transition"
                       >
                         <span>Quick Actions</span>
                         <ChevronDown className="w-3 h-3" />
                       </button>
 
-                      <div className="relative p-2 rounded-xl bg-[#070A12] border border-white/10 text-zinc-300">
+                      <div className="relative p-2 rounded-xl pa-well text-zinc-300">
                         <Bell className="w-3.5 h-3.5" />
                         {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
                           <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-mono font-black text-[9px] flex items-center justify-center">
@@ -2229,7 +2429,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* Add Product */}
                       <button
                         onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Plus className="w-3.5 h-3.5" />
@@ -2243,7 +2443,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* Create Order */}
                       <button
                         onClick={() => { setActiveNav('orders-log'); triggerToast('Switched to Customer Orders Log — live data from MongoDB') }}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-emerald-500/10 border border-white/5 hover:border-emerald-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <ShoppingCart className="w-3.5 h-3.5" />
@@ -2257,7 +2457,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* View Reports */}
                       <button
                         onClick={() => setActiveNav('analytics')}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-purple-500/10 border border-white/5 hover:border-purple-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <BarChart3 className="w-3.5 h-3.5" />
@@ -2271,7 +2471,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* Manage Users */}
                       <button
                         onClick={() => setActiveNav('staff')}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-amber-500/10 border border-white/5 hover:border-amber-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Users2 className="w-3.5 h-3.5" />
@@ -2285,7 +2485,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* Discounts */}
                       <button
                         onClick={() => setActiveNav('coupons')}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Tag className="w-3.5 h-3.5" />
@@ -2299,7 +2499,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {/* Settings — opens reset/refresh menu */}
                       <button
                         onClick={() => setShowResetConfirm(true)}
-                        className="p-2.5 rounded-xl bg-[#070A12] hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 flex items-center gap-2 transition text-left group"
+                        className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-cyan-500/10 border border-white/5 hover:border-cyan-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
                           <Settings className="w-3.5 h-3.5" />
@@ -2311,11 +2511,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </button>
                     </div>
 
-                    {/* Footer Tip */}
-                    <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center shrink-0">
-                        <Zap className="w-4 h-4" />
-                      </div>
+                    {/* Footer Tip — neon bolt band */}
+                    <div className="pa-neon-stage p-3 flex items-center gap-2">
+                      <NeonBolt className="w-20 h-12 shrink-0 pa-neon-flicker" />
                       <p className="text-[10px] text-zinc-300 leading-snug">
                         Save time with quick access to your most used features.
                       </p>
@@ -2325,13 +2523,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 08: SMART ADMIN EXPERIENCE */}
                   {/* ========================================================================= */}
-                  <div className="rounded-2xl bg-[#0B0F19] border border-sky-500/30 p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                  <div className="pa-card pa-card--sky pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 08 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-sky-600 text-white font-mono font-extrabold text-xs flex items-center justify-center shadow-md">
-                          08
-                        </span>
+                        <span className="pa-chip pa-chip--sky">08</span>
                         <div>
                           <h2 className="text-xs font-extrabold text-white uppercase tracking-wider font-mono">
                             SMART ADMIN EXPERIENCE
@@ -2343,21 +2539,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Cybernetic Illustration Card */}
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-blue-950/40 via-[#070A12] to-cyan-950/30 border border-sky-500/20 relative overflow-hidden flex items-center justify-center h-24">
-                      {/* Glow FX */}
-                      <div className="absolute -top-10 -right-10 w-24 h-24 bg-sky-500/20 rounded-full blur-xl pointer-events-none"></div>
-                      <div className="flex items-center gap-4 z-10">
-                        <div className="p-3 rounded-2xl bg-blue-600/20 border border-blue-400/40 text-blue-300 shadow-[0_0_20px_rgba(59,130,246,0.3)] animate-pulse">
-                          <LayoutDashboard className="w-8 h-8" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                            <span>PlayBeat AI Engine</span>
-                          </div>
-                          <div className="text-[10px] text-zinc-400 font-mono">Real-time Analytics v4.2</div>
-                        </div>
+                    {/* Neon Cybernetic Illustration Stage — matches enterprise reference */}
+                    <div className="pa-neon-stage flex items-center justify-center h-28">
+                      <div className="absolute -top-10 -right-10 w-28 h-28 bg-sky-500/15 rounded-full blur-2xl pointer-events-none"></div>
+                      <div className="absolute -bottom-12 -left-8 w-24 h-24 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
+                      <NeonBrain className="w-40 h-24 pa-neon-flicker" />
+                      <div className="absolute bottom-2 right-3 text-[8px] font-mono text-sky-300/60 tracking-widest uppercase">
+                        Neural Engine · Online
                       </div>
                     </div>
 
@@ -2400,11 +2588,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Footer Tip */}
-                    <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
+                    {/* Footer Tip — neon brain band */}
+                    <div className="pa-neon-stage p-3 flex items-center gap-2">
+                      <NeonBrain className="w-20 h-12 shrink-0 pa-neon-flicker" />
                       <p className="text-[10px] text-zinc-300 leading-snug">
                         Designed for productivity, built for growth.
                       </p>
@@ -2413,7 +2599,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
 
                 {/* Bottom Full-Width Footer Banner matching Screenshot 1 */}
-                <div className="rounded-2xl bg-gradient-to-r from-[#0B0F19] via-[#111728] to-[#0B0F19] border border-white/10 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+                <div className="pa-card pa-card--gold p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <img
                       src="/playbeat-logo.png"
@@ -2428,15 +2614,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowCsvImporterModal(true)}
-                      className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition"
+                      className="px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition hover:shadow-[0_0_18px_-6px_rgba(16,185,129,0.5)]"
                     >
                       <FileSpreadsheet className="w-3.5 h-3.5" />
                       <span>CSV / DB Importer</span>
                     </button>
 
                     <button
-                      onClick={() => triggerToast('PlayBeat Admin Console v4.2 Active')}
-                      className="px-4 py-2 rounded-xl bg-[#FFC107] hover:bg-[#ffcd38] text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-400/20 transition"
+                      onClick={() => triggerToast('PlayBeat Admin Console v5.0 Enterprise Active')}
+                      className="pa-btn-gold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition"
                     >
                       <div className="w-4 h-4 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center text-[8px]">
                         ▶
@@ -2451,7 +2637,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* VIEW 2: CATALOG PRODUCTS */}
             {activeNav === 'products' && (
               <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-[#0F131D] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <ViewHeader
+                  icon={<Package className="w-5 h-5" />}
+                  tone="gold"
+                  title="Catalog Products"
+                  desc={`${products.length} products synced with live MongoDB — edit pricing, stock, images and variants.`}
+                />
+                <div className="p-4 rounded-2xl pa-card pa-card--slate flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1 relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                     <input
@@ -2499,9 +2691,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
 
                 {/* Table */}
-                <div className="rounded-2xl bg-[#0F131D] border border-white/5 overflow-hidden shadow-2xl">
+                <div className="pa-tablewrap">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
+                    <table className="pa-table w-full text-left text-xs">
                       <thead className="bg-[#07090E] border-b border-white/5 text-zinc-400 font-mono uppercase text-[10px] tracking-wider">
                         <tr>
                           <th className="p-3.5">Product & SKU</th>
@@ -2653,12 +2845,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                   {/* Left: Generator */}
-                  <div className="lg:col-span-5 rounded-2xl bg-[#0F131D] border border-white/5 p-5 space-y-4">
-                    <div>
-                      <h3 className="font-bold text-sm text-white">License Key Dispenser</h3>
-                      <p className="text-xs text-zinc-400 font-mono">
-                        Generate and inject verified digital licenses into the live order fulfillment engine.
-                      </p>
+                  <div className="lg:col-span-5 rounded-2xl pa-card pa-card--gold p-5 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <span className="pa-viewchip pa-chip--gold">
+                        <Key className="w-5 h-5" />
+                      </span>
+                      <div>
+                        <h3 className="font-bold text-sm text-white">License Key Dispenser</h3>
+                        <p className="text-xs text-zinc-400 font-mono">
+                          Generate and inject verified digital licenses into the live order fulfillment engine.
+                        </p>
+                      </div>
                     </div>
 
                     <div className="space-y-3 text-xs">
@@ -2701,15 +2898,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
 
                   {/* Right: Active Pools — REAL digital stock from the live catalog */}
-                  <div className="lg:col-span-7 rounded-2xl bg-[#0F131D] border border-white/5 p-5 space-y-4">
+                  <div className="lg:col-span-7 rounded-2xl pa-card pa-card--emerald p-5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-sm text-white">Live Cryptographic Key Pools</h3>
-                        <p className="text-xs text-zinc-400 font-mono">
-                          Real digital-inventory stock levels from the live MongoDB catalog
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <span className="pa-viewchip pa-chip--emerald">
+                          <ShieldCheck className="w-5 h-5" />
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-sm text-white">Live Cryptographic Key Pools</h3>
+                          <p className="text-xs text-zinc-400 font-mono">
+                            Real digital-inventory stock levels from the live MongoDB catalog
+                          </p>
+                        </div>
                       </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono pa-breath" style={{ color: '#34d399' }}>
                         Vault: Active
                       </span>
                     </div>
@@ -2739,7 +2941,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                             {digitalPools.map((p) => (
                               <div
                                 key={p.id}
-                                className="p-3 rounded-xl bg-[#07090E] border border-white/5 flex items-center justify-between text-xs"
+                                className="p-3 rounded-xl pa-well flex items-center justify-between text-xs"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0">
                                   <Key className="w-4 h-4 text-amber-400 shrink-0" />
@@ -2809,7 +3011,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 />
 
                 {/* Published page quick links */}
-                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5 space-y-3">
+                <div className="rounded-2xl pa-card pa-card--emerald pa-card--hover p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-cyan-400" />
                     <h3 className="text-sm font-bold text-white">Published Pages</h3>
@@ -2950,80 +3152,97 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'subscriptions' && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Active Subscriptions</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Recurring digital subscription plans and renewals.</p>
-                  </div>
-                  <button
-                    onClick={() => triggerToast('Subscription plan editor opened')}
-                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" /> New Plan
-                  </button>
-                </div>
+                <ViewHeader
+                  icon={<Repeat className="w-5 h-5" />}
+                  tone="fuchsia"
+                  title="Subscription Plans"
+                  desc="Live subscription products from the catalog — plans, pricing and stock."
+                  actions={
+                    <button
+                      onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
+                      className="pa-btn-gold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" /> New Plan
+                    </button>
+                  }
+                />
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Subs</div>
-                    <div className="text-2xl font-bold text-white">142</div>
-                    <div className="text-[10px] text-emerald-400">+12 this week</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Monthly MRR</div>
-                    <div className="text-2xl font-bold text-white">PKR 486K</div>
-                    <div className="text-[10px] text-emerald-400">+8.2% MoM</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Renewals (30d)</div>
-                    <div className="text-2xl font-bold text-white">38</div>
-                    <div className="text-[10px] text-amber-400">PKR 142K pending</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Churn Rate</div>
-                    <div className="text-2xl font-bold text-white">2.1%</div>
-                    <div className="text-[10px] text-emerald-400">Below industry avg</div>
-                  </div>
-                </div>
+                {(() => {
+                  const subs = products.filter((p) => p.category === 'Subscriptions' && p.active !== false)
+                  const totalOptions = subs.reduce((a, p) => a + (p.variants?.length || 0), 0)
+                  const totalKeys = subs.reduce((a, p) => a + (p.stock || 0), 0)
+                  const avgPrice = subs.length ? Math.round(subs.reduce((a, p) => a + p.price, 0) / subs.length) : 0
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <KpiTile label="Live Plans" value={subs.length || '—'} rail="#e879f9" tint="rgba(232,121,249,0.1)" edge="rgba(232,121,249,0.22)" glow="rgba(232,121,249,0.3)" icon={<Repeat className="w-4 h-4 text-fuchsia-400" />} sub={<span className="text-fuchsia-300">subscription products</span>} />
+                      <KpiTile label="Plan Options" value={totalOptions || '—'} rail="#c084fc" tint="rgba(192,132,252,0.1)" edge="rgba(192,132,252,0.22)" glow="rgba(192,132,252,0.3)" icon={<Boxes className="w-4 h-4 text-purple-400" />} sub={<span className="text-zinc-400">variant dropdowns</span>} />
+                      <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Key className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">in stock now</span>} />
+                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all plans</span>} />
+                    </div>
+                  )
+                })()}
 
-                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
+                <div className="pa-tablewrap">
                   <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white">Top Subscription Plans</h3>
-                    <span className="text-[10px] font-mono text-zinc-500">Sorted by active subscribers</span>
+                    <h3 className="text-sm font-bold text-white">Live Subscription Catalog</h3>
+                    <span className="text-[10px] font-mono text-zinc-500">Straight from MongoDB · sorted by price</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-[#07090E]">
-                        <tr className="text-left text-zinc-400">
-                          <th className="px-4 py-2.5 font-medium">Plan Name</th>
-                          <th className="px-4 py-2.5 font-medium">Subscribers</th>
-                          <th className="px-4 py-2.5 font-medium">Price</th>
-                          <th className="px-4 py-2.5 font-medium">Cycle</th>
-                          <th className="px-4 py-2.5 font-medium">MRR</th>
-                          <th className="px-4 py-2.5 font-medium">Status</th>
+                    <table className="pa-table w-full text-xs">
+                      <thead>
+                        <tr>
+                          <th>Plan</th>
+                          <th>Options</th>
+                          <th>Price</th>
+                          <th>Stock</th>
+                          <th>Type</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {[
-                          { name: 'ChatGPT Plus Premium', subs: 48, price: 7800, cycle: 'Monthly', status: 'Active' },
-                          { name: 'Netflix Premium 4K', subs: 36, price: 6800, cycle: 'Monthly', status: 'Active' },
-                          { name: 'Spotify Premium Individual', subs: 28, price: 2499, cycle: '3 Months', status: 'Active' },
-                          { name: 'YouTube Premium Family', subs: 18, price: 4200, cycle: 'Monthly', status: 'Active' },
-                          { name: 'Disney+ Premium', subs: 12, price: 2549, cycle: '3 Months', status: 'Active' },
-                        ].map((s) => (
-                          <tr key={s.name} className="hover:bg-white/[0.02]">
-                            <td className="px-4 py-3 font-semibold text-white">{s.name}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-mono">{s.subs}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-mono">PKR {s.price.toLocaleString()}</td>
-                            <td className="px-4 py-3 text-zinc-400">{s.cycle}</td>
-                            <td className="px-4 py-3 text-emerald-400 font-mono font-bold">PKR {(s.subs * s.price).toLocaleString()}</td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
-                                {s.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                      <tbody>
+                        {(() => {
+                          const subs = products
+                            .filter((p) => p.category === 'Subscriptions' && p.active !== false)
+                            .sort((a, b) => b.price - a.price)
+                          if (subs.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
+                                  No subscription products in the catalog yet.
+                                </td>
+                              </tr>
+                            )
+                          }
+                          return subs.map((p) => (
+                            <tr key={p.id} className="hover:bg-white/[0.02]">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={p.image} alt="" className="w-8 h-8 rounded-lg object-cover bg-zinc-900 shrink-0" />
+                                  <span className="font-semibold text-white line-clamp-1">{p.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {p.variants && p.variants.length > 0 ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">
+                                    {p.variants.length} {p.variantLabel || 'option'}{p.variants.length > 1 ? 's' : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-500 text-[10px] font-mono">single</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-amber-400 font-bold">{formatPrice(p.price, selectedCurrency)}</td>
+                              <td className="px-4 py-3 font-mono text-zinc-300">{p.stock} units</td>
+                              <td className="px-4 py-3 text-[11px] font-mono">
+                                {p.digital ? <span className="text-emerald-400">Digital</span> : <span className="text-cyan-400">Physical</span>}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                                  Live
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -3036,88 +3255,102 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'coupons' && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Discounts & Coupons</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Promo codes, flash deals, and VIP discount management.</p>
-                  </div>
-                  <button
-                    onClick={() => triggerToast('Coupon creator opened')}
-                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" /> New Coupon
-                  </button>
-                </div>
+                <ViewHeader
+                  icon={<Tag className="w-5 h-5" />}
+                  tone="rose"
+                  title="Discounts & Deals"
+                  desc="Real product discounts live on the storefront — managed per product in the catalog."
+                  actions={
+                    <button
+                      onClick={() => setActiveNav('products')}
+                      className="pa-btn-gold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit Pricing
+                    </button>
+                  }
+                />
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Coupons</div>
-                    <div className="text-2xl font-bold text-white">4</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Redemptions (30d)</div>
-                    <div className="text-2xl font-bold text-white">186</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Discount Given</div>
-                    <div className="text-2xl font-bold text-white">PKR 84K</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Conversion Lift</div>
-                    <div className="text-2xl font-bold text-emerald-400">+24%</div>
-                  </div>
-                </div>
+                {(() => {
+                  const deals = products.filter((p) => (p.discountPercent || 0) > 0 && p.active !== false)
+                  const biggest = deals.reduce((m, p) => Math.max(m, p.discountPercent || 0), 0)
+                  const avg = deals.length ? Math.round(deals.reduce((a, p) => a + (p.discountPercent || 0), 0) / deals.length) : 0
+                  const savings = deals.reduce((a, p) => a + Math.max(0, (p.originalPrice || p.price) - p.price), 0)
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <KpiTile label="Deals Live" value={deals.length || '—'} rail="#fb7185" tint="rgba(251,113,133,0.1)" edge="rgba(251,113,133,0.22)" glow="rgba(251,113,133,0.3)" icon={<Tag className="w-4 h-4 text-rose-400" />} sub={<span className="text-rose-300">discounted products</span>} />
+                      <KpiTile label="Biggest Discount" value={biggest ? `${biggest}%` : '—'} rail="#f87171" tint="rgba(248,113,113,0.1)" edge="rgba(248,113,113,0.22)" glow="rgba(248,113,113,0.3)" icon={<TrendingUp className="w-4 h-4 text-red-400" />} sub={<span className="text-zinc-400">max saving offered</span>} />
+                      <KpiTile label="Avg Discount" value={avg ? `${avg}%` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<Percent className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all deals</span>} />
+                      <KpiTile label="Bundle Savings" value={savings ? `Rs ${savings.toLocaleString()}` : '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<DollarSign className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">vs original prices</span>} />
+                    </div>
+                  )
+                })()}
 
-                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-white/5">
-                    <h3 className="text-sm font-bold text-white">Active Coupon Codes</h3>
+                <div className="pa-tablewrap">
+                  <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white">Live Storefront Deals</h3>
+                    <span className="text-[10px] font-mono text-zinc-500">Products with an active discount · sorted by discount</span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-[#07090E]">
-                        <tr className="text-left text-zinc-400">
-                          <th className="px-4 py-2.5 font-medium">Code</th>
-                          <th className="px-4 py-2.5 font-medium">Discount</th>
-                          <th className="px-4 py-2.5 font-medium">Used</th>
-                          <th className="px-4 py-2.5 font-medium">Limit</th>
-                          <th className="px-4 py-2.5 font-medium">Expires</th>
-                          <th className="px-4 py-2.5 font-medium">Status</th>
-                          <th className="px-4 py-2.5 font-medium">Actions</th>
+                    <table className="pa-table w-full text-xs">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Discount</th>
+                          <th>Now</th>
+                          <th>Was</th>
+                          <th>You Save</th>
+                          <th>Category</th>
+                          <th>Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {[
-                          { code: 'PLAYBEAT10', discount: '10% OFF', used: 84, limit: 200, expires: 'Never', status: 'Active' },
-                          { code: 'CINEMA2026', discount: '15% OFF', used: 62, limit: 100, expires: '31 Dec 2026', status: 'Active' },
-                          { code: 'FLASH50', discount: '50% OFF', used: 28, limit: 50, expires: '5 Sep 2026', status: 'Active' },
-                          { code: 'VIPWELCOME', discount: 'PKR 500', used: 12, limit: 1000, expires: 'Never', status: 'Active' },
-                        ].map((c) => (
-                          <tr key={c.code} className="hover:bg-white/[0.02]">
-                            <td className="px-4 py-3">
-                              <code className="font-mono text-amber-300 font-bold bg-amber-400/10 px-2 py-0.5 rounded">{c.code}</code>
-                            </td>
-                            <td className="px-4 py-3 text-white font-semibold">{c.discount}</td>
-                            <td className="px-4 py-3 text-zinc-300 font-mono">{c.used}</td>
-                            <td className="px-4 py-3 text-zinc-400 font-mono">{c.limit}</td>
-                            <td className="px-4 py-3 text-zinc-400">{c.expires}</td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
-                                {c.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(c.code)
-                                  triggerToast(`Copied ${c.code}`)
-                                }}
-                                className="text-zinc-400 hover:text-amber-400 text-[10px] font-semibold"
-                              >
-                                Copy
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                      <tbody>
+                        {(() => {
+                          const deals = products
+                            .filter((p) => (p.discountPercent || 0) > 0 && p.active !== false)
+                            .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
+                          if (deals.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
+                                  No discounted products yet — set a discountPercent in the product editor to create a deal.
+                                </td>
+                              </tr>
+                            )
+                          }
+                          return deals.slice(0, 25).map((p) => {
+                            const was = p.originalPrice || Math.round(p.price * (100 + (p.discountPercent || 0)) / 100)
+                            return (
+                              <tr key={p.id} className="hover:bg-white/[0.02]">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <img src={p.image} alt="" className="w-8 h-8 rounded-lg object-cover bg-zinc-900 shrink-0" />
+                                    <span className="font-semibold text-white line-clamp-1 max-w-[240px]">{p.name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                                    -{p.discountPercent}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 font-mono text-amber-400 font-bold">{formatPrice(p.price, selectedCurrency)}</td>
+                                <td className="px-4 py-3 font-mono text-zinc-500 line-through">{formatPrice(was, selectedCurrency)}</td>
+                                <td className="px-4 py-3 font-mono text-emerald-400 font-semibold">
+                                  {formatPrice(was - p.price, selectedCurrency)}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${adminCategoryChip(p.category)}`}>
+                                    {p.category}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                                    Live
+                                  </span>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        })()}
                       </tbody>
                     </table>
                   </div>
@@ -3130,30 +3363,32 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'customers' && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Customer Accounts</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">All registered users. Promote normal users to staff with a unique Staff ID.</p>
-                  </div>
-                  <button
-                    onClick={() => { fetchAdminUsers(); fetchAdminStaff() }}
-                    className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold text-xs flex items-center gap-1.5"
-                  >
-                    <RefreshCw className="w-4 h-4" /> Refresh
-                  </button>
-                </div>
+                <ViewHeader
+                  icon={<Users className="w-5 h-5" />}
+                  tone="teal"
+                  title="Customer Accounts"
+                  desc="All registered users. Promote normal users to staff with a unique Staff ID."
+                  actions={
+                    <button
+                      onClick={() => { fetchAdminUsers(); fetchAdminStaff() }}
+                      className="pa-iconbtn px-3.5 py-2 text-white font-semibold text-xs flex items-center gap-1.5"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${usersLoading ? 'animate-spin' : ''}`} /> Refresh
+                    </button>
+                  }
+                />
 
                 {/* Staff Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                  <div className="rounded-2xl pa-card pa-card--slate p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Users</div>
                     <div className="text-2xl font-bold text-white">{adminUsers.length || '—'}</div>
                   </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                  <div className="rounded-2xl pa-card pa-card--slate p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Staff Members</div>
                     <div className="text-2xl font-bold text-amber-400">{adminStaff.length}</div>
                   </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
+                  <div className="rounded-2xl pa-card pa-card--slate p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Normal Users</div>
                     <div className="text-2xl font-bold text-white">{adminUsers.filter((u: any) => u.role === 'user').length}</div>
                   </div>
@@ -3164,7 +3399,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
 
                 {/* Users Table */}
-                <div className="rounded-2xl bg-[#0B0F19] border border-white/5 overflow-hidden">
+                <div className="pa-tablewrap">
                   <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">All Registered Users</h3>
                     <span className="text-[10px] font-mono text-zinc-500">
@@ -3172,7 +3407,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </span>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
+                    <table className="pa-table w-full text-xs">
                       <thead className="bg-[#07090E]">
                         <tr className="text-left text-zinc-400">
                           <th className="px-4 py-2.5 font-medium">Name</th>
@@ -3254,97 +3489,112 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'iptv' && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">IPTV M3U Servers</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">Manage M3U playlist sources, server health, and channel lineups.</p>
-                  </div>
-                  <button
-                    onClick={() => triggerToast('Add server form opened')}
-                    className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" /> Add Server
-                  </button>
-                </div>
+                <ViewHeader
+                  icon={<Tv className="w-5 h-5" />}
+                  tone="emerald"
+                  title="IPTV & Streaming Services"
+                  desc="Live IPTV playlist products from the catalog — plans, stock and pricing."
+                  actions={
+                    <button
+                      onClick={() => setActiveNav('products')}
+                      className="pa-btn-gold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5"
+                    >
+                      <Package className="w-3.5 h-3.5" /> Manage in Catalog
+                    </button>
+                  }
+                />
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Servers</div>
-                    <div className="text-2xl font-bold text-white">3</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Channels</div>
-                    <div className="text-2xl font-bold text-white">15,247</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Avg Uptime</div>
-                    <div className="text-2xl font-bold text-emerald-400">99.98%</div>
-                  </div>
-                  <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-4">
-                    <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Viewers</div>
-                    <div className="text-2xl font-bold text-white">1,284</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { name: 'EU-Premium-01', region: 'Frankfurt 🇩🇪', channels: 8420, uptime: 99.99, status: 'Online', load: 42 },
-                    { name: 'US-Stream-02', region: 'New York 🇺🇸', channels: 4830, uptime: 99.95, status: 'Online', load: 68 },
-                    { name: 'PK-Local-03', region: 'Karachi 🇵🇰', channels: 1997, uptime: 99.97, status: 'Online', load: 31 },
-                  ].map((srv) => (
-                    <div key={srv.name} className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-400/10 border border-emerald-400/30 flex items-center justify-center">
-                            <Tv className="w-4 h-4 text-emerald-400" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-sm text-white">{srv.name}</div>
-                            <div className="text-[10px] text-zinc-500">{srv.region}</div>
-                          </div>
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
-                          {srv.status}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="p-2 rounded-lg bg-[#07090E] border border-white/5">
-                          <div className="text-[10px] text-zinc-500">Channels</div>
-                          <div className="font-bold text-white">{srv.channels.toLocaleString()}</div>
-                        </div>
-                        <div className="p-2 rounded-lg bg-[#07090E] border border-white/5">
-                          <div className="text-[10px] text-zinc-500">Uptime</div>
-                          <div className="font-bold text-emerald-400">{srv.uptime}%</div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-                          <span>Server Load</span>
-                          <span className="font-mono">{srv.load}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                          <div className={`h-full ${srv.load > 80 ? 'bg-rose-500' : srv.load > 60 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${srv.load}%` }} />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={() => triggerToast(`M3U playlist URL for ${srv.name} copied to clipboard`)}
-                          className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold"
-                        >
-                          Copy M3U URL
-                        </button>
-                        <button
-                          onClick={() => triggerToast(`Restarting ${srv.name}…`)}
-                          className="px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold"
-                        >
-                          Restart
-                        </button>
-                      </div>
+                {(() => {
+                  const iptv = products.filter((p) => {
+                    const hay = `${p.name} ${p.sku || ''} ${(p as any).tags?.join(' ') || ''}`.toLowerCase()
+                    return (hay.includes('iptv') || hay.includes('m3u')) && p.active !== false
+                  })
+                  const totalKeys = iptv.reduce((a, p) => a + (p.stock || 0), 0)
+                  const avgPrice = iptv.length ? Math.round(iptv.reduce((a, p) => a + p.price, 0) / iptv.length) : 0
+                  const digitalShare = iptv.length ? Math.round((iptv.filter((p) => p.digital).length / iptv.length) * 100) : 0
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <KpiTile label="IPTV Products" value={iptv.length || '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Tv className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-300">live in catalog</span>} />
+                      <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#2dd4bf" tint="rgba(45,212,191,0.1)" edge="rgba(45,212,191,0.22)" glow="rgba(45,212,191,0.3)" icon={<Key className="w-4 h-4 text-teal-400" />} sub={<span className="text-zinc-400">instant delivery</span>} />
+                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">per plan</span>} />
+                      <KpiTile label="Digital Share" value={`${digitalShare}%`} rail="#38bdf8" tint="rgba(56,189,248,0.1)" edge="rgba(56,189,248,0.22)" glow="rgba(56,189,248,0.3)" icon={<Zap className="w-4 h-4 text-sky-400" />} sub={<span className="text-zinc-400">auto-delivered</span>} />
                     </div>
-                  ))}
+                  )
+                })()}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {(() => {
+                    const iptv = products.filter((p) => {
+                      const hay = `${p.name} ${p.sku || ''} ${(p as any).tags?.join(' ') || ''}`.toLowerCase()
+                      return (hay.includes('iptv') || hay.includes('m3u')) && p.active !== false
+                    })
+                    if (iptv.length === 0) {
+                      return (
+                        <div className="col-span-full p-8 text-center rounded-2xl pa-card pa-card--slate text-[11px] text-zinc-500">
+                          No IPTV products in the catalog yet. Add one via Catalog Products → New Product.
+                        </div>
+                      )
+                    }
+                    return iptv.map((p) => (
+                      <div key={p.id} className="rounded-2xl pa-card pa-card--emerald pa-card--hover p-5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img src={p.image} alt="" className="w-10 h-10 rounded-xl object-cover bg-zinc-900 shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-bold text-sm text-white truncate">{p.name}</div>
+                              <div className="text-[10px] font-mono text-zinc-500">{p.sku}</div>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono border shrink-0 ${
+                            p.stock > 0
+                              ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20'
+                              : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
+                          }`}>
+                            {p.stock > 0 ? 'In Stock' : 'Sold Out'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-2 rounded-lg pa-well">
+                            <div className="text-[10px] text-zinc-500">Price</div>
+                            <div className="font-bold text-amber-400 font-mono">{formatPrice(p.price, selectedCurrency)}</div>
+                          </div>
+                          <div className="p-2 rounded-lg pa-well">
+                            <div className="text-[10px] text-zinc-500">Stock</div>
+                            <div className="font-bold text-white font-mono">{p.stock} units</div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                            <span>Inventory level</span>
+                            <span className="font-mono">{Math.min(100, (p.stock || 0))}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div
+                              className={`h-full ${(p.stock || 0) > 10 ? 'bg-emerald-500' : (p.stock || 0) > 0 ? 'bg-amber-400' : 'bg-rose-500'}`}
+                              style={{ width: `${Math.min(100, (p.stock || 0))}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            onClick={() => onQuickViewProduct(p)}
+                            className="flex-1 px-2 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] font-semibold flex items-center justify-center gap-1 transition"
+                          >
+                            <Eye className="w-3 h-3" /> Preview
+                          </button>
+                          <button
+                            onClick={() => { setEditorProduct(p); setShowProductEditor(true) }}
+                            className="px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 text-amber-300 text-[10px] font-semibold flex items-center gap-1 transition"
+                          >
+                            <Edit className="w-3 h-3" /> Edit
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  })()}
                 </div>
               </div>
             )}
@@ -3372,18 +3622,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           </main>
 
           {/* Footer */}
-          <footer className="mt-auto border-t border-white/5 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 font-mono">
-            <div className="flex items-center gap-2">
+          <footer className="mt-auto border-t border-white/5 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 font-mono relative z-10">
+            <div className="flex items-center gap-2.5">
+              <img src="/playbeat-logo.png" alt="" className="h-5 w-auto object-contain opacity-80" />
               <span className="font-bold text-white">PlayBeat Digital Pvt Ltd</span>
               <span>© 2026 • All rights reserved.</span>
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="hover:text-white cursor-pointer">Privacy</span>
-              <span className="hover:text-white cursor-pointer">Terms</span>
-              <span className="hover:text-white cursor-pointer">Support</span>
-              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Operational
+              <span className="hover:text-white cursor-pointer transition">Privacy</span>
+              <span className="hover:text-white cursor-pointer transition">Terms</span>
+              <span className="hover:text-white cursor-pointer transition">Support</span>
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_currentColor] pa-breath"></span>
+                {adminHealth?.database?.connected === false ? 'Degraded' : 'Operational'}
               </span>
             </div>
           </footer>
@@ -3427,6 +3679,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <div>
                 <label className="block text-zinc-400 mb-1">Campaign Headline</label>
                 <input
+                  id="campaign-headline-input"
                   type="text"
                   defaultValue="🔥 Weekend Flash Sale: 20% OFF Magcubic 4K Cinema!"
                   className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white"
@@ -3436,6 +3689,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <div>
                 <label className="block text-zinc-400 mb-1">Coupon Attached</label>
                 <input
+                  id="campaign-coupon-input"
                   type="text"
                   defaultValue="PLAYBEAT20"
                   className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-amber-400 font-mono font-bold"
@@ -3444,13 +3698,36 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
 
             <button
-              onClick={() => {
-                setShowCampaignModal(false)
-                triggerToast(`Campaign dispatched to ${adminUsers.length} registered customer contacts!`)
+              onClick={async () => {
+                const form = document.getElementById('campaign-headline-input') as HTMLInputElement | null
+                const coupon = document.getElementById('campaign-coupon-input') as HTMLInputElement | null
+                const headline = form?.value?.trim() || ''
+                try {
+                  const res = await fetch(`${API_BASE}/api/admin/campaigns`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken()}` },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      name: headline || 'Quick Campaign',
+                      channel: 'Email + WhatsApp',
+                      headline: coupon?.value ? `${headline} — coupon ${coupon.value}` : headline,
+                      audience: adminUsers.length,
+                    }),
+                  })
+                  const data = await res.json()
+                  if (data?.success) {
+                    setShowCampaignModal(false)
+                    triggerToast('Campaign saved to MongoDB as Draft — open Marketing Campaigns to activate')
+                  } else {
+                    triggerToast(data?.error || 'Could not save campaign')
+                  }
+                } catch {
+                  triggerToast('Network error while saving campaign')
+                }
               }}
-              className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition"
+              className="w-full py-2.5 rounded-xl pa-btn-gold text-xs transition"
             >
-              Dispatch Campaign Now
+              Save Campaign Draft
             </button>
           </div>
         </div>

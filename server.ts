@@ -212,6 +212,53 @@ async function startServer() {
   initDatabase().catch(console.error);
 
   // ==========================================
+  // 0. PRODUCTION-PARITY API (consolidated serverless handlers)
+  // Mounts the exact Vercel /api/* handlers so local dev behaves
+  // identically to production (revenue-chart, system-health,
+  // orders-log, backup, cms, analytics, profile, staff, app/*).
+  // Registered FIRST so they take priority over legacy inline routes.
+  // ==========================================
+  const mountServerless = async () => {
+    try {
+      const [{ default: authApi }, { default: productsApi }, { default: adminApi }, { default: ordersApi }, { default: mongodbApi }, { default: analyticsApi }, { default: cmsApi }] =
+        await Promise.all([
+          import("./api/auth/index.js"),
+          import("./api/products/index.js"),
+          import("./api/admin/index.js"),
+          import("./api/orders/index.js"),
+          import("./api/mongodb/index.js"),
+          import("./api/analytics/index.js"),
+          import("./api/cms/index.js"),
+        ]);
+      const adapt =
+        (fn: any) => async (req: any, res: any) => {
+          try {
+            await fn(req, res);
+          } catch (e) {
+            console.error("serverless handler error:", e);
+            if (!res.headersSent) res.status(500).json({ success: false, error: "Internal handler error" });
+          }
+        };
+      app.all("/api/auth/:path*", adapt(authApi));
+      app.all("/api/auth", adapt(authApi));
+      app.all("/api/products/:path*", adapt(productsApi));
+      app.all("/api/admin/:path*", adapt(adminApi));
+      app.all("/api/admin", adapt(adminApi));
+      app.all("/api/orders/:path*", adapt(ordersApi));
+      app.all("/api/mongodb/:path*", adapt(mongodbApi));
+      app.all("/api/mongodb", adapt(mongodbApi));
+      app.all("/api/analytics/:path*", adapt(analyticsApi));
+      app.all("/api/analytics", adapt(analyticsApi));
+      app.all("/api/cms/:path*", adapt(cmsApi));
+      app.all("/api/cms", adapt(cmsApi));
+      console.log("✓ Production-parity serverless API mounted (auth/products/admin/orders/mongodb/analytics/cms)");
+    } catch (e) {
+      console.warn("⚠ Could not mount serverless API handlers — falling back to inline routes only:", (e as Error).message);
+    }
+  };
+  await mountServerless();
+
+  // ==========================================
   // 1. PUBLIC PRODUCT API ROUTES
   // ==========================================
 

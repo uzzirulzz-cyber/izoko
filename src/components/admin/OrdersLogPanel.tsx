@@ -251,7 +251,7 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
                       <div className="text-[10px] text-zinc-400">{o.paymentMethod}</div>
                     </div>
                     <div className="text-sm font-black text-amber-300 font-mono">
-                      {o.currency === 'PKR' ? 'Rs' : o.currency} {Number(o.totalAmount).toLocaleString()}
+                      {o.currency === 'PKR' ? 'Rs' : o.currency || 'Rs'} {Number(o.totalAmount ?? 0).toLocaleString()}
                     </div>
                   </div>
                 </button>

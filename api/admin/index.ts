@@ -1580,6 +1580,128 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ GET /api/admin/campaigns (live marketing campaigns) ============
+  if (route === "campaigns" && req.method === "GET") {
+    try {
+      const docs = await db
+        .collection("marketing_campaigns")
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .toArray();
+      return jsonOk(res, { success: true, campaigns: docs });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/campaigns (create campaign draft) ============
+  if (route === "campaigns" && req.method === "POST") {
+    try {
+      const { name, channel, headline, audience } = req.body || {};
+      if (!name || !String(name).trim()) return jsonError(res, "Campaign name is required.", 400);
+      const doc = {
+        name: String(name).trim(),
+        channel: channel || "Email",
+        headline: headline ? String(headline).trim() : "",
+        status: "Draft",
+        audience: Number(audience) || 0,
+        sent: 0,
+        opened: 0,
+        clicked: 0,
+        revenue: 0,
+        createdAt: new Date(),
+        dispatchedAt: null,
+        completedAt: null,
+      };
+      const r = await db.collection("marketing_campaigns").insertOne(doc);
+      return jsonOk(res, { success: true, campaign: { ...doc, _id: r.insertedId } }, 201);
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ PUT /api/admin/campaigns/:id (status transitions) ============
+  if (route.startsWith("campaigns/") && req.method === "PUT") {
+    try {
+      const id = route.slice("campaigns/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid campaign id.", 400);
+      const { status } = req.body || {};
+      if (!["Draft", "Active", "Completed"].includes(status)) {
+        return jsonError(res, "Status must be Draft, Active or Completed.", 400);
+      }
+      const patch: any = { status, updatedAt: new Date() };
+      if (status === "Active") patch.dispatchedAt = new Date();
+      if (status === "Completed") patch.completedAt = new Date();
+      const r = await db
+        .collection("marketing_campaigns")
+        .findOneAndUpdate({ _id: new ObjectId(id) }, { $set: patch }, { returnDocument: "after" });
+      if (!r) return jsonError(res, "Campaign not found.", 404);
+      return jsonOk(res, { success: true, campaign: r });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ DELETE /api/admin/campaigns/:id ============
+  if (route.startsWith("campaigns/") && req.method === "DELETE") {
+    try {
+      const id = route.slice("campaigns/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid campaign id.", 400);
+      const r = await db.collection("marketing_campaigns").deleteOne({ _id: new ObjectId(id) });
+      if (r.deletedCount === 0) return jsonError(res, "Campaign not found.", 404);
+      return jsonOk(res, { success: true, deleted: id });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/support-messages (live contact form inbox) ============
+  if (route === "support-messages" && req.method === "GET") {
+    try {
+      const col = db.collection("contact_messages");
+      const statusQ = (req.query.status as string) || "";
+      const filter: any = {};
+      if (statusQ && statusQ !== "all") filter.status = statusQ;
+      const docs = await col
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .toArray();
+      const counts = {
+        all: await col.countDocuments(),
+        new: await col.countDocuments({ status: "new" }),
+        pending: await col.countDocuments({ status: "pending" }),
+        resolved: await col.countDocuments({ status: "resolved" }),
+      };
+      return jsonOk(res, { success: true, messages: docs, counts });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ PUT /api/admin/support-messages/:id (update ticket status) ============
+  if (route.startsWith("support-messages/") && req.method === "PUT") {
+    try {
+      const id = route.slice("support-messages/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid message id.", 400);
+      const { status } = req.body || {};
+      if (!["new", "pending", "resolved"].includes(status)) {
+        return jsonError(res, "Status must be new, pending or resolved.", 400);
+      }
+      const col = db.collection("contact_messages");
+      const r = await col.findOneAndUpdate(
+        { _id: new ObjectId(id) },
+        { $set: { status, updatedAt: new Date() } },
+        { returnDocument: "after" }
+      );
+      if (!r) return jsonError(res, "Message not found.", 404);
+      return jsonOk(res, { success: true, message: r });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   return jsonError(res, `Admin route not found: ${route}`, 404);
 }
 
