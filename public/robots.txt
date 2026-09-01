@@ -1,7 +1,11 @@
 User-agent: *
 Allow: /
-Allow: /storefront
-Allow: /storefront/
+Allow: /streaming
+Allow: /subscriptions
+Allow: /giftcards
+Allow: /gaming
+Allow: /software
+Allow: /smart-projectors
 Allow: /privacy
 Allow: /terms
 Allow: /refund-policy

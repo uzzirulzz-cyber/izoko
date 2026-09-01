@@ -51,10 +51,11 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const email = cms?.contact?.email || 'support@playbeat.digital'
   const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
   const whatsapp = cms?.contact?.whatsapp || '923000000000'
-  const address = cms?.contact?.address || 'PlayBeat Digital Pvt Ltd, Gulberg III, Lahore, Punjab, Pakistan'
+  const address = cms?.contact?.address || 'PlayBeat Digital Pvt Ltd, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
   const social = cms?.social || {}
   const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
-  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+  // Direct Google Maps link to the verified business listing
+  const mapLink = 'https://www.google.com/maps/place/Playbeat+Digital+Private+Limited/@34.1922825,73.2380474,17z/data=!3m1!4b1!4m6!3m5!1s0x38de310060109459:0x8cde501ea1753c84!8m2!3d34.1922825!4d73.2406223!16s%2Fg%2F11z2y_hcmb'
 
   // Dynamic messaging handles — default to @playbeatdigital01
   const wechatHandle = cms?.contact?.wechat || '@playbeatdigital01'

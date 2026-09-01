@@ -6,9 +6,34 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://playbeat.digital/storefront</loc>
+    <loc>https://playbeat.digital/streaming</loc>
     <changefreq>daily</changefreq>
-    <priority>1.0</priority>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://playbeat.digital/subscriptions</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://playbeat.digital/giftcards</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://playbeat.digital/gaming</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://playbeat.digital/software</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://playbeat.digital/smart-projectors</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
     <loc>https://playbeat.digital/privacy</loc>

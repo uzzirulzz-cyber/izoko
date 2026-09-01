@@ -85,17 +85,44 @@ type Route =
   | 'refund-policy'
   | 'shipping-policy'
   | 'contact'
+  | 'streaming'
+  | 'subscriptions'
+  | 'giftcards'
+  | 'gaming'
+  | 'software'
+  | 'smart-projectors'
 
 const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'contact']
+
+// Category routes — each maps a URL slug to a product category name
+const CATEGORY_ROUTES: Record<string, string> = {
+  'streaming': 'Streaming',
+  'subscriptions': 'Subscriptions',
+  'giftcards': 'Gift Cards',
+  'gaming': 'Gaming',
+  'software': 'Software',
+  'smart-projectors': 'Smart Projectors',
+}
+const CATEGORY_ROUTE_KEYS = Object.keys(CATEGORY_ROUTES) as Route[]
+
+// Reverse mapping: category name → URL slug
+const CATEGORY_TO_SLUG: Record<string, string> = Object.entries(CATEGORY_ROUTES).reduce(
+  (acc, [slug, name]) => { acc[name] = slug; return acc },
+  {} as Record<string, string>
+)
 
 // Pathname-based router (works on Vercel via vercel.json SPA rewrites).
 // Also falls back to legacy hash routing so old bookmarks still work.
 function parseRoute(): Route {
   if (typeof window === 'undefined') return 'storefront'
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, '').replace(/^\//, '')
+  // Root path (/) is the homepage — same as storefront
+  if (path === '') return 'storefront'
+  if (path === 'storefront') return 'storefront' // legacy /storefront still works
   if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
+  if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
@@ -106,8 +133,10 @@ function parseRoute(): Route {
 function routeToPath(route: Route): string {
   if (route === 'admin') return '/admin'
   if (route === 'admin-login') return '/admin/login'
+  if (route === 'storefront') return '/'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
-  return '/storefront'
+  if (CATEGORY_ROUTE_KEYS.includes(route)) return `/${route}`
+  return '/'
 }
 
 function navigate(route: Route, replace = false) {
@@ -172,6 +201,20 @@ export function App() {
       window.history.replaceState({}, '', expectedPath)
     }
   }, [route])
+
+  // Sync selectedCategory with the route — category pages like /streaming
+  // automatically filter to that category. Homepage shows all products.
+  useEffect(() => {
+    if (CATEGORY_ROUTE_KEYS.includes(route)) {
+      setSelectedCategory(CATEGORY_ROUTES[route as string] || 'all')
+    } else if (route === 'storefront') {
+      // Only reset to 'all' when navigating to the homepage explicitly,
+      // not on initial load (which might be a deep link to a category)
+    }
+  }, [route])
+
+  // Check if the current route should render the storefront (homepage or a category page)
+  const isStorefrontRoute = route === 'storefront' || CATEGORY_ROUTE_KEYS.includes(route)
 
   // When navigating to admin, check if a stored admin session is still valid.
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
@@ -758,6 +801,17 @@ export function App() {
     }
   }
 
+  // Category selection — sets the filter AND navigates to the category page URL
+  // (e.g., clicking "Streaming" goes to /streaming)
+  const handleSelectCategory = (cat: string) => {
+    setSelectedCategory(cat)
+    if (cat === 'all') {
+      navigate('storefront')
+    } else if (CATEGORY_TO_SLUG[cat]) {
+      navigate(CATEGORY_TO_SLUG[cat] as Route)
+    }
+  }
+
   // Cart open must require auth (no guest checkout)
   const handleOpenCart = () => {
     if (!user) {
@@ -849,8 +903,8 @@ export function App() {
         <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
       )}
 
-      {/* STOREFRONT — completely separate from admin */}
-      {route === 'storefront' && (
+      {/* STOREFRONT (homepage + category pages) — completely separate from admin */}
+      {isStorefrontRoute && (
         <>
           {/* CMS Announcement Bar — editable via Website Builder CMS */}
           {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && (
@@ -886,7 +940,7 @@ export function App() {
               }
               setIsWishlistOpen(true)
             }}
-            onSelectCategory={setSelectedCategory}
+            onSelectCategory={handleSelectCategory}
             selectedCategory={selectedCategory}
             onOpenAuth={() => setIsAuthOpen(true)}
             onOpenAccountTab={handleOpenAccountTab}
@@ -911,7 +965,7 @@ export function App() {
           {selectedCategory === 'all' && !searchQuery && (
             <CategoryNav
               selectedCategory={selectedCategory}
-              onSelectCategory={setSelectedCategory}
+              onSelectCategory={handleSelectCategory}
               onViewAll={() => setSelectedCategory('all')}
               products={visibleProducts}
             />
