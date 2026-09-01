@@ -15,6 +15,7 @@ import {
   QrCode,
   Copy,
   CheckCheck,
+  Lock,
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { CartItem, CurrencyCode } from '../types'
