@@ -46,6 +46,14 @@ public final class SecureStore {
     public static void put(Context ctx, String key, String plainValue) {
         if (plainValue == null) { remove(ctx, key); return; }
         try {
+            if (Build.VERSION.SDK_INT < 23) {
+                // Android 5.x — KeyGenParameterSpec (API 23) unavailable; a bare
+                // Keystore key cannot be generated. Store base64 (documented
+                // trade-off — the session still lives only in app-private prefs).
+                prefs(ctx).edit().putString(key, Base64.encodeToString(
+                        plainValue.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP)).apply();
+                return;
+            }
             SecretKey sk = getOrCreateKey();
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, sk);
@@ -64,6 +72,10 @@ public final class SecureStore {
         try {
             String record = prefs(ctx).getString(key, null);
             if (record == null) return null;
+            if (Build.VERSION.SDK_INT < 23) {
+                // matches the Android 5.x put() fallback above
+                return new String(Base64.decode(record, Base64.NO_WRAP), StandardCharsets.UTF_8);
+            }
             int sep = record.indexOf(':');
             if (sep <= 0) return null;
             byte[] iv = Base64.decode(record.substring(0, sep), Base64.NO_WRAP);
@@ -106,6 +118,8 @@ public final class SecureStore {
     }
 
     private static SecretKey getOrCreateKey() throws Exception {
+        // NOTE: never executed below API 23 (guarded in put/get) —
+        // KeyGenParameterSpec/KeyProperties are API-23+ classes.
         KeyStore ks = KeyStore.getInstance(ANDROID_KEYSTORE);
         ks.load(null);
         SecretKey existing = (SecretKey) ks.getKey(KEY_ALIAS, null);

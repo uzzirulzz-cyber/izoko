@@ -28,7 +28,7 @@ $BT/aapt2 link -o $OUT/base.apk \
   -R $OUT/res.zip \
   --java $OUT/gen \
   --auto-add-overlay \
-  --min-sdk-version 24 \
+  --min-sdk-version 21 \
   --target-sdk-version 34 \
   --version-code $VERSION_CODE \
   --version-name "$VERSION"
@@ -40,7 +40,7 @@ java -jar $ECJ -nowarn -source 1.8 -target 1.8 -encoding UTF-8 \
   $(find $PROJ/src $OUT/gen -name '*.java')
 
 echo "==> [4/6] d8 dex"
-$BT/d8 --release --min-api 24 --lib $PLATFORM \
+$BT/d8 --release --min-api 21 --lib $PLATFORM \
   --output $OUT/dex \
   $(find $OUT/classes -name '*.class')
 

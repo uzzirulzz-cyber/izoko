@@ -34,7 +34,7 @@ Web Admin Panel  ↔  Shared Backend/API  ↔  Android Admin App
 3. Sign in with the **web admin credentials** (super admin or staff).
 4. The device appears in the admin panel's *Connected Devices* table within a minute.
 
-Minimum Android 7.0 (API 24) · Target Android 14 (API 34) · Signed release build.
+Minimum Android 5.0 (API 21) · Target Android 14 (API 34) · Signed release build.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ android/
     │                                       #   notifications, downloads, offline handling
     ├── LoginActivity.java                  # native enterprise sign-in
     ├── SecureStore.java                    # Keystore-backed AES-256-GCM session vault
-    ├── BiometricGate.java                  # fingerprint/face unlock (API 24–34)
+    ├── BiometricGate.java                  # fingerprint/face unlock (API 23–34, guarded)
     ├── Security.java                       # root detection + integrity checks
     └── Api.java                            # HTTPS JSON client (login/version/heartbeat/feed)
 ```
@@ -90,7 +90,7 @@ Requires the toolchain under `/home/z/my-project/scripts/android-sdk`
 ### Android Studio / Gradle (optional modernization path)
 
 The source layout is Gradle-ready: create a standard project with
-`namespace digital.playbeat.adminapp`, `minSdk 24`, `targetSdk 34`, drop
+`namespace digital.playbeat.adminapp`, `minSdk 21`, `targetSdk 34`, drop
 `src/` + `res/` + `AndroidManifest.xml` in, and add the splash/vector polish.
 A future release may migrate to Kotlin + Jetpack Compose — the backend contract
 (`/api/app/*`, `/api/admin/app/*`) is version-gated and will not change.

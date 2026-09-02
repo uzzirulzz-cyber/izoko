@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Cold-start window background. Keep it primitive: solid navy only.
+     The previous version embedded <bitmap src="@mipmap/ic_launcher">, which
+     pointed at an ADAPTIVE-ICON XML — not decodable as a bitmap by the
+     framework window-background inflater (and fatal on some OEM ROMs). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <color android:color="@color/pb_navy_soft" />
-    </item>
-    <item android:gravity="center">
-        <bitmap
-            android:src="@mipmap/ic_launcher"
-            android:gravity="center" />
     </item>
 </layer-list>

@@ -116,20 +116,61 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try {
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
+                    WindowManager.LayoutParams.FLAG_SECURE);
+            getWindow().setStatusBarColor(Color.parseColor("#040816"));
+            getWindow().setNavigationBarColor(Color.parseColor("#040816"));
+            createNotificationChannel();
 
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE);
-        getWindow().setStatusBarColor(Color.parseColor("#040816"));
-        getWindow().setNavigationBarColor(Color.parseColor("#040816"));
-        createNotificationChannel();
+            token = SecureStore.get(this, "admin_token");
+            adminName = SecureStore.get(this, "admin_name");
+            adminRole = SecureStore.get(this, "admin_role");
 
-        token = SecureStore.get(this, "admin_token");
-        adminName = SecureStore.get(this, "admin_name");
-        adminRole = SecureStore.get(this, "admin_role");
+            buildShell();
+            setContentView(root);
+            checkVersionAndStart();
+        } catch (Throwable t) {
+            // NEVER let the shell die silently — show a native recovery screen
+            // so the administrator can restart instead of seeing the app "not run".
+            Log.e(TAG, "startup failed — showing recovery screen", t);
+            showRecoveryScreen(t);
+        }
+    }
 
-        buildShell();
-        setContentView(root);
-        checkVersionAndStart();
+    /** Minimal native fallback UI if anything in the startup path throws. */
+    private void showRecoveryScreen(Throwable t) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setPadding(dip(24), dip(24), dip(24), dip(24));
+        box.setBackgroundColor(Color.parseColor("#040816"));
+
+        TextView title = new TextView(this);
+        title.setText("Playbeat Admin");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(19);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+
+        TextView msg = new TextView(this);
+        msg.setText("The console could not start on this device.\nTap restart — your session stays sealed.");
+        msg.setTextColor(Color.parseColor("#8B93A7"));
+        msg.setTextSize(13);
+        msg.setGravity(Gravity.CENTER);
+        msg.setPadding(0, dip(12), 0, dip(20));
+
+        TextView restart = goldButton("RESTART APP");
+        restart.setOnClickListener(v -> {
+            android.os.Process.killProcess(android.os.Process.myPid());
+        });
+
+        box.addView(title);
+        box.addView(msg, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(restart, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dip(50)));
+        setContentView(box);
     }
 
     @Override
@@ -1104,23 +1145,29 @@ public class MainActivity extends Activity {
     private void registerNetworkCallback() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return;
-        try {
-            cm.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
-                @Override public void onAvailable(Network network) {
-                    runOnUiThread(() -> {
-                        offlineBanner.setVisibility(View.GONE);
-                        if (errorView.getVisibility() == View.VISIBLE && !updateRequiredFlag) {
-                            errorView.setVisibility(View.GONE);
-                            webView.reload();
-                        }
-                    });
-                }
-                @Override public void onLost(Network network) {
-                    runOnUiThread(() -> offlineBanner.setVisibility(View.VISIBLE));
-                }
-            });
-        } catch (Exception e) {
-            Log.w(TAG, "network callback unavailable", e);
+        // Network callback → offline banner + auto retry.
+        // registerDefaultNetworkCallback is API 24+ — on Android 5.x the method
+        // does not exist and invoking it throws NoSuchMethodError (an Error, not
+        // caught by the catch below), so gate it explicitly.
+        if (Build.VERSION.SDK_INT >= 24) {
+            try {
+                cm.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
+                    @Override public void onAvailable(Network network) {
+                        runOnUiThread(() -> {
+                            offlineBanner.setVisibility(View.GONE);
+                            if (errorView.getVisibility() == View.VISIBLE && !updateRequiredFlag) {
+                                errorView.setVisibility(View.GONE);
+                                webView.reload();
+                            }
+                        });
+                    }
+                    @Override public void onLost(Network network) {
+                        runOnUiThread(() -> offlineBanner.setVisibility(View.VISIBLE));
+                    }
+                });
+            } catch (Exception e) {
+                Log.w(TAG, "network callback unavailable", e);
+            }
         }
     }
 
