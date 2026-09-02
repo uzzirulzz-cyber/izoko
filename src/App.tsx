@@ -17,8 +17,37 @@ import { AdminInsightsView } from './components/AdminInsightsView'
 import { AdminLogin } from './components/AdminLogin'
 import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
+import { BrowseNow } from './components/BrowseNow'
+import { LiveSupportWidget } from './components/LiveSupportWidget'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
+import { applyRouteSeo } from './lib/seo'
+import { SEO_PRESETS } from './lib/seo'
+
+// Route → SEO preset lookup (admin routes noindex themselves)
+const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
+  storefront: SEO_PRESETS.storefront,
+  streaming: SEO_PRESETS.streaming,
+  subscriptions: SEO_PRESETS.subscriptions,
+  giftcards: SEO_PRESETS.giftcards,
+  gaming: SEO_PRESETS.gaming,
+  software: SEO_PRESETS.software,
+  'smart-projectors': SEO_PRESETS['smart-projectors'],
+  'smart-4k-projectors': SEO_PRESETS['smart-4k-projectors'],
+  'ai-subscriptions': SEO_PRESETS['ai-subscriptions'],
+  'steam-game-keys': SEO_PRESETS['steam-game-keys'],
+  'windows-office': SEO_PRESETS['windows-office'],
+  'creative-software': SEO_PRESETS['creative-software'],
+  compare: SEO_PRESETS.compare,
+  warranty: SEO_PRESETS.warranty,
+  privacy: SEO_PRESETS.privacy,
+  terms: SEO_PRESETS.terms,
+  'refund-policy': SEO_PRESETS['refund-policy'],
+  'shipping-policy': SEO_PRESETS['shipping-policy'],
+  contact: SEO_PRESETS.contact,
+  admin: SEO_PRESETS.admin,
+  'admin-login': SEO_PRESETS['admin-login'],
+}
 import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
@@ -84,6 +113,7 @@ type Route =
   | 'terms'
   | 'refund-policy'
   | 'shipping-policy'
+  | 'warranty'
   | 'contact'
   | 'streaming'
   | 'subscriptions'
@@ -91,9 +121,14 @@ type Route =
   | 'gaming'
   | 'software'
   | 'smart-projectors'
+  | 'smart-4k-projectors'
+  | 'ai-subscriptions'
+  | 'steam-game-keys'
+  | 'windows-office'
+  | 'creative-software'
   | 'compare'
 
-const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'contact', 'compare']
+const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
 
 // Category routes — each maps a URL slug to a product category name
 const CATEGORY_ROUTES: Record<string, string> = {
@@ -112,6 +147,53 @@ const CATEGORY_TO_SLUG: Record<string, string> = Object.entries(CATEGORY_ROUTES)
   {} as Record<string, string>
 )
 
+// ---------------------------------------------------------------------------
+// Curated subcategory collections — real, indexable URLs that filter the
+// catalog across categories (e.g. "AI Subscriptions" spans Subscriptions +
+// AI & Productivity; "Steam & Game Keys" spans Gaming + Gift Cards).
+// ---------------------------------------------------------------------------
+const SUBCATEGORY_ROUTES: Record<
+  string,
+  { label: string; match: (p: Product) => boolean }
+> = {
+  'smart-4k-projectors': {
+    label: 'Smart 4K Projectors',
+    match: (p) =>
+      p.category === 'Smart Projectors' &&
+      (/4k/i.test(p.name) ||
+        /4k/i.test(p.projectorSpec?.nativeResolution || '') ||
+        (p.tags || []).some((t) => /4k/i.test(t)) ||
+        /4k/i.test(p.description || '')),
+  },
+  'ai-subscriptions': {
+    label: 'AI Subscriptions',
+    match: (p) =>
+      /chatgpt|gpt-?5|perplexity|leonardo|elevenlabs|eleven ?labs|google ?veo|hailio|grammarly|quillbot|turnitin|helium ?10|copilot|midjourney|claude|gemini|\bai\b/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'steam-game-keys': {
+    label: 'Steam & Game Keys',
+    match: (p) =>
+      /steam|game ?pass|game ?key|xbox|playstation|psn|razer gold|nintendo|gta|valorant/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'windows-office': {
+    label: 'Windows & Office',
+    match: (p) =>
+      /windows|office|microsoft 365|microsoft365/i.test(`${p.name} ${(p.tags || []).join(' ')}`),
+  },
+  'creative-software': {
+    label: 'Creative Software',
+    match: (p) =>
+      /adobe|creative cloud|photoshop|illustrator|premiere|capcut|freepik|canva|envato/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.description || ''}`
+      ),
+  },
+}
+const SUBCATEGORY_ROUTE_KEYS = Object.keys(SUBCATEGORY_ROUTES) as Route[]
+
 // Pathname-based router (works on Vercel via vercel.json SPA rewrites).
 // Also falls back to legacy hash routing so old bookmarks still work.
 function parseRoute(): Route {
@@ -124,6 +206,7 @@ function parseRoute(): Route {
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
+  if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
@@ -137,6 +220,7 @@ function routeToPath(route: Route): string {
   if (route === 'storefront') return '/'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
   if (CATEGORY_ROUTE_KEYS.includes(route)) return `/${route}`
+  if (SUBCATEGORY_ROUTE_KEYS.includes(route)) return `/${route}`
   return '/'
 }
 
@@ -150,6 +234,18 @@ function navigate(route: Route, replace = false) {
     }
     // Dispatch a popstate so the route listener picks it up
     window.dispatchEvent(new PopStateEvent('popstate'))
+  }
+}
+
+// Navigate to a raw storefront path (e.g. "/smart-4k-projectors", "/contact")
+// used by BrowseNow / Header / Footer links that map 1:1 to SPA routes.
+function navigatePath(path: string) {
+  const target = path && path !== '/' ? path.replace(/\/+$/, '') : '/'
+  if (window.location.pathname !== target) {
+    window.history.pushState({}, '', target)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
@@ -214,8 +310,18 @@ export function App() {
     }
   }, [route])
 
-  // Check if the current route should render the storefront (homepage or a category page)
-  const isStorefrontRoute = route === 'storefront' || CATEGORY_ROUTE_KEYS.includes(route)
+  // Per-route SEO — every indexed URL gets its own title/description/canonical.
+  useEffect(() => {
+    const preset = SEO_PRESET_BY_ROUTE[route]
+    if (preset) applyRouteSeo(preset)
+  }, [route])
+
+  // Check if the current route should render the storefront (homepage, a
+  // category page, or a curated subcategory collection page)
+  const isStorefrontRoute =
+    route === 'storefront' ||
+    CATEGORY_ROUTE_KEYS.includes(route) ||
+    SUBCATEGORY_ROUTE_KEYS.includes(route)
 
   // When navigating to admin, check if a stored admin session is still valid.
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
@@ -432,7 +538,9 @@ export function App() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
-  const [accountTab, setAccountTab] = useState<'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings'>('profile')
+  const [accountTab, setAccountTab] = useState<
+    'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
+  >('profile')
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Persist Products Catalog
@@ -724,8 +832,16 @@ export function App() {
 
   // Filtered & Sorted Products
   const filteredProducts = useMemo(() => {
+    // Curated subcategory collections (e.g. /ai-subscriptions) overlay an
+    // additional catalog-wide filter on top of search/category/price filters.
+    const subMatcher = SUBCATEGORY_ROUTE_KEYS.includes(route)
+      ? SUBCATEGORY_ROUTES[route as string]?.match
+      : null
     return visibleProducts
       .filter((p) => {
+        // Curated subcategory filter
+        if (subMatcher && !subMatcher(p)) return false
+
         // Search Filter
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase()
@@ -762,7 +878,7 @@ export function App() {
         if (!a.isHot && b.isHot) return 1
         return 0
       })
-  }, [visibleProducts, searchQuery, selectedCategory, priceFilter, sortBy])
+  }, [visibleProducts, searchQuery, selectedCategory, priceFilter, sortBy, route])
 
   // Projectors for Spec Matrix
   const projectorProducts = useMemo(() => {
@@ -789,7 +905,9 @@ export function App() {
     showToast('Signed out of PlayBeat')
   }
 
-  const handleOpenAccountTab = (tab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings') => {
+  const handleOpenAccountTab = (
+    tab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
+  ) => {
     if (!user) {
       setIsAuthOpen(true)
       return
@@ -889,13 +1007,14 @@ export function App() {
         />
       )}
 
-      {/* POLICY & CONTACT PAGES — full standalone routes */}
+      {/* POLICY & CONTACT PAGES — full standalone routes (incl. /warranty) */}
       {(route === 'privacy' ||
         route === 'terms' ||
         route === 'refund-policy' ||
-        route === 'shipping-policy') && (
+        route === 'shipping-policy' ||
+        route === 'warranty') && (
         <PolicyPage
-          type={route as 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy'}
+          type={route as 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy' | 'warranty'}
           contact={cmsSettings?.contact}
         />
       )}
@@ -990,6 +1109,42 @@ export function App() {
             onOpenAccountTab={handleOpenAccountTab}
             user={user}
             onSignOut={handleUserSignOut}
+            onNavigateHome={() => {
+              setSearchQuery('')
+              setSelectedCategory('all')
+              setPriceFilter('all')
+              navigate('storefront')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            onOpenBrowseCategories={() => {
+              document.getElementById('browse-categories')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            onOpenOffers={() => {
+              setSortBy('discount')
+              setSelectedCategory('all')
+              setSearchQuery('')
+              document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+              showToast('Showing the biggest discounts first — Offers')
+            }}
+            onNavigate={(path) => {
+              // Header links use real indexable URLs; map them to SPA routes
+              if (path === '/') {
+                setSearchQuery('')
+                setSelectedCategory('all')
+                navigate('storefront')
+                return
+              }
+              const slug = path.replace(/^\//, '')
+              if (
+                POLICY_ROUTES.includes(slug as Route) ||
+                CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+                SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+              ) {
+                navigate(slug as Route)
+              } else {
+                navigatePath(path)
+              }
+            }}
           />
 
           {/* Hero Section (Matching Screenshot 1) */}
@@ -1002,6 +1157,44 @@ export function App() {
                 el?.scrollIntoView({ behavior: 'smooth' })
               }}
               onExploreSubscriptions={() => setSelectedCategory('Subscriptions')}
+            />
+          )}
+
+          {/* Browse Now — discovery hub: quick nav, search, categories,
+              curated collections, comparison tool and support links */}
+          {selectedCategory === 'all' && !searchQuery && (
+            <BrowseNow
+              user={user}
+              onNavigate={(path) => {
+                if (path === '/') {
+                  navigate('storefront')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  return
+                }
+                const slug = path.replace(/^\//, '')
+                if (
+                  POLICY_ROUTES.includes(slug as Route) ||
+                  CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+                  SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+                ) {
+                  navigate(slug as Route)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                } else {
+                  navigatePath(path)
+                }
+              }}
+              onSelectCategory={handleSelectCategory}
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onFocusSearch={() => {
+                document.getElementById('header-search-input')?.focus()
+              }}
+              onOpenOffers={() => {
+                setSortBy('discount')
+                setSelectedCategory('all')
+                setSearchQuery('')
+                document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+                showToast('Showing the biggest discounts first — Offers')
+              }}
             />
           )}
 
@@ -1073,7 +1266,11 @@ export function App() {
               <div className="flex items-center gap-2.5">
                 <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
                 <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-                  {selectedCategory === 'all' ? 'Complete Catalog — Every Product' : selectedCategory}
+                  {SUBCATEGORY_ROUTE_KEYS.includes(route)
+                    ? SUBCATEGORY_ROUTES[route as string]?.label || 'Curated Collection'
+                    : selectedCategory === 'all'
+                    ? 'Complete Catalog — Every Product'
+                    : selectedCategory}
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-mono font-semibold text-yellow-300 bg-[#0A122E] border border-yellow-400/25">
                   {filteredProducts.length} items
@@ -1255,6 +1452,9 @@ export function App() {
               }}
             />
           )}
+
+          {/* Live Support bubble — storefront customers chat with the admin team */}
+          <LiveSupportWidget user={user} />
         </>
       )}
     </div>

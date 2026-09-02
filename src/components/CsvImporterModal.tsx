@@ -412,6 +412,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
           image: item.image,
           rating: item.rating,
           reviewCount: item.reviewCount,
+          slug: item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
           deliveryType: item.deliveryType,
           region: item.region,
           tags: item.tags,

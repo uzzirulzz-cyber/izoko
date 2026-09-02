@@ -13,6 +13,13 @@ import {
   LogOut,
   Zap,
   ShieldCheck,
+  PlaySquare,
+  Repeat,
+  Gift,
+  Gamepad2,
+  FolderOpen,
+  Sparkles,
+  GitCompareArrows,
 } from 'lucide-react'
 import { CurrencyCode } from '../types'
 import { CURRENCY_META, SUPPORTED_CURRENCIES, formatPrice } from '../lib/currency'
@@ -33,7 +40,30 @@ interface HeaderProps {
   onOpenAccountTab: (tab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings') => void
   user: { name: string; email: string } | null
   onSignOut: () => void
+  onNavigateHome: () => void
+  onOpenBrowseCategories: () => void
+  onOpenOffers: () => void
+  onNavigate: (path: string) => void
 }
+
+// Main category links (SEO-friendly URL slugs)
+const NAV_CATEGORIES = [
+  { name: 'Streaming', path: '/streaming', icon: PlaySquare },
+  { name: 'Subscriptions', path: '/subscriptions', icon: Repeat },
+  { name: 'Gift Cards', path: '/giftcards', icon: Gift },
+  { name: 'Gaming', path: '/gaming', icon: Gamepad2 },
+  { name: 'Software', path: '/software', icon: CreditCard },
+  { name: 'Smart Projectors', path: '/smart-projectors', icon: FolderOpen },
+]
+
+// Curated subcategory collections
+const NAV_SUBCATEGORIES = [
+  { name: 'Smart 4K Projectors', path: '/smart-4k-projectors', icon: Sparkles },
+  { name: 'AI Subscriptions', path: '/ai-subscriptions', icon: Sparkles },
+  { name: 'Steam & Game Keys', path: '/steam-game-keys', icon: Sparkles },
+  { name: 'Windows & Office', path: '/windows-office', icon: Sparkles },
+  { name: 'Creative Software', path: '/creative-software', icon: Sparkles },
+]
 
 export const Header: React.FC<HeaderProps> = ({
   searchQuery,
@@ -51,12 +81,18 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAccountTab,
   user,
   onSignOut,
+  onNavigateHome,
+  onOpenBrowseCategories,
+  onOpenOffers,
+  onNavigate,
 }) => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const profileDropdownRef = useRef<HTMLDivElement>(null)
   const currencyDropdownRef = useRef<HTMLDivElement>(null)
+  const categoriesDropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Keyboard shortcut '/' to focus search
@@ -86,6 +122,12 @@ export const Header: React.FC<HeaderProps> = ({
       ) {
         setCurrencyDropdownOpen(false)
       }
+      if (
+        categoriesDropdownRef.current &&
+        !categoriesDropdownRef.current.contains(e.target as Node)
+      ) {
+        setCategoriesDropdownOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -98,8 +140,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* PlayBeat Logo (Official 3D Chrome & Gold Brand Asset) */}
         <div
           id="header-brand-logo"
-          onClick={() => onSelectCategory('all')}
+          onClick={onNavigateHome}
           className="flex items-center cursor-pointer group shrink-0"
+          title="PlayBeat Home"
         >
           <div className="relative">
             {/* Subtle Gold Aura Glow on hover */}
@@ -112,17 +155,17 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Navigation Center Links (Matching Screenshot 1) */}
+        {/* Navigation Center Links — PlayBeat Home / Products / Subscriptions / Categories / Offers / Support */}
         <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-slate-300">
           <button
-            onClick={() => onSelectCategory('all')}
+            onClick={onNavigateHome}
             className={`transition hover:text-white ${selectedCategory === 'all' && !searchQuery ? 'text-yellow-400 font-semibold' : ''}`}
           >
             Home
           </button>
           <button
-            onClick={() => onSelectCategory('Digital Products')}
-            className={`transition hover:text-white ${selectedCategory === 'Digital Products' ? 'text-yellow-400 font-semibold' : ''}`}
+            onClick={() => onSelectCategory('all')}
+            className={`transition hover:text-white ${selectedCategory === 'all' && searchQuery ? 'text-yellow-400 font-semibold' : ''}`}
           >
             Products
           </button>
@@ -132,20 +175,83 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Subscriptions
           </button>
+
+          {/* Categories mega-dropdown — main categories + curated subcategories */}
+          <div className="relative" ref={categoriesDropdownRef}>
+            <button
+              onClick={() => setCategoriesDropdownOpen(!categoriesDropdownOpen)}
+              className={`flex items-center gap-1 transition hover:text-white ${categoriesDropdownOpen ? 'text-yellow-400' : ''}`}
+            >
+              Categories
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${categoriesDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {categoriesDropdownOpen && (
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 w-[420px] rounded-2xl bg-[#091330] border border-slate-400/20 shadow-2xl backdrop-blur-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-amber-300/90 font-semibold mb-2">
+                      Categories
+                    </div>
+                    <div className="space-y-1">
+                      {NAV_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.path}
+                          onClick={() => {
+                            setCategoriesDropdownOpen(false)
+                            onNavigate(cat.path)
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-white/5 hover:text-white transition"
+                        >
+                          <cat.icon className="w-3.5 h-3.5 text-amber-400" />
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300/90 font-semibold mb-2">
+                      Collections
+                    </div>
+                    <div className="space-y-1">
+                      {NAV_SUBCATEGORIES.map((sub) => (
+                        <button
+                          key={sub.path}
+                          onClick={() => {
+                            setCategoriesDropdownOpen(false)
+                            onNavigate(sub.path)
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-white/5 hover:text-white transition"
+                        >
+                          <sub.icon className="w-3.5 h-3.5 text-cyan-400" />
+                          {sub.name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setCategoriesDropdownOpen(false)
+                          onNavigate('/compare')
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-cyan-300 hover:bg-white/5 hover:text-cyan-200 transition"
+                      >
+                        <GitCompareArrows className="w-3.5 h-3.5 text-cyan-400" />
+                        Projector Comparison
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
-            onClick={() => onSelectCategory('all')}
-            className="transition hover:text-white"
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => onSelectCategory('Gift Cards')}
+            onClick={onOpenOffers}
             className="transition hover:text-white"
           >
             Offers
           </button>
           <button
-            onClick={() => onOpenAccountTab('settings')}
+            onClick={() => onNavigate('/contact')}
             className="transition hover:text-white"
           >
             Support

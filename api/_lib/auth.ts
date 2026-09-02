@@ -154,10 +154,26 @@ export async function comparePassword(password: string, hash: string): Promise<b
 }
 
 // Sign user JWT
-export function signUserToken(user: { id: string; email: string; role?: string }): string {
-  return jwt.sign({ id: user.id, email: user.email, role: user.role || "user" }, SESSION_SECRET, {
-    expiresIn: "30d",
-  });
+export function signUserToken(user: {
+  id: string;
+  email: string;
+  role?: string;
+  authority?: string;
+  permissions?: string[];
+}): string {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role || "user",
+      authority: user.authority || null,
+      permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    },
+    SESSION_SECRET,
+    {
+      expiresIn: "30d",
+    }
+  );
 }
 
 // Sign admin JWT
@@ -175,6 +191,94 @@ export function isAdminCredentials(email: string, password: string): boolean {
     email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim() &&
     password === ADMIN_PASSWORD
   );
+}
+
+// ---------------------------------------------------------------------------
+// POWER AUTHORITIES — Admin / Manager / Supervisor hierarchy
+//
+// Stacked on top of the role system:
+//   • role "admin"  → super administrator (env credentials)        rank 4
+//   • role "staff"  + authority "admin"      → Administrator       rank 3
+//   • role "staff"  + authority "manager"    → Manager             rank 2
+//   • role "staff"  + authority "supervisor" → Supervisor          rank 1
+//     (staff accounts created before this field existed default to supervisor)
+// ---------------------------------------------------------------------------
+export type Authority = "supervisor" | "manager" | "admin";
+
+export const AUTHORITY_RANK: Record<string, number> = {
+  supervisor: 1,
+  manager: 2,
+  admin: 3,
+};
+
+export const AUTHORITY_LABELS: Record<string, string> = {
+  admin: "Administrator",
+  manager: "Manager",
+  supervisor: "Supervisor",
+  super_admin: "Super Administrator",
+};
+
+/** Effective authority rank of a verified admin token. */
+export function authorityRank(admin: any): number {
+  if (!admin) return 0;
+  if (admin.role === "admin") return 4; // super administrator
+  return AUTHORITY_RANK[admin.authority] || 1;
+}
+
+/** Can this verified admin perform actions at the given minimum level? */
+export function hasAuthority(admin: any, min: Authority): boolean {
+  return authorityRank(admin) >= AUTHORITY_RANK[min];
+}
+
+/** Normalize an incoming authority value. */
+export function normalizeAuthority(value: any): Authority {
+  const v = String(value || "").toLowerCase();
+  if (v === "admin" || v === "manager" || v === "supervisor") return v as Authority;
+  return "supervisor";
+}
+
+// Middleware-style: requires admin with at least the given authority level.
+// Super administrators always pass. Returns 403 with a clear message on failure.
+export function requireAuthority(
+  req: AuthenticatedRequest,
+  res: VercelResponse,
+  min: Authority
+): any | null {
+  const admin = verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  if (!hasAuthority(admin, min)) {
+    const needed = AUTHORITY_LABELS[min] || min;
+    res.status(403).json({
+      success: false,
+      error: `${needed} authority or higher is required for this action.`,
+    });
+    return null;
+  }
+  req.user = admin;
+  return admin;
+}
+
+/**
+ * Staff-management guard: super administrator OR a staff account carrying
+ * the "admin" (Administrator) power authority may manage staff accounts.
+ */
+export function requireStaffAuthority(req: AuthenticatedRequest, res: VercelResponse): any | null {
+  const admin = verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  if (!isSuperAdmin(admin) && admin.authority !== "admin") {
+    res
+      .status(403)
+      .json({ success: false, error: "Administrator authority is required to manage staff accounts." });
+    return null;
+  }
+  req.user = admin;
+  return admin;
 }
 
 // CORS + JSON helpers

@@ -386,12 +386,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         if (!ok) {
           return jsonError(res, "Invalid administrative credentials.", 401);
         }
-        // Staff/employee token: signed JWT carrying their real role ("staff").
-        // verifyAdmin() accepts roles admin|staff; super-admin-only routes check role==="admin".
+        // Staff/employee token: signed JWT carrying their real role ("staff")
+        // plus the Power Authority level (admin | manager | supervisor) and the
+        // granular permission list. verifyAdmin() accepts roles admin|staff;
+        // authority-restricted routes check authority via requireAuthority().
         const staffToken = signUserToken({
           id: staffUser._id.toString(),
           email: staffUser.email,
           role: staffUser.role,
+          authority: staffUser.authority || (staffUser.role === "admin" ? "admin" : "supervisor"),
+          permissions: Array.isArray(staffUser.permissions) ? staffUser.permissions : [],
         });
         setCookie(res, "adminToken", staffToken, { maxAge: 7 * 24 * 60 * 60 });
         // Track last login (users doc + activity feed)
@@ -418,6 +422,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             email: staffUser.email,
             name: staffUser.name,
             role: staffUser.role,
+            authority: staffUser.authority || (staffUser.role === "admin" ? "admin" : "supervisor"),
+            permissions: Array.isArray(staffUser.permissions) ? staffUser.permissions : [],
             staffId: staffUser.staffId || null,
             department: staffUser.department || null,
           },
@@ -440,6 +446,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         email: admin.email,
         name: admin.name,
         role: admin.role,
+        authority: admin.role === "admin" ? "super_admin" : admin.authority || "supervisor",
+        permissions: Array.isArray(admin.permissions) ? admin.permissions : [],
         id: admin.id || null,
         staffId: admin.staffId || null,
       },

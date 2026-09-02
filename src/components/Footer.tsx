@@ -7,6 +7,7 @@ import {
   FileText,
   Lock,
   Headphones,
+  RefreshCw,
   ArrowRight,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
@@ -66,17 +67,42 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
               </div>
             </div>
 
-            {/* Quick Categories */}
+            {/* Quick Categories — every link is a real, indexable URL */}
             <div className="md:col-span-3 space-y-2.5 font-sans">
               <h4 className="font-mono text-slate-300 uppercase tracking-wider text-[10px] font-bold">
                 Catalog
               </h4>
               <ul className="space-y-2 text-slate-400 text-xs">
-                <li className="hover:text-yellow-300 transition cursor-pointer">Smart 4K Projectors</li>
-                <li className="hover:text-yellow-300 transition cursor-pointer">AI Subscriptions</li>
-                <li className="hover:text-yellow-300 transition cursor-pointer">Steam & Game Keys</li>
-                <li className="hover:text-yellow-300 transition cursor-pointer">Windows & Office</li>
-                <li className="hover:text-yellow-300 transition cursor-pointer">Creative Software</li>
+                <li>
+                  <a href="/smart-4k-projectors" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Smart 4K Projectors
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/ai-subscriptions" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    AI Subscriptions
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/steam-game-keys" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Steam & Game Keys
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/windows-office" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Windows & Office
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/creative-software" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Creative Software
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
                 <li>
                   <a href="/compare" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
                     Projector Comparison
@@ -116,54 +142,60 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                   </a>
                 </li>
                 <li>
-                  <button
-                    onClick={() => setInfoType('warranty')}
-                    className="flex items-center gap-2 hover:text-yellow-300 transition"
-                  >
+                  <a href="/warranty" className="flex items-center gap-2 hover:text-yellow-300 transition">
                     <ShieldCheck className="w-3.5 h-3.5 text-yellow-400" /> Warranty & Replacement Policy
-                  </button>
+                  </a>
                 </li>
               </ul>
             </div>
           </div>
 
-          {/* Enhanced Dynamic Buttons — Policies & Contact */}
+          {/* Enhanced Dynamic Buttons — Policies & Contact (all real indexable URLs) */}
           <div className="pt-8 pb-6 border-t border-slate-400/10">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                {
-                  href: '/privacy',
-                  icon: <Lock className="w-4 h-4" />,
-                  title: 'Privacy Policy',
-                  subtitle: 'How your data is protected',
-                  chip: 'bg-violet-500/15 border-violet-400/30 text-violet-300',
-                  glow: 'hover:border-violet-400/60 hover:shadow-[0_0_28px_rgba(139,92,246,0.25)]',
-                },
-                {
-                  href: '/terms',
-                  icon: <FileText className="w-4 h-4" />,
-                  title: 'Terms of Service',
-                  subtitle: 'Fair usage & licensing terms',
-                  chip: 'bg-sky-500/15 border-sky-400/30 text-sky-300',
-                  glow: 'hover:border-sky-400/60 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)]',
-                },
-                {
-                  href: '/refund-policy',
-                  icon: <ShieldCheck className="w-4 h-4" />,
-                  title: 'Refund Policy',
-                  subtitle: 'Fast, transparent resolutions',
-                  chip: 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300',
-                  glow: 'hover:border-emerald-400/60 hover:shadow-[0_0_28px_rgba(52,211,153,0.25)]',
-                },
-                {
-                  href: '/contact',
-                  icon: <Headphones className="w-4 h-4" />,
-                  title: 'Contact',
-                  subtitle: '24/7 channels & office address',
-                  chip: 'bg-amber-500/15 border-amber-400/30 text-amber-300',
-                  glow: 'hover:border-amber-400/60 hover:shadow-[0_0_28px_rgba(255,193,7,0.25)]',
-                },
-              ].map((btn) => (
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              {
+                [
+                  {
+                    href: '/warranty',
+                    icon: <ShieldCheck className="w-4 h-4" />,
+                    title: 'Warranty & Replacement',
+                    subtitle: 'Coverage & how to claim',
+                    chip: 'bg-yellow-500/15 border-yellow-400/30 text-yellow-300',
+                    glow: 'hover:border-yellow-400/60 hover:shadow-[0_0_28px_rgba(255,193,7,0.25)]',
+                  },
+                  {
+                    href: '/privacy',
+                    icon: <Lock className="w-4 h-4" />,
+                    title: 'Privacy Policy',
+                    subtitle: 'How your data is protected',
+                    chip: 'bg-violet-500/15 border-violet-400/30 text-violet-300',
+                    glow: 'hover:border-violet-400/60 hover:shadow-[0_0_28px_rgba(139,92,246,0.25)]',
+                  },
+                  {
+                    href: '/terms',
+                    icon: <FileText className="w-4 h-4" />,
+                    title: 'Terms of Service',
+                    subtitle: 'Fair usage & licensing terms',
+                    chip: 'bg-sky-500/15 border-sky-400/30 text-sky-300',
+                    glow: 'hover:border-sky-400/60 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)]',
+                  },
+                  {
+                    href: '/refund-policy',
+                    icon: <RefreshCw className="w-4 h-4" />,
+                    title: 'Refund Policy',
+                    subtitle: 'Fast, transparent resolutions',
+                    chip: 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300',
+                    glow: 'hover:border-emerald-400/60 hover:shadow-[0_0_28px_rgba(52,211,153,0.25)]',
+                  },
+                  {
+                    href: '/contact',
+                    icon: <Headphones className="w-4 h-4" />,
+                    title: 'Contact',
+                    subtitle: '24/7 channels & office address',
+                    chip: 'bg-amber-500/15 border-amber-400/30 text-amber-300',
+                    glow: 'hover:border-amber-400/60 hover:shadow-[0_0_28px_rgba(255,193,7,0.25)]',
+                  },
+                ].map((btn) => (
                 <a
                   key={btn.href}
                   href={btn.href}

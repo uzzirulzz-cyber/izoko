@@ -1,7 +1,7 @@
 import React from 'react'
-import { Lock, FileText, RefreshCw, Truck, Mail, ArrowRight } from 'lucide-react'
+import { Lock, FileText, RefreshCw, Truck, ShieldCheck, Mail, ArrowRight } from 'lucide-react'
 
-export type PolicyType = 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy'
+export type PolicyType = 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy' | 'warranty'
 
 interface PolicyPageProps {
   type: PolicyType
@@ -31,6 +31,12 @@ const META: Record<PolicyType, { title: string; subtitle: string; icon: React.Re
     title: 'Shipping & Delivery Policy',
     subtitle: 'Instant digital delivery and courier timelines for hardware orders.',
     icon: <Truck className="w-5 h-5 text-yellow-400" />,
+    updated: 'August 2026',
+  },
+  warranty: {
+    title: 'Warranty & Replacement Policy',
+    subtitle: 'Coverage, warranty periods, and how to claim a replacement or repair.',
+    icon: <ShieldCheck className="w-5 h-5 text-yellow-400" />,
     updated: 'August 2026',
   },
 }
@@ -268,6 +274,72 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
             with the courier immediately. Parcels lost in transit are replaced or refunded in full at our
             cost. Incorrect delivery details supplied by the customer are re-dispatched at the customer's
             expense once corrected.
+          </p>
+          <p className="text-slate-500 text-[10px] pt-1">Last updated: {meta.updated}.</p>
+        </Section>
+      </>
+    ),
+    warranty: (
+      <>
+        <Section title="1. Warranty Coverage Overview">
+          <p>
+            Every product sold on PlayBeat Digital is covered by a written warranty. Digital license keys,
+            subscriptions, and accounts carry a <span className="text-white font-semibold">full-duration
+            stability warranty</span> — meaning your purchase is protected from the moment of activation
+            until the exact end date of the plan you paid for. Smart projectors and other hardware carry a
+            <span className="text-white font-semibold"> one-year manufacturer warranty</span> from the date
+            of delivery, covering manufacturing defects, component failures, and dead-pixel issues beyond
+            the threshold stated on the product page.
+          </p>
+        </Section>
+        <Section title="2. Digital Products — What Is Covered">
+          <p>
+            If a license key fails to activate, is flagged as already redeemed, is disabled by the upstream
+            provider without cause, or an account loses access before the paid period ends, PlayBeat will
+            repair, replace, or re-issue the product at no cost. Claims are verified against our fulfilment
+            logs and your order number, so always keep your delivery email. Warranty on digital products is
+            void only when activation instructions were not followed, the key was used on a device or region
+            explicitly marked as unsupported, or the account was suspended for terms violations unrelated to
+            product validity.
+          </p>
+        </Section>
+        <Section title="3. Smart Projectors — What Is Covered">
+          <p>
+            Hardware warranty covers optical engine faults, mainboard and power failures, speaker defects,
+            remote control malfunction, and WiFi/Bluetooth module failures that occur under normal household
+            use. It does not cover accidental drops, liquid damage, unauthorized opening of the chassis,
+            firmware modification, or electrical damage from non-standard power sources. Accessories such as
+            stands, cables, and lens caps are covered for 90 days against manufacturing defects only.
+          </p>
+        </Section>
+        <Section title="4. How to Claim">
+          <p>
+            Start a claim within your warranty period by contacting support with your order number and a
+            short description (photos or video help enormously). For digital items we verify and re-issue
+            within 24 hours in most cases. For hardware, approved claims receive courier pickup
+            instructions; our technicians test the unit and either repair it on site or dispatch a
+            replacement within <span className="text-white font-semibold">7-14 working days</span> of
+            receiving the faulty item at our service centre. Return shipping for approved warranty claims is
+            paid by PlayBeat.
+          </p>
+        </Section>
+        <Section title="5. Replacement vs Refund">
+          <p>
+            Within the first 24 hours after purchase you may choose between a replacement or a full refund.
+            After that window, warranty claims are fulfilled as replacements or repairs first; a pro-rata
+            refund is offered only when no equivalent replacement is available in stock. Refund processing
+            timelines and exclusions are described in detail in our Refund Policy, which works together with
+            this document.
+          </p>
+        </Section>
+        <Section title="6. Warranty Extensions">
+          <p>
+            Selected projector bundles include an extended 24-month warranty, shown on the product page and
+            printed on your invoice. Extended warranty claims follow the same process described above. If you
+            are unsure what coverage applies to your order, message our team through the live chat widget,
+            email <span className="text-yellow-300">{supportEmail}</span>, or WhatsApp +
+            {whatsapp.replace(/^\+/, '')} — include your order number and we will confirm your coverage
+            instantly.
           </p>
           <p className="text-slate-500 text-[10px] pt-1">Last updated: {meta.updated}.</p>
         </Section>

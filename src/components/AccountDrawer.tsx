@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   X,
   User,
@@ -13,19 +13,176 @@ import {
   Zap,
   ShieldCheck,
   Sparkles,
+  MessageSquare,
+  Send,
 } from 'lucide-react'
 import { CurrencyCode, Product } from '../types'
 import { formatPrice } from '../lib/currency'
 
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+
 interface AccountDrawerProps {
   isOpen: boolean
   onClose: () => void
-  activeTab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'wishlist' | 'settings'
+  activeTab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
   onSelectTab: (tab: any) => void
   user: { name: string; email: string }
   currency: CurrencyCode
   onSignOut: () => void
   onOpenWishlist: () => void
+}
+
+interface AccountChatMsg {
+  id: string
+  senderType: 'customer' | 'staff' | 'system'
+  senderName: string
+  body: string
+  createdAt: string
+}
+
+/**
+ * Messages tab — the customer's direct message thread with the PlayBeat team.
+ * Same conversation as the storefront Live Support widget (staff reply from the
+ * admin Message Box); polls every 6 seconds while visible.
+ */
+const MessagesTab: React.FC<{ user: { name: string; email: string } }> = ({ user }) => {
+  const [conversationId, setConversationId] = useState(() => localStorage.getItem('playbeat_chat_conversation') || '')
+  const [messages, setMessages] = useState<AccountChatMsg[]>([])
+  const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [visitorId] = useState(() => {
+    let v = localStorage.getItem('playbeat_visitor_id')
+    if (!v) {
+      v = `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+      localStorage.setItem('playbeat_visitor_id', v)
+    }
+    return v
+  })
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const poll = useCallback(async () => {
+    if (!conversationId) return
+    try {
+      const qs = new URLSearchParams({ conversationId, visitorId, email: user.email })
+      const res = await fetch(`${API_BASE}/api/messages/mine?${qs.toString()}`, { credentials: 'include' })
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.messages)) {
+        setMessages(data.messages)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 60)
+      }
+    } catch {
+      /* silent */
+    }
+  }, [conversationId, visitorId, user.email])
+
+  useEffect(() => {
+    poll()
+    const t = setInterval(poll, 6000)
+    return () => clearInterval(t)
+  }, [poll])
+
+  const send = async () => {
+    const text = draft.trim()
+    if (!text || !conversationId) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/messages/mine`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ conversationId, body: text, visitorId, email: user.email }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        setDraft('')
+        poll()
+      } else {
+        setError(data?.error || 'Message failed to send.')
+      }
+    } catch {
+      setError('Network error — message not sent.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!conversationId) {
+    return (
+      <div className="p-6 rounded-2xl bg-[#070D22] border border-slate-400/15 text-center space-y-3">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-[#0A122E] border border-amber-400/25 flex items-center justify-center">
+          <MessageSquare className="w-5 h-5 text-amber-400" />
+        </div>
+        <div className="text-sm font-bold text-white">No conversations yet</div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          Open the Live Support chat bubble (bottom-right) to message the PlayBeat team.
+          Your conversations will appear here.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+        Messages — PlayBeat Support
+      </h4>
+      <div className="rounded-2xl bg-[#070D22] border border-slate-400/15 p-3 space-y-2.5 max-h-[50vh] overflow-y-auto">
+        {messages.length === 0 && (
+          <div className="text-[11px] text-slate-500 text-center py-4">Loading conversation…</div>
+        )}
+        {messages.map((m) => {
+          const mine = m.senderType === 'customer'
+          return (
+            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] px-3 py-2 rounded-2xl text-[11px] leading-relaxed ${
+                  mine
+                    ? 'bg-[#FFC107] text-slate-950 font-medium rounded-br-md'
+                    : 'bg-[#0A122E] border border-slate-400/15 text-slate-100 rounded-bl-md'
+                }`}
+              >
+                {!mine && (
+                  <div className="text-[9px] font-mono text-amber-300/90 mb-0.5 uppercase tracking-wider">
+                    {m.senderName || 'PlayBeat Team'}
+                  </div>
+                )}
+                <div className="whitespace-pre-wrap break-words">{m.body}</div>
+                <div className={`text-[8px] mt-0.5 font-mono ${mine ? 'text-slate-800/70' : 'text-slate-500'}`}>
+                  {new Date(m.createdAt).toLocaleString('en', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+      {error && <div className="text-[10px] text-rose-300 font-mono">{error}</div>}
+      <div className="flex items-end gap-2">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              send()
+            }
+          }}
+          rows={1}
+          placeholder="Reply to the PlayBeat team…"
+          className="flex-1 resize-none px-3 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/15 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/50 max-h-24"
+        />
+        <button
+          onClick={send}
+          disabled={busy || !draft.trim()}
+          className="w-10 h-10 rounded-xl btn-gold-gradient text-slate-950 flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export const AccountDrawer: React.FC<AccountDrawerProps> = ({
@@ -116,6 +273,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             { id: 'library', label: 'Digital Library', icon: FolderLock },
             { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
             { id: 'orders', label: 'Orders', icon: ShoppingBag },
+            { id: 'messages', label: 'Messages', icon: MessageSquare },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon
@@ -211,6 +369,8 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
               ))}
             </div>
           )}
+
+          {activeTab === 'messages' && <MessagesTab user={user} />}
 
           {(activeTab === 'profile' || activeTab === 'orders' || activeTab === 'settings') && (
             <div className="space-y-4">

@@ -1,24 +1,33 @@
+# robots.txt — PlayBeat Digital (https://playbeat.digital)
+# Storefront pages are public and indexable. Admin & API are private.
+
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+
+# Explicitly indexable key sections (kept for clarity even though Allow: / covers them)
 Allow: /streaming
 Allow: /subscriptions
 Allow: /giftcards
 Allow: /gaming
 Allow: /software
 Allow: /smart-projectors
+Allow: /smart-4k-projectors
+Allow: /ai-subscriptions
+Allow: /steam-game-keys
+Allow: /windows-office
+Allow: /creative-software
+Allow: /compare
+Allow: /warranty
 Allow: /privacy
 Allow: /terms
 Allow: /refund-policy
 Allow: /shipping-policy
 Allow: /contact
-
-# Admin is password-protected & private — never index
-Disallow: /admin
-Disallow: /admin/
-Disallow: /api/
-Disallow: /api/*
-Disallow: /login
-Disallow: /signup
-Disallow: /forgot-password
 
 Sitemap: https://playbeat.digital/sitemap.xml

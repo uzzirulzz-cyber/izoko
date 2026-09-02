@@ -11,6 +11,7 @@ import {
   Tag,
   Users,
   MessageSquare,
+  MessagesSquare,
   Tv,
   Megaphone,
   Search,
@@ -68,6 +69,7 @@ import { ProductEditorModal } from './admin/ProductEditorModal'
 import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
 import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
+import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { MobileAppPanel } from './admin/MobileAppPanel'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
 import { SystemHealthPanel } from './admin/SystemHealthPanel'
@@ -185,7 +187,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
-      'vault', 'backup', 'staff', 'mobileapp', 'profile',
+      'messages', 'vault', 'backup', 'staff', 'mobileapp', 'profile',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -234,6 +236,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [adminAnalytics, setAdminAnalytics] = useState<any>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
+  const [adminAuthority, setAdminAuthority] = useState<
+    'super_admin' | 'admin' | 'manager' | 'supervisor'
+  >('super_admin')
   const [adminName, setAdminName] = useState('PlayBeat Admin')
   const [adminEmail, setAdminEmail] = useState('')
   // Live online device count for the Mobile App sidebar badge (polled every 60s)
@@ -241,6 +246,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [appOnlineCount, setAppOnlineCount] = useState(0)
   // Live support inbox: unread ("new") customer messages for the sidebar badge
   const [supportNewCount, setSupportNewCount] = useState(0)
+  // Message Box unread badge (live chats + staff DMs)
+  const [msgUnreadCount, setMsgUnreadCount] = useState(0)
 
   // Admin profile dropdown (header avatar button)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
@@ -250,6 +257,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const profileMenuRef = useRef<HTMLDivElement>(null)
 
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
+
+  // Power Authority gates (UI mirror of the server-side requireAuthority rules)
+  const canManageStaff = adminRole === 'admin' || adminAuthority === 'admin'
+  const isSuperAdminUser = adminRole === 'admin'
 
   // Resolve the signed-in administrator's identity & role (super admin vs staff)
   useEffect(() => {
@@ -262,6 +273,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         const data = await res.json()
         if (data?.success && data?.admin) {
           setAdminRole(data.admin.role === 'staff' ? 'staff' : 'admin')
+          // Power Authority: super_admin (env) | admin | manager | supervisor
+          const auth = data.admin.authority || (data.admin.role === 'admin' ? 'super_admin' : 'supervisor')
+          setAdminAuthority(auth)
           setAdminName(data.admin.name || 'PlayBeat Admin')
           setAdminEmail(data.admin.email || '')
         }
@@ -300,6 +314,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           setSupportNewCount(data2.counts.new || 0)
         } else if (!cancelled && data2?.counts) {
           setSupportNewCount(data2.counts.new || 0)
+        }
+      } catch {
+        /* silent */
+      }
+      try {
+        const res3 = await fetch(`${API_BASE}/api/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${getAdminToken()}` },
+          credentials: 'include',
+        })
+        const data3 = await res3.json()
+        if (!cancelled && data3?.success?.unread) {
+          setMsgUnreadCount(data3.unread.total || 0)
         }
       } catch {
         /* silent */
@@ -971,6 +997,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     )}
                   </button>
 
+                  {isSuperAdminUser && (
                   <button
                     onClick={() => setActiveNav('backup')}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 ${
@@ -985,6 +1012,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <DatabaseBackup className="w-4 h-4 text-sky-400" />
                     {!sidebarCollapsed && <span>Restore Points & Sync</span>}
                   </button>
+                  )}
 
                   <button
                     onClick={() => setActiveNav('vault')}
@@ -1064,6 +1092,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     )}
                   </button>
 
+                  {canManageStaff && (
                   <button
                     onClick={() => setActiveNav('staff')}
                     className={`w-full flex items-center justify-between px-3 py-2 ${
@@ -1085,6 +1114,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </span>
                     )}
                   </button>
+                  )}
 
                   <button
                     onClick={() => setActiveNav('support')}
@@ -1105,6 +1135,29 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold flex items-center gap-1">
                         <span className="w-1 h-1 rounded-full bg-rose-400 animate-pulse"></span>
                         {supportNewCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('messages')}
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'messages' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'messages'
+                        ? ({ '--nav-a': '#c4b5fd', '--nav-bg': 'rgba(139,92,246,0.10)', '--nav-edge': 'rgba(139,92,246,0.30)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <MessagesSquare className="w-4 h-4 text-violet-400" />
+                      {!sidebarCollapsed && <span>Message Box & Live Chat</span>}
+                    </div>
+                    {!sidebarCollapsed && msgUnreadCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-rose-400 animate-pulse"></span>
+                        {msgUnreadCount}
                       </span>
                     )}
                   </button>
@@ -1441,11 +1494,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <span
                           className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
                             adminRole === 'staff'
-                              ? 'bg-blue-500/20 text-blue-300'
+                              ? adminAuthority === 'admin'
+                                ? 'bg-rose-500/20 text-rose-300'
+                                : adminAuthority === 'manager'
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : 'bg-blue-500/20 text-blue-300'
                               : 'bg-amber-400/20 text-amber-300'
                           }`}
                         >
-                          {adminRole === 'staff' ? 'STAFF · EMPLOYEE' : 'SUPER ADMIN'}
+                          {adminRole === 'staff'
+                            ? adminAuthority === 'admin'
+                              ? 'ADMINISTRATOR AUTHORITY'
+                              : adminAuthority === 'manager'
+                              ? 'MANAGER AUTHORITY'
+                              : 'SUPERVISOR AUTHORITY'
+                            : 'SUPER ADMIN'}
                         </span>
                       </div>
                     </div>
@@ -3157,7 +3220,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 staff={adminStaff}
                 users={adminUsers}
                 loading={staffLoading}
-                isSuperAdmin={adminRole === 'admin'}
+                isSuperAdmin={adminRole === 'admin' || adminAuthority === 'admin'}
                 onToast={triggerToast}
                 onChanged={() => {
                   fetchAdminStaff()
@@ -3653,6 +3716,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <SupportPanel
                 triggerToast={triggerToast}
                 onQuickReply={() => setShowSupportModal(true)}
+              />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: MESSAGE BOX & LIVE CHAT (storefront chats + staff DMs) */}
+            {/* ========================================================================= */}
+            {activeNav === 'messages' && (
+              <MessageBoxPanel
+                adminStaff={adminStaff}
+                adminName={adminName}
+                onToast={triggerToast}
               />
             )}
           </main>

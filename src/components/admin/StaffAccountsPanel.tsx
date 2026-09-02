@@ -29,9 +29,44 @@ const PERMISSION_OPTIONS = [
   { id: 'products', label: 'Catalog Products' },
   { id: 'customers', label: 'Customer Accounts' },
   { id: 'support', label: 'Support Tickets' },
-  { id: 'campaigns', label: 'Marketing Campaigns' },
+  { id: 'messages', label: 'Message Box & Live Chat' },
   { id: 'analytics', label: 'Analytics & Traffic' },
+  { id: 'campaigns', label: 'Marketing Campaigns' },
+  { id: 'cms', label: 'Website Builder CMS' },
 ]
+
+// Power Authorities — hierarchical control levels
+const AUTHORITY_OPTIONS = [
+  {
+    id: 'admin',
+    label: 'Administrator',
+    tint: 'bg-rose-400/15 border-rose-400/40 text-rose-300',
+    desc: 'Runs the panel: staff accounts, catalog, orders, campaigns. Second only to the super administrator.',
+  },
+  {
+    id: 'manager',
+    label: 'Manager',
+    tint: 'bg-amber-400/15 border-amber-400/40 text-amber-300',
+    desc: 'Full operations control — create/edit products, manage orders, tickets and chats. No staff management.',
+  },
+  {
+    id: 'supervisor',
+    label: 'Supervisor',
+    tint: 'bg-teal-400/15 border-teal-400/40 text-teal-300',
+    desc: 'View-first access: monitor orders, catalog and customers, handle support tickets and live chats.',
+  },
+]
+
+const authorityChip = (authority?: string) => {
+  const meta =
+    AUTHORITY_OPTIONS.find((a) => a.id === authority) ||
+    AUTHORITY_OPTIONS.find((a) => a.id === 'supervisor')!
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold border ${meta.tint}`}>
+      {meta.label.toUpperCase()}
+    </span>
+  )
+}
 
 export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
   staff,
@@ -49,11 +84,13 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
     password: '',
     staffId: '',
     department: 'Operations',
+    authority: 'supervisor',
   })
   const [permissions, setPermissions] = useState<string[]>(['orders', 'products', 'customers', 'support'])
   const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string; staffId: string } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [authorityBusyId, setAuthorityBusyId] = useState<string | null>(null)
 
   const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
@@ -86,13 +123,13 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
       })
       const data = await res.json()
       if (data?.success) {
-        onToast(`Employee account created — Staff ID ${data.staff?.staffId}`)
+        onToast(`Employee account created — Staff ID ${data.staff?.staffId} (${form.authority} authority)`)
         setCreatedCreds({
           email,
           password: form.password,
           staffId: data.staff?.staffId || '',
         })
-        setForm({ name: '', email: '', password: '', staffId: '', department: 'Operations' })
+        setForm({ name: '', email: '', password: '', staffId: '', department: 'Operations', authority: 'supervisor' })
         setPermissions(['orders', 'products', 'customers', 'support'])
         onChanged()
       } else {
@@ -161,11 +198,38 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
 
   const copyCreds = () => {
     if (!createdCreds) return
-    const text = `PlayBeat Staff Account\nStaff ID: ${createdCreds.staffId}\nLogin: ${createdCreds.email}\nPassword: ${createdCreds.password}\nPortal: /admin/login`
+    const text = `PlayBeat Staff Account\nStaff ID: ${createdCreds.staffId}\nLogin: ${createdCreds.email}\nPassword: ${createdCreds.password}\nAuthority: ${form.authority}\nPortal: /admin/login`
     navigator.clipboard?.writeText(text).then(
       () => onToast('Credentials copied — share securely with the employee.'),
       () => onToast('Copy failed — select the text manually.')
     )
+  }
+
+  // Change a staff member's Power Authority (admin / manager / supervisor)
+  const handleAuthorityChange = async (s: any, authority: string) => {
+    setAuthorityBusyId(s.id)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/staff/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ userId: s.id, authority }),
+      })
+      const data = await res.json()
+      if (data?.success) {
+        onToast(`${s.name} is now ${authority === 'admin' ? 'an Administrator' : `a ${authority}`}.`)
+        onChanged()
+      } else {
+        onToast(data?.error || 'Authority update failed.')
+      }
+    } catch (err: any) {
+      onToast(err.message || 'Network error')
+    } finally {
+      setAuthorityBusyId(null)
+    }
   }
 
   if (loading) {
@@ -204,6 +268,31 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
             <ShieldAlert className="w-3.5 h-3.5" /> Super admin only
           </span>
         )}
+      </div>
+
+      {/* Power Authority hierarchy explainer */}
+      <div className="rounded-2xl bg-[#0B0F19] border border-teal-500/20 p-4">
+        <div className="flex items-center gap-2 text-teal-300 text-xs font-bold font-mono uppercase tracking-wider mb-3">
+          <ShieldCheck className="w-4 h-4" /> Power Authorities — Hierarchy & Control
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {AUTHORITY_OPTIONS.map((a, idx) => (
+            <div key={a.id} className="rounded-xl bg-white/[0.02] border border-white/5 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${a.tint}`}>
+                  {a.label.toUpperCase()}
+                </span>
+                <span className="text-[9px] font-mono text-zinc-500">LEVEL {3 - idx}</span>
+              </div>
+              <p className="text-[10px] text-zinc-400 leading-relaxed">{a.desc}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-zinc-500 mt-3 leading-relaxed">
+          Authority stacks on top of panel permissions: a Manager with catalog permission can edit products,
+          while a Supervisor with the same permission is read-only. Staff management always requires the
+          Administrator authority or the super-admin account.
+        </p>
       </div>
 
       {/* Create form */}
@@ -321,6 +410,30 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
               </label>
             </div>
 
+            {/* Power Authority selection */}
+            <div className="sm:col-span-2">
+              <span className="text-[10px] font-mono uppercase text-zinc-400 flex items-center gap-1 mb-1.5">
+                <ShieldCheck className="w-3 h-3" /> Power Authority *
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {AUTHORITY_OPTIONS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setForm({ ...form, authority: a.id })}
+                    className={`text-left p-3 rounded-xl border transition ${
+                      form.authority === a.id
+                        ? a.tint
+                        : 'bg-white/[0.02] border-white/10 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-[11px] font-bold font-mono uppercase">{a.label}</div>
+                    <div className="text-[9px] mt-1 leading-snug opacity-80">{a.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Permissions */}
             <div className="sm:col-span-2">
               <span className="text-[10px] font-mono uppercase text-zinc-400 flex items-center gap-1 mb-1.5">
@@ -389,9 +502,12 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
                           SUPER ADMIN
                         </span>
                       ) : (
-                        <span className="px-1.5 py-0.5 rounded bg-teal-400/15 border border-teal-400/30 text-teal-300 text-[9px] font-mono font-bold">
-                          STAFF
-                        </span>
+                        <>
+                          <span className="px-1.5 py-0.5 rounded bg-teal-400/15 border border-teal-400/30 text-teal-300 text-[9px] font-mono font-bold">
+                            STAFF
+                          </span>
+                          {authorityChip(s.authority)}
+                        </>
                       )}
                       {s.role !== 'admin' && s.active === false && (
                         <span className="px-1.5 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[9px] font-mono font-bold">
@@ -408,6 +524,20 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
                 </div>
                 {s.role !== 'admin' && isSuperAdmin && (
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Authority control — promote/demote across the hierarchy */}
+                    <select
+                      value={s.authority || 'supervisor'}
+                      onChange={(e) => handleAuthorityChange(s, e.target.value)}
+                      disabled={authorityBusyId === s.id}
+                      className="bg-[#121622] border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-mono text-white focus:outline-none focus:border-teal-400/50 disabled:opacity-50"
+                      title="Change power authority level"
+                    >
+                      {AUTHORITY_OPTIONS.map((a) => (
+                        <option key={a.id} value={a.id} className="bg-[#121622]">
+                          {a.label}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       onClick={() => handleToggleActive(s)}
                       disabled={busyId === s.id}

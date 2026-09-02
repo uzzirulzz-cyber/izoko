@@ -37,6 +37,9 @@ import {
   jsonError,
   requireAdmin,
   requireSuperAdmin,
+  requireAuthority,
+  requireStaffAuthority,
+  normalizeAuthority,
   verifyAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
@@ -399,6 +402,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         staff: staff.map((s: any) => ({
           id: s._id.toString(), name: s.name, email: s.email,
           role: s.role, staffId: s.staffId || null,
+          authority: s.authority || (s.role === "admin" ? "admin" : "supervisor"),
+          permissions: Array.isArray(s.permissions) ? s.permissions : [],
+          department: s.department || null,
+          active: s.active !== false,
           provider: s.provider || "local", createdAt: s.createdAt,
         })),
         superAdmin: { email: ADMIN_EMAIL, role: "super_admin" },
@@ -617,11 +624,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
-  // ============ POST /api/admin/staff/create (super admin only) ============
+  // ============ POST /api/admin/staff/create (super admin or Administrator authority) ============
   if (route === "staff/create" && req.method === "POST") {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireStaffAuthority(req, res)) return;
     try {
-      const { name, email, password, staffId, department, permissions } = req.body || {};
+      const { name, email, password, staffId, department, permissions, authority } = req.body || {};
       if (!name || !email || !password) {
         return jsonError(res, "Name, email, and password are required.", 400);
       }
@@ -643,6 +650,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, `Staff ID ${finalStaffId} is already assigned.`, 409);
       }
       const hashed = await hashPassword(String(password));
+      // Power Authority: admin | manager | supervisor (hierarchical control)
+      const finalAuthority = normalizeAuthority(authority);
       const newStaff = {
         name: String(name).trim(),
         email: cleanEmail,
@@ -650,6 +659,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         role: "staff",
         staffId: finalStaffId,
         department: department ? String(department).trim() : "Operations",
+        authority: finalAuthority,
         permissions: Array.isArray(permissions)
           ? permissions
           : ["orders", "products", "customers", "support"],
@@ -669,6 +679,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           role: "staff",
           staffId: newStaff.staffId,
           department: newStaff.department,
+          authority: newStaff.authority,
           permissions: newStaff.permissions,
         },
       }, 201);
@@ -696,11 +707,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
-  // ============ POST /api/admin/staff/update (super admin only) ============
+  // ============ POST /api/admin/staff/update (super admin or Administrator authority) ============
   if (route === "staff/update" && req.method === "POST") {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireStaffAuthority(req, res)) return;
     try {
-      const { userId, name, department, permissions, active, password } = req.body || {};
+      const { userId, name, department, permissions, active, password, authority } = req.body || {};
       if (!userId) return jsonError(res, "userId is required.", 400);
       const usersCol = db.collection("users");
       const target = await usersCol.findOne({ _id: new ObjectId(userId) });
@@ -712,6 +723,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (name) update.name = String(name).trim();
       if (department) update.department = String(department).trim();
       if (Array.isArray(permissions)) update.permissions = permissions;
+      // Power Authority changes — an Administrator cannot elevate someone above
+      // their own level (managers/supervisors never reach this guard anyway).
+      if (authority) update.authority = normalizeAuthority(authority);
       if (typeof active === "boolean") update.active = active;
       if (password) {
         if (String(password).length < 6) {
@@ -993,6 +1007,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
   // ============ POST /api/admin/products (create) ============
   if (route === "products" && req.method === "POST") {
+    // Power authority gate: creating catalog products requires Manager or higher.
+    if (!requireAuthority(req, res, "manager")) return;
     try {
       const col = db.collection("products");
       const body = req.body || {};
@@ -1078,6 +1094,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ PUT/DELETE /api/admin/products/:id ============
   // Match "products/<id>" where <id> is not "seed-if-empty" (already handled above)
   if (pathSegments[0] === "products" && pathSegments[1] && pathSegments[1] !== "seed-if-empty") {
+    // Power authority gate: editing/removing catalog products requires Manager or higher.
+    if (!requireAuthority(req, res, "manager")) return;
     const id = pathSegments[1];
     const col = db.collection("products");
     const filter: any = ObjectId.isValid(id)
