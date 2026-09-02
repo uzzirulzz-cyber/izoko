@@ -71,6 +71,7 @@ import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { AndroidAppPanel } from './admin/AndroidAppPanel'
+import AdminAvatar from './admin/AdminAvatar'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
 import { SystemHealthPanel } from './admin/SystemHealthPanel'
 import { BackupPanel } from './admin/BackupPanel'
@@ -1289,13 +1290,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               }`}
               title="Open Profile Settings"
             >
-              <div
-                className={`w-9 h-9 rounded-full font-bold flex items-center justify-center text-sm font-mono shrink-0 shadow-[0_0_14px_-2px_rgba(245,184,0,0.5)] ${
-                  adminRole === 'staff' ? 'bg-blue-400 text-black' : 'pa-btn-gold'
-                }`}
-              >
-                {adminName.charAt(0).toUpperCase()}
-              </div>
+              <AdminAvatar
+                name={adminName}
+                email={adminEmail}
+                color={adminRole === 'staff' ? 'blue' : 'amber'}
+                size={36}
+                status="online"
+                title="Open Profile Settings"
+              />
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-white truncate">
@@ -1453,13 +1455,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   className="flex items-center gap-2.5 rounded-xl px-1.5 py-1 hover:bg-white/5 transition focus:outline-none focus:ring-2 focus:ring-amber-400/40"
                   title="Admin profile menu"
                 >
-                  <div
-                    className={`w-8 h-8 rounded-full text-black font-extrabold flex items-center justify-center text-xs font-mono ${
-                      adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
-                    }`}
-                  >
-                    {adminName.charAt(0).toUpperCase()}
-                  </div>
+                  <AdminAvatar
+                    name={adminName}
+                    email={adminEmail}
+                    color={adminRole === 'staff' ? 'blue' : 'amber'}
+                    size={32}
+                    still
+                  />
                   <div className="hidden sm:block text-left">
                     <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
                       {adminName}
@@ -1479,13 +1481,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#121622] border border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
                     {/* Menu header — live identity */}
                     <div className="p-3.5 bg-[#0D1119] border-b border-white/5 flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-full text-black font-extrabold flex items-center justify-center text-sm font-mono ${
-                          adminRole === 'staff' ? 'bg-blue-400' : 'bg-amber-400'
-                        }`}
-                      >
-                        {adminName.charAt(0).toUpperCase()}
-                      </div>
+                      <AdminAvatar
+                        name={adminName}
+                        email={adminEmail}
+                        color={adminRole === 'staff' ? 'blue' : 'amber'}
+                        size={40}
+                        status="online"
+                      />
                       <div className="min-w-0">
                         <div className="text-xs font-bold text-white truncate">{adminName}</div>
                         <div className="text-[10px] text-zinc-400 font-mono truncate">
@@ -3726,6 +3728,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               <MessageBoxPanel
                 adminStaff={adminStaff}
                 adminName={adminName}
+                adminEmail={adminEmail}
+                adminRole={adminRole}
                 onToast={triggerToast}
               />
             )}

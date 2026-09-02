@@ -26,6 +26,9 @@
 //   GET    /api/admin/profile                   (signed-in admin's full profile + activity)
 //   PUT    /api/admin/profile                   (update own profile identity & preferences)
 //   POST   /api/admin/profile/password          (change own password — bcrypt verified)
+//   POST   /api/admin/profile/avatar           (upload cropped profile picture — validated)
+//   DELETE /api/admin/profile/avatar           (remove profile picture)
+//   GET    /api/admin/avatar?email=...         (public avatar image bytes — no secrets)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
@@ -1257,6 +1260,22 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         };
       }
 
+      // Avatar metadata (image bytes live in the `admin_avatars` collection)
+      const avatarDoc = await db
+        .collection("admin_avatars")
+        .findOne({ _id: profile.email as any });
+      profile.avatar = {
+        has: Boolean(avatarDoc),
+        version: avatarDoc?.updatedAt ? new Date(avatarDoc.updatedAt).getTime() : 0,
+      };
+
+      // Live request context — powers the Account & Session panel
+      profile.session = {
+        ip: String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown",
+        userAgent: String(req.headers["user-agent"] || "").slice(0, 300),
+        serverTime: new Date().toISOString(),
+      };
+
       const activities = await activityCol
         .find({ adminEmail: profile.email })
         .sort({ createdAt: -1 })
@@ -1458,6 +1477,109 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       console.error("POST /api/admin/profile/password error:", err);
       return jsonError(res, err.message, 500);
     }
+  }
+
+  // ============ POST /api/admin/profile/avatar ============
+  // Accepts a cropped square image as a data URL (client resizes to 256x256),
+  // validates magic bytes + size, stores raw bytes in `admin_avatars`.
+  if (route === "profile/avatar" && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const dataUrl = String((req.body || {}).dataUrl || "");
+      const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+      if (!m) {
+        return jsonError(res, "Invalid image payload — expected a base64 data URL (jpeg/png/webp).", 400);
+      }
+      const mime = m[1];
+      const bytes = Buffer.from(m[2], "base64");
+      if (bytes.length < 64) return jsonError(res, "Image payload is too small to be valid.", 400);
+      if (bytes.length > 400 * 1024) {
+        return jsonError(res, "Image is too large after cropping (max 400 KB).", 400);
+      }
+      // Magic-byte sniffing — never trust the declared mime type
+      const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+      const isPng =
+        bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+      const isWebP =
+        bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+        bytes.subarray(8, 12).toString("ascii") === "WEBP";
+      const sniffed = isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebP ? "image/webp" : null;
+      if (!sniffed || sniffed !== mime) {
+        return jsonError(res, "File content does not match an allowed image format (jpeg/png/webp).", 400);
+      }
+
+      const email = String(admin.email || ADMIN_EMAIL).toLowerCase();
+      const avatarsCol = db.collection("admin_avatars");
+      const now = new Date();
+      await avatarsCol.updateOne(
+        { _id: email as any },
+        { $set: { email, mime: sniffed, bytes, size: bytes.length, updatedAt: now } },
+        { upsert: true }
+      );
+      await db.collection("admin_activity").insertOne({
+        adminEmail: email,
+        type: "avatar_update",
+        detail: "Profile picture updated",
+        meta: { size: bytes.length, mime: sniffed },
+        createdAt: now,
+      });
+      return jsonOk(res, {
+        success: true,
+        message: "Profile picture updated.",
+        avatar: { has: true, version: now.getTime() },
+      });
+    } catch (err: any) {
+      console.error("POST /api/admin/profile/avatar error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ DELETE /api/admin/profile/avatar ============
+  if (route === "profile/avatar" && req.method === "DELETE") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const email = String(admin.email || ADMIN_EMAIL).toLowerCase();
+      const removed = await db.collection("admin_avatars").deleteOne({ _id: email as any });
+      if (removed.deletedCount > 0) {
+        await db.collection("admin_activity").insertOne({
+          adminEmail: email,
+          type: "avatar_remove",
+          detail: "Profile picture removed",
+          meta: null,
+          createdAt: new Date(),
+        });
+      }
+      return jsonOk(res, {
+        success: true,
+        message: "Profile picture removed.",
+        avatar: { has: false, version: 0 },
+      });
+    } catch (err: any) {
+      console.error("DELETE /api/admin/profile/avatar error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/avatar?email=... ============
+  // PUBLIC image endpoint — serves stored avatar bytes for the admin dashboard
+  // (top bar, sidebar, dropdown, messaging, activity) and customer-facing
+  // support chat. Only ever returns image bytes — no secrets.
+  if (route === "avatar" && req.method === "GET") {
+    const url = new URL(req.url || "", "http://localhost");
+    const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return jsonError(res, "A valid email query parameter is required.", 400);
+    }
+    const doc = await db.collection("admin_avatars").findOne({ _id: email as any });
+    if (!doc || !doc.bytes) {
+      return jsonError(res, "No profile picture found.", 404);
+    }
+    res.setHeader("Content-Type", String(doc.mime || "image/jpeg"));
+    res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.status(200).send(Buffer.from(doc.bytes));
   }
 
   // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============

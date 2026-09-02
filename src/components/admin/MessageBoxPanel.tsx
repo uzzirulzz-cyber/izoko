@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import AdminAvatar from './AdminAvatar'
 import {
   MessageSquare,
   MessagesSquare,
@@ -17,6 +18,8 @@ import {
 interface MessageBoxPanelProps {
   adminStaff: any[]
   adminName: string
+  adminEmail?: string
+  adminRole?: 'admin' | 'staff'
   onToast: (msg: string) => void
 }
 
@@ -50,7 +53,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
  * LIVE SUPPORT tab: every storefront chat, view / read / reply / resolve.
  * STAFF DM tab: direct messages between employee accounts.
  */
-export const MessageBoxPanel: React.FC<MessageBoxPanelProps> = ({ adminStaff, adminName, onToast }) => {
+export const MessageBoxPanel: React.FC<MessageBoxPanelProps> = ({ adminStaff, adminName, adminEmail = '', adminRole = 'admin', onToast }) => {
   const [tab, setTab] = useState<'live' | 'staff'>('live')
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [counts, setCounts] = useState<any>(null)
@@ -539,7 +542,17 @@ export const MessageBoxPanel: React.FC<MessageBoxPanelProps> = ({ adminStaff, ad
                   thread.map((m) => {
                     const mine = m.senderType === 'staff'
                     return (
-                      <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div key={m.id} className={`flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`}>
+                        {mine && (
+                          <AdminAvatar
+                            name={m.senderName || adminName}
+                            email={adminEmail}
+                            color={adminRole === 'staff' ? 'blue' : 'amber'}
+                            size={26}
+                            still
+                            className="mb-1"
+                          />
+                        )}
                         <div
                           className={`max-w-[80%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
                             mine
