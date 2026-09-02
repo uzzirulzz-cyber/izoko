@@ -851,6 +851,7 @@ public class MainActivity extends Activity {
             case "staff": return "Staff Accounts";
             case "backup": return "Restore Points";
             case "androidapp": return "Android App";
+            case "documents": return "Documents & Files";
             case "profile": return "Profile Settings";
             case "analytics": return "Analytics & Traffic";
             case "cms": return "Website Builder CMS";
@@ -1126,6 +1127,7 @@ public class MainActivity extends Activity {
                 {"Analytics & Traffic", "analytics"},
                 {"Website Builder CMS", "cms"},
                 {"Restore Points", "backup"},
+                {"Documents", "documents"},
                 {"Android App", "androidapp"},
                 {"Profile Settings", "profile"},
                 {"Support Inbox", "support"},

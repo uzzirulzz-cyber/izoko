@@ -29,8 +29,13 @@
 //   POST   /api/admin/profile/avatar           (upload cropped profile picture — validated)
 //   DELETE /api/admin/profile/avatar           (remove profile picture)
 //   GET    /api/admin/avatar?email=...         (public avatar image bytes — no secrets)
+//   POST   /api/admin/documents/chunk          (vault upload — one base64 chunk)
+//   POST   /api/admin/documents/finalize       (vault upload — assemble + validate + store)
+//   GET    /api/admin/documents                (vault list + storage stats; ?q=&type=)
+//   GET    /api/admin/documents/:id/download   (vault binary download — admin auth)
+//   DELETE /api/admin/documents/:id            (vault delete — manager+ or uploader)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { ObjectId } from "mongodb";
+import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
 import { formatProduct } from "../_lib/product.js";
 import { slugify } from "../_lib/config.js";
@@ -43,6 +48,7 @@ import {
   requireAuthority,
   requireStaffAuthority,
   normalizeAuthority,
+  hasAuthority,
   verifyAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
@@ -53,6 +59,78 @@ import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from ".
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// =====================================================================
+// Documents vault — shared limits, whitelist and sniffing helpers.
+// Vercel serverless caps request bodies at ~4.5MB, so files are uploaded
+// in 2MB base64 chunks (POST /documents/chunk, ~2.7MB JSON body) and
+// assembled on POST /documents/finalize. Bytes live in the GridFS bucket
+// "admin_documents" (no 16MB document limit); metadata lives in the
+// "admin_documents" collection, staging chunks in "admin_document_chunks".
+// =====================================================================
+const DOC_MAX_BYTES = 50 * 1024 * 1024; // 50MB per file
+const DOC_CHUNK_MAX = 3 * 1024 * 1024; // decoded per-chunk ceiling
+const DOC_ALLOWED_EXT: Record<string, { mime: string; group: string }> = {
+  pdf: { mime: "application/pdf", group: "pdf" },
+  doc: { mime: "application/msword", group: "word" },
+  docx: {
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    group: "word",
+  },
+  xls: { mime: "application/vnd.ms-excel", group: "excel" },
+  xlsx: {
+    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    group: "excel",
+  },
+  ppt: { mime: "application/vnd.ms-powerpoint", group: "slides" },
+  pptx: {
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    group: "slides",
+  },
+  apk: { mime: "application/vnd.android.package-archive", group: "apk" },
+  zip: { mime: "application/zip", group: "archive" },
+  rar: { mime: "application/vnd.rar", group: "archive" },
+  "7z": { mime: "application/x-7z-compressed", group: "archive" },
+  txt: { mime: "text/plain", group: "text" },
+  csv: { mime: "text/csv", group: "text" },
+};
+
+/** BSON Binary → Buffer across driver shapes (legacy wrapper vs Uint8Array). */
+function binaryToBuffer(stored: any): Buffer {
+  if (Buffer.isBuffer(stored)) return stored;
+  if (stored && Buffer.isBuffer(stored.buffer)) {
+    return stored.buffer.subarray(0, stored.position || stored.buffer.length);
+  }
+  if (stored instanceof Uint8Array) return Buffer.from(stored);
+  return Buffer.from(String(stored || ""), "base64");
+}
+
+/** Content sniffing — the declared extension must match the real bytes. */
+function sniffDocument(ext: string, b: Buffer): boolean {
+  if (b.length < 8) return ext === "txt" || ext === "csv";
+  switch (ext) {
+    case "pdf":
+      return b.subarray(0, 5).toString("ascii") === "%PDF-";
+    case "apk":
+    case "zip":
+    case "docx":
+    case "xlsx":
+    case "pptx":
+      return b[0] === 0x50 && b[1] === 0x4b && (b[2] === 3 || b[2] === 5 || b[2] === 7);
+    case "rar":
+      return b.subarray(0, 4).toString("latin1") === "Rar!";
+    case "7z":
+      return (
+        b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf && b[4] === 0x27 && b[5] === 0x1c
+      );
+    case "doc":
+    case "xls":
+    case "ppt":
+      return b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0;
+    default:
+      return true; // txt/csv — plain text carries no magic signature
+  }
 }
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
@@ -1978,6 +2056,272 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (!r) return jsonError(res, "Message not found.", 404);
       return jsonOk(res, { success: true, message: r });
     } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // =====================================================================
+  // DOCUMENTS VAULT — secure admin file storage (PDF / Word / Excel /
+  // PowerPoint / APK / ZIP / RAR / 7Z / TXT / CSV), GridFS-backed.
+  // =====================================================================
+
+  // ============ POST /api/admin/documents/chunk ============
+  // One base64-encoded chunk of an in-progress upload. The client drives
+  // sequencing; the server just stages bytes until finalize.
+  if (route === "documents/chunk" && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const { sessionId, seq, data } = (req.body || {}) as any;
+      if (typeof sessionId !== "string" || !/^[a-zA-Z0-9_-]{8,64}$/.test(sessionId)) {
+        return jsonError(res, "Invalid upload session id.", 400);
+      }
+      const idx = Number(seq);
+      if (!Number.isInteger(idx) || idx < 0 || idx > 2048) {
+        return jsonError(res, "Invalid chunk index.", 400);
+      }
+      if (typeof data !== "string" || data.length === 0) {
+        return jsonError(res, "Missing chunk payload.", 400);
+      }
+      const bytes = Buffer.from(data, "base64");
+      if (bytes.length === 0) return jsonError(res, "Empty chunk payload.", 400);
+      if (bytes.length > DOC_CHUNK_MAX) {
+        return jsonError(res, "Chunk too large (max 3 MB of raw data per chunk).", 413);
+      }
+      const col = db.collection("admin_document_chunks");
+      if (idx === 0) {
+        // first chunk of a session → opportunistic housekeeping: expired
+        // staging chunks (abandoned uploads) and the uniqueness index
+        try {
+          await col.deleteMany({ createdAt: { $lt: new Date(Date.now() - 24 * 3600 * 1000) } });
+          await col.createIndex({ sessionId: 1, seq: 1 }, { unique: true });
+        } catch { /* non-fatal */ }
+      }
+      await col.updateOne(
+        { sessionId, seq: idx },
+        {
+          $set: { bytes, size: bytes.length, updatedAt: new Date() },
+          $setOnInsert: { createdAt: new Date() },
+        },
+        { upsert: true }
+      );
+      return jsonOk(res, { success: true, received: bytes.length });
+    } catch (err: any) {
+      console.error("POST /api/admin/documents/chunk error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/documents/finalize ============
+  // Assembles the staged chunks, validates size + real content type, stores
+  // the bytes in GridFS and creates the vault metadata document.
+  if (route === "documents/finalize" && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const { sessionId, name, size, mime } = (req.body || {}) as any;
+      if (typeof sessionId !== "string" || !/^[a-zA-Z0-9_-]{8,64}$/.test(sessionId)) {
+        return jsonError(res, "Invalid upload session id.", 400);
+      }
+      // sanitize the filename — basename only, no control characters
+      const rawName = String(name || "")
+        .replace(/[\\/]+/g, "_")
+        .replace(/[\x00-\x1f\x7f]/g, "")
+        .trim();
+      const dot = rawName.lastIndexOf(".");
+      const ext = dot >= 0 ? rawName.slice(dot + 1).toLowerCase() : "";
+      const allowed = DOC_ALLOWED_EXT[ext];
+      if (!rawName || !allowed) {
+        return jsonError(
+          res,
+          "Unsupported file type. Allowed: pdf, doc, docx, xls, xlsx, ppt, pptx, apk, zip, rar, 7z, txt, csv.",
+          400
+        );
+      }
+      const safeName = rawName.slice(0, 120);
+      const chunksCol = db.collection("admin_document_chunks");
+      const parts = await chunksCol.find({ sessionId }).sort({ seq: 1 }).toArray();
+      if (parts.length === 0) {
+        return jsonError(res, "Upload session not found — please restart the upload.", 404);
+      }
+      const bytes = Buffer.concat(parts.map((p: any) => binaryToBuffer(p.bytes)));
+      const declared = Number(size);
+      if (Number.isFinite(declared) && declared > 0 && bytes.length !== declared) {
+        await chunksCol.deleteMany({ sessionId });
+        return jsonError(res, "Uploaded size does not match the selected file — upload aborted.", 400);
+      }
+      if (bytes.length > DOC_MAX_BYTES) {
+        await chunksCol.deleteMany({ sessionId });
+        return jsonError(res, "File exceeds the 50 MB vault limit.", 413);
+      }
+      // magic-byte sniffing — never trust the client-declared extension/mime
+      if (!sniffDocument(ext, bytes)) {
+        await chunksCol.deleteMany({ sessionId });
+        return jsonError(res, `File content does not match its .${ext} type.`, 400);
+      }
+      const bucket = new GridFSBucket(db, { bucketName: "admin_documents" });
+      const uploaderEmail = String(admin.email || ADMIN_EMAIL).toLowerCase();
+      const now = new Date();
+      const fileId = await new Promise<ObjectId>((resolve, reject) => {
+        const ws = bucket.openUploadStream(safeName, {
+          metadata: { uploadedBy: uploaderEmail, contentType: allowed.mime },
+        });
+        ws.on("error", reject);
+        ws.on("finish", () => resolve(ws.id as ObjectId));
+        ws.end(bytes);
+      });
+      const meta = {
+        name: safeName,
+        ext,
+        group: allowed.group,
+        mime: typeof mime === "string" && mime ? mime : allowed.mime,
+        size: bytes.length,
+        fileId,
+        uploadedBy: { email: uploaderEmail, name: String(admin.name || "Administrator") },
+        uploadedAt: now,
+        downloads: 0,
+      };
+      const ins = await db.collection("admin_documents").insertOne(meta as any);
+      await chunksCol.deleteMany({ sessionId });
+      await db.collection("admin_activity").insertOne({
+        adminEmail: uploaderEmail,
+        type: "document_upload",
+        detail: `Uploaded document: ${safeName}`,
+        meta: { size: bytes.length, ext },
+        createdAt: now,
+      });
+      return jsonOk(res, {
+        success: true,
+        message: "File uploaded to the vault.",
+        document: {
+          id: ins.insertedId.toString(),
+          name: meta.name,
+          ext: meta.ext,
+          group: meta.group,
+          mime: meta.mime,
+          size: meta.size,
+          uploadedBy: meta.uploadedBy,
+          uploadedAt: now.toISOString(),
+          downloads: 0,
+        },
+      });
+    } catch (err: any) {
+      console.error("POST /api/admin/documents/finalize error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/documents (list + storage stats) ============
+  if (route === "documents" && req.method === "GET") {
+    try {
+      const urlQ = new URL(req.url || "", "http://localhost").searchParams;
+      const q = String(urlQ.get("q") || "").trim();
+      const type = String(urlQ.get("type") || "").trim().toLowerCase();
+      const filter: any = {};
+      if (q) filter.name = { $regex: escapeRegExp(q), $options: "i" };
+      if (type && type !== "all") filter.group = type;
+      const col = db.collection("admin_documents");
+      const [docs, agg] = await Promise.all([
+        col.find(filter).sort({ uploadedAt: -1 }).limit(300).toArray(),
+        col
+          .aggregate([{ $group: { _id: "$group", count: { $sum: 1 }, bytes: { $sum: "$size" } } }])
+          .toArray(),
+      ]);
+      const byGroup: Record<string, { count: number; bytes: number }> = {};
+      let totalBytes = 0;
+      let totalCount = 0;
+      for (const row of agg) {
+        byGroup[String(row._id)] = { count: row.count, bytes: row.bytes };
+        totalBytes += row.bytes;
+        totalCount += row.count;
+      }
+      return jsonOk(res, {
+        success: true,
+        documents: docs.map((d: any) => ({
+          id: d._id.toString(),
+          name: d.name,
+          ext: d.ext,
+          group: d.group,
+          mime: d.mime,
+          size: d.size,
+          uploadedBy: d.uploadedBy,
+          uploadedAt: d.uploadedAt,
+          downloads: d.downloads || 0,
+        })),
+        stats: { count: totalCount, totalBytes, byGroup },
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/documents error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/documents/:id/download ============
+  if (route.startsWith("documents/") && route.endsWith("/download") && req.method === "GET") {
+    try {
+      const id = route.slice("documents/".length, -"/download".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid document id.", 400);
+      const meta = await db.collection("admin_documents").findOne({ _id: new ObjectId(id) });
+      if (!meta) return jsonError(res, "Document not found.", 404);
+      const bucket = new GridFSBucket(db, { bucketName: "admin_documents" });
+      const bytes = await new Promise<Buffer>((resolve, reject) => {
+        const parts: Buffer[] = [];
+        const ds = bucket.openDownloadStream(meta.fileId);
+        ds.on("data", (c: any) => parts.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        ds.on("end", () => resolve(Buffer.concat(parts)));
+        ds.on("error", reject);
+      });
+      await db
+        .collection("admin_documents")
+        .updateOne({ _id: meta._id }, { $inc: { downloads: 1 }, $set: { lastDownloadAt: new Date() } });
+      const asciiName = String(meta.name || "document").replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
+      const utf8Name = encodeURIComponent(String(meta.name || "document"));
+      res.writeHead(200, {
+        "Content-Type": String(meta.mime || "application/octet-stream"),
+        "Content-Length": String(bytes.length),
+        "Content-Disposition": `attachment; filename="${asciiName}"; filename*=UTF-8''${utf8Name}`,
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      });
+      res.end(bytes);
+      return;
+    } catch (err: any) {
+      console.error("GET /api/admin/documents/:id/download error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ DELETE /api/admin/documents/:id ============
+  if (route.startsWith("documents/") && req.method === "DELETE" && !route.endsWith("/download")) {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const id = route.slice("documents/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid document id.", 400);
+      const meta = await db.collection("admin_documents").findOne({ _id: new ObjectId(id) });
+      if (!meta) return jsonError(res, "Document not found.", 404);
+      // manager authority or the original uploader may delete
+      const isMgr = hasAuthority(admin, "manager");
+      const isOwner =
+        String(meta.uploadedBy?.email || "") === String(admin.email || "").toLowerCase();
+      if (!isMgr && !isOwner) {
+        return jsonError(res, "Only managers (or the uploader) can delete vault files.", 403);
+      }
+      const bucket = new GridFSBucket(db, { bucketName: "admin_documents" });
+      try {
+        await bucket.delete(meta.fileId);
+      } catch { /* GridFS file already gone — metadata cleanup still applies */ }
+      await db.collection("admin_documents").deleteOne({ _id: meta._id });
+      await db.collection("admin_activity").insertOne({
+        adminEmail: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        type: "document_delete",
+        detail: `Deleted document: ${meta.name}`,
+        meta: { size: meta.size, ext: meta.ext },
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, message: "Document deleted from the vault." });
+    } catch (err: any) {
+      console.error("DELETE /api/admin/documents/:id error:", err);
       return jsonError(res, err.message, 500);
     }
   }

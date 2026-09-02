@@ -59,6 +59,7 @@ import {
   KeyRound,
   History,
   Percent,
+  Folder,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -71,6 +72,7 @@ import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { AndroidAppPanel } from './admin/AndroidAppPanel'
+import { DocumentsPanel } from './admin/DocumentsPanel'
 import AdminAvatar from './admin/AdminAvatar'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
 import { SystemHealthPanel } from './admin/SystemHealthPanel'
@@ -188,7 +190,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
-      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile',
+      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile', 'documents',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -1028,6 +1030,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <Key className="w-4 h-4 text-amber-400" />
                     {!sidebarCollapsed && <span>Digital License Vault</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('documents')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'documents' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'documents'
+                        ? ({ '--nav-a': '#67e8f9', '--nav-bg': 'rgba(34,211,238,0.09)', '--nav-edge': 'rgba(34,211,238,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <Folder className="w-4 h-4 text-cyan-400" />
+                    {!sidebarCollapsed && <span>Documents &amp; Files</span>}
                   </button>
 
                   <button
@@ -3094,6 +3111,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {activeNav === 'androidapp' && (
               <AndroidAppPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
             )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: DOCUMENTS & FILES — secure vault for PDF/Word/Excel/APK/ZIP        */}
+            {/* ========================================================================= */}
+            {activeNav === 'documents' && <DocumentsPanel onToast={triggerToast} />}
 
             {/* ========================================================================= */}
             {/* PANEL: WEBSITE BUILDER CMS — real editor backed by site_settings */}
