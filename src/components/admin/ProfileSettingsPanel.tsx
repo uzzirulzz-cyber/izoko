@@ -286,12 +286,12 @@ export const ProfileSettingsPanel: React.FC<ProfileSettingsPanelProps> = ({
           if (p.avatar) {
             setHasAvatar(Boolean(p.avatar.has))
             setAvatarVersion(p.avatar.version || 0)
-            // Adopt a version uploaded from another device / earlier session
+            // Server is the source of truth — adopt its version exactly so the
+            // cache-buster stays correct after uploads AND after removals
+            // (previously stale high versions survived a removal and could
+            // resurrect an old cached image URL).
             try {
-              const stored = parseInt(localStorage.getItem(`pb_avatar_v_${myEmail}`) || '0', 10) || 0
-              if ((p.avatar.version || 0) > stored) {
-                localStorage.setItem(`pb_avatar_v_${myEmail}`, String(p.avatar.version || 0))
-              }
+              localStorage.setItem(`pb_avatar_v_${myEmail}`, String(p.avatar.version || 0))
             } catch {
               /* storage unavailable */
             }

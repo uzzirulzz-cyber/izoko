@@ -1605,7 +1605,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     // reliably transmit binary bodies in this runtime.
     res.writeHead(200, {
       "Content-Type": String(doc.mime || "image/jpeg"),
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      // no-store: an uploaded picture must be visible immediately everywhere,
+      // and a REMOVED picture must never be resurrected from browser cache
+      // (avatars are tiny — correctness beats caching here).
+      "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
       "Content-Length": String(bytes.length),
     });

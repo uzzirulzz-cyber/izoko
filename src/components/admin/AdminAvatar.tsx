@@ -6,9 +6,12 @@ import React, { useEffect, useState } from 'react'
  * messaging, notifications, activity logs) and support surfaces.
  *
  * - Renders the uploaded profile picture via /api/admin/avatar?email=…&v=…
- * - Falls back to a colored initials disc when no image exists (404)
- * - Cache-safe: version persisted in localStorage per email; every mounted
- *   avatar refreshes instantly when `bumpAvatarVersion()` fires after upload.
+ * - Server-probed: the image is attempted whenever an email is present —
+ *   a 404 falls back to the colored initials disc. The avatar is therefore
+ *   visible on ANY device/session, even if localStorage has never seen it.
+ * - Cache-safe: version persisted in localStorage per email as a cache-buster;
+ *   every mounted avatar refreshes instantly when `bumpAvatarVersion()` fires
+ *   after an upload (version > 0) or a remove (version 0 → initials at once).
  */
 
 const AVATAR_BG: Record<string, string> = {
@@ -31,6 +34,11 @@ const AVATAR_GLOW: Record<string, string> = {
 
 const AVATAR_EVENT = 'pb-avatar-changed'
 
+/** Session-scoped memory of emails confirmed to have NO avatar on the server.
+ *  Prevents one 404 probe per mounted avatar on every dashboard visit.
+ *  Cleared per-email whenever a bump event reports a new picture. */
+const NO_AVATAR_SEEN = new Set<string>()
+
 /** Persist a new avatar version and refresh every mounted AdminAvatar live. */
 export function bumpAvatarVersion(email: string, version: number) {
   if (!email) return
@@ -40,7 +48,9 @@ export function bumpAvatarVersion(email: string, version: number) {
     /* storage unavailable */
   }
   try {
-    window.dispatchEvent(new CustomEvent(AVATAR_EVENT, { detail: { email: email.toLowerCase() } }))
+    window.dispatchEvent(
+      new CustomEvent(AVATAR_EVENT, { detail: { email: email.toLowerCase(), version: version || 0 } })
+    )
   } catch {
     /* events unsupported */
   }
@@ -87,11 +97,13 @@ export const AdminAvatar: React.FC<AdminAvatarProps> = ({
 }) => {
   const [version, setVersion] = useState(() => readVersion(email || ''))
   const [imgOk, setImgOk] = useState(true)
+  const [noAvatar, setNoAvatar] = useState(() => NO_AVATAR_SEEN.has(email || ''))
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     setVersion(readVersion(email || ''))
     setImgOk(true)
+    setNoAvatar(NO_AVATAR_SEEN.has(email || ''))
     setLoaded(false)
   }, [email])
 
@@ -100,9 +112,19 @@ export const AdminAvatar: React.FC<AdminAvatarProps> = ({
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.email === email.toLowerCase()) {
-        setVersion(readVersion(email))
-        setImgOk(true)
-        setLoaded(false)
+        if (detail.version === 0) {
+          // Picture removed — restore initials instantly, no refetch needed
+          NO_AVATAR_SEEN.add(email.toLowerCase())
+          setNoAvatar(true)
+          setVersion(0)
+        } else {
+          // New/updated picture — probe the server right away
+          NO_AVATAR_SEEN.delete(email.toLowerCase())
+          setNoAvatar(false)
+          setImgOk(true)
+          setVersion(readVersion(email))
+          setLoaded(false)
+        }
       }
     }
     window.addEventListener(AVATAR_EVENT, handler)
@@ -111,7 +133,9 @@ export const AdminAvatar: React.FC<AdminAvatarProps> = ({
 
   const bg = AVATAR_BG[color] || AVATAR_BG.amber
   const glow = AVATAR_GLOW[color] || AVATAR_GLOW.amber
-  const hasImage = Boolean(email) && imgOk && version > 0
+  // Server probe: attempt the image whenever an email exists. A 404 response
+  // (no picture stored) flips imgOk/noAvatar so the initials disc takes over.
+  const hasImage = Boolean(email) && imgOk && !noAvatar
   const fontSize = Math.max(9, Math.round(size * (initialsOf(name).length > 1 ? 0.34 : 0.42)))
 
   return (
@@ -126,10 +150,14 @@ export const AdminAvatar: React.FC<AdminAvatarProps> = ({
       />
       {hasImage ? (
         <img
-          src={`/api/admin/avatar?email=${encodeURIComponent(email || '')}&v=${version}`}
+          src={`/api/admin/avatar?email=${encodeURIComponent(email || '')}&v=${version || 'probe'}`}
           alt={name || 'Admin avatar'}
           onLoad={() => setLoaded(true)}
-          onError={() => setImgOk(false)}
+          onError={() => {
+            setImgOk(false)
+            setNoAvatar(true)
+            NO_AVATAR_SEEN.add((email || '').toLowerCase())
+          }}
           className={`absolute inset-0 w-full h-full rounded-full object-cover ${glow} ${
             loaded ? 'opacity-100' : 'opacity-0'
           } transition-opacity duration-300`}

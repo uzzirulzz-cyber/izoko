@@ -19,7 +19,6 @@ import { AdminLogin } from './components/AdminLogin'
 import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
 import { NotFound } from './components/NotFound'
-import { BrowseNow } from './components/BrowseNow'
 import { LiveSupportWidget } from './components/LiveSupportWidget'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
@@ -1220,52 +1219,6 @@ export function App() {
                 el?.scrollIntoView({ behavior: 'smooth' })
               }}
               onExploreSubscriptions={() => setSelectedCategory('Subscriptions')}
-            />
-          )}
-
-          {/* Browse Now — discovery hub: quick nav, search, categories,
-              curated collections, comparison tool and support links */}
-          {selectedCategory === 'all' && !searchQuery && (
-            <BrowseNow
-              user={user}
-              onNavigate={(path) => {
-                if (path === '/') {
-                  navigate('storefront')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                  return
-                }
-                const slug = path.replace(/^\//, '')
-                if (
-                  POLICY_ROUTES.includes(slug as Route) ||
-                  CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
-                  SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
-                ) {
-                  navigate(slug as Route)
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                } else {
-                  navigatePath(path)
-                }
-              }}
-              onSelectCategory={handleSelectCategory}
-              onOpenAuth={() => setIsAuthOpen(true)}
-              onFocusSearch={() => {
-                // Focus whichever search input is visible (desktop inline or mobile row)
-                const desktop = document.getElementById('header-search-input')
-                const mobile = document.getElementById('header-search-input-mobile')
-                if (desktop && desktop.offsetParent !== null) {
-                  desktop.focus()
-                } else {
-                  mobile?.focus()
-                  mobile?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                }
-              }}
-              onOpenOffers={() => {
-                setSortBy('discount')
-                setSelectedCategory('all')
-                setSearchQuery('')
-                document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
-                showToast('Showing the biggest discounts first — Offers')
-              }}
             />
           )}
 
