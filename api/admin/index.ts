@@ -57,7 +57,6 @@ function escapeRegExp(s: string): string {
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
-  if (!requireAdmin(req, res)) return;
 
   // Extract sub-path from req.url (Vercel rewrites /api/auth/:path* → /api/auth)
   // So we parse the ORIGINAL path from req.url to get the sub-route
@@ -66,6 +65,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // Drop the first 2 segments ("api", "auth" or "products" etc.)
   const pathSegments = parts.slice(2);
   const route = pathSegments.join("/").toLowerCase();
+
+  // PUBLIC: avatar image bytes — <img> tags cannot send Authorization headers,
+  // so this single read-only route is exempt from the admin gate. It only ever
+  // returns stored image bytes — no secrets, no user data beyond the picture.
+  const isPublicAvatarGet = route === "avatar" && req.method === "GET";
+  if (!isPublicAvatarGet && !requireAdmin(req, res)) return;
+
   const db = await getDb();
 
   // ============ GET /api/admin/stats ============
