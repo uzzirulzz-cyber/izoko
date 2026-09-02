@@ -1582,10 +1582,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     if (!doc || !doc.bytes) {
       return jsonError(res, "No profile picture found.", 404);
     }
+    // The driver stores Node Buffers as BSON Binary (a Uint8Array subclass) —
+    // convert back to a real Buffer, otherwise the body sends as empty.
+    const stored: any = doc.bytes;
+    const bytes: Buffer = Buffer.isBuffer(stored) ? stored : Buffer.from(stored as Uint8Array);
     res.setHeader("Content-Type", String(doc.mime || "image/jpeg"));
     res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    return res.status(200).send(Buffer.from(doc.bytes));
+    return res.status(200).send(bytes);
   }
 
   // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============
