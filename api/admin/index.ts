@@ -1587,7 +1587,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const stored: any = doc.bytes;
     const bytes: Buffer = Buffer.isBuffer(stored) ? stored : Buffer.from(stored as Uint8Array);
     if (!bytes || bytes.length === 0) {
-      return jsonError(res, "Stored picture is empty — please re-upload.", 500);
+      const dbg = JSON.stringify({
+        kind: stored?.constructor?.name ?? typeof stored,
+        length: stored?.length,
+        byteLength: stored?.byteLength,
+        position: stored?.position,
+        keys: stored && typeof stored === "object" ? Object.keys(stored).slice(0, 6) : null,
+      });
+      return jsonError(res, `Stored picture unreadable — debug: ${dbg}`, 500);
     }
     // Use the raw Node response API — the VercelResponse.send() helper does not
     // reliably transmit binary bodies in this runtime.
