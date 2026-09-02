@@ -82,7 +82,7 @@ export const BrowseNow: React.FC<BrowseNowProps> = ({
 }) => {
   const quickNav = [
     { label: 'PlayBeat Home', path: '/', icon: <Home className="w-4 h-4" />, action: () => { onSelectCategory('all'); onNavigate('/') } },
-    { label: 'Products', path: '/products', icon: <Package className="w-4 h-4" />, action: () => onSelectCategory('all') },
+    { label: 'Products', path: '/products', icon: <Package className="w-4 h-4" />, action: () => { onSelectCategory('all'); document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' }) } },
     { label: 'Subscriptions', path: '/subscriptions', icon: <Repeat className="w-4 h-4" />, action: () => onSelectCategory('Subscriptions') },
     { label: 'Categories', path: '/#categories', icon: <LayoutGrid className="w-4 h-4" />, action: () => { document.getElementById('browse-categories')?.scrollIntoView({ behavior: 'smooth' }) } },
     { label: 'Offers', path: '/offers', icon: <BadgePercent className="w-4 h-4" />, action: onOpenOffers },

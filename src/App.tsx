@@ -17,11 +17,13 @@ import { AdminInsightsView } from './components/AdminInsightsView'
 import { AdminLogin } from './components/AdminLogin'
 import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
+import { NotFound } from './components/NotFound'
 import { BrowseNow } from './components/BrowseNow'
 import { LiveSupportWidget } from './components/LiveSupportWidget'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { applyRouteSeo } from './lib/seo'
+import { applyProductJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
@@ -47,6 +49,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   contact: SEO_PRESETS.contact,
   admin: SEO_PRESETS.admin,
   'admin-login': SEO_PRESETS['admin-login'],
+  notfound: SEO_PRESETS.notfound,
 }
 import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
 
@@ -127,6 +130,7 @@ type Route =
   | 'windows-office'
   | 'creative-software'
   | 'compare'
+  | 'notfound'
 
 const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
 
@@ -207,17 +211,24 @@ function parseRoute(): Route {
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
+  // Legacy deep-link rewrites kept from vercel.json (product/category pages are
+  // rendered by the storefront catalog + quick-view modal)
+  if (path.startsWith('product/') || path.startsWith('category/')) return 'storefront'
   // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
   if (hash.startsWith('admin')) return 'admin'
-  return 'storefront'
+  // Unknown URL → dedicated 404 page (previously fell back to the homepage,
+  // which is exactly the SPA-fallback issue the audit flagged)
+  return 'notfound'
 }
 
 function routeToPath(route: Route): string {
   if (route === 'admin') return '/admin'
   if (route === 'admin-login') return '/admin/login'
   if (route === 'storefront') return '/'
+  // 404 keeps the original (unknown) URL in the address bar — never rewrite it
+  if (route === 'notfound') return window.location.pathname || '/404'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
   if (CATEGORY_ROUTE_KEYS.includes(route)) return `/${route}`
   if (SUBCATEGORY_ROUTE_KEYS.includes(route)) return `/${route}`
@@ -534,6 +545,25 @@ export function App() {
 
   // Modals & Drawers
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null)
+
+  // Product structured data — inject/remove JSON-LD as the quick-view modal
+  // opens and closes so crawlers see accurate product + offer info (audit §11)
+  useEffect(() => {
+    if (quickViewProduct) {
+      applyProductJsonLd({
+        name: quickViewProduct.name,
+        description: quickViewProduct.description,
+        image: quickViewProduct.image,
+        price: quickViewProduct.price,
+        currency: (quickViewProduct as any).currency,
+        inStock: (quickViewProduct as any).stock !== 0,
+        sku: quickViewProduct.sku,
+      })
+    } else {
+      applyProductJsonLd(null)
+    }
+  }, [quickViewProduct])
+
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isWishlistOpen, setIsWishlistOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
@@ -1023,6 +1053,38 @@ export function App() {
         <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
       )}
 
+      {/* DEDICATED 404 — any URL that doesn't match a known route */}
+      {route === 'notfound' && (
+        <NotFound
+          onNavigate={(path) => {
+            if (path === '/') {
+              navigate('storefront')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            } else {
+              const slug = path.replace(/^\//, '')
+              if (
+                POLICY_ROUTES.includes(slug as Route) ||
+                CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+                SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+              ) {
+                navigate(slug as Route)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              } else {
+                navigatePath(path)
+              }
+            }
+          }}
+          onShopProducts={() => {
+            navigate('storefront', true)
+            setSelectedCategory('all')
+            setSearchQuery('')
+            setTimeout(() => {
+              document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+            }, 80)
+          }}
+        />
+      )}
+
       {/* COMPARE PAGE — dedicated projector comparison (not on main storefront) */}
       {route === 'compare' && (
         <div className="min-h-screen bg-[#050814] text-slate-100 font-sans">
@@ -1186,7 +1248,15 @@ export function App() {
               onSelectCategory={handleSelectCategory}
               onOpenAuth={() => setIsAuthOpen(true)}
               onFocusSearch={() => {
-                document.getElementById('header-search-input')?.focus()
+                // Focus whichever search input is visible (desktop inline or mobile row)
+                const desktop = document.getElementById('header-search-input')
+                const mobile = document.getElementById('header-search-input-mobile')
+                if (desktop && desktop.offsetParent !== null) {
+                  desktop.focus()
+                } else {
+                  mobile?.focus()
+                  mobile?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                }
               }}
               onOpenOffers={() => {
                 setSortBy('discount')

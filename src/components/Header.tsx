@@ -20,6 +20,10 @@ import {
   FolderOpen,
   Sparkles,
   GitCompareArrows,
+  Menu,
+  Home,
+  BadgePercent,
+  Mail,
 } from 'lucide-react'
 import { CurrencyCode } from '../types'
 import { CURRENCY_META, SUPPORTED_CURRENCIES, formatPrice } from '../lib/currency'
@@ -89,11 +93,13 @@ export const Header: React.FC<HeaderProps> = ({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const profileDropdownRef = useRef<HTMLDivElement>(null)
   const currencyDropdownRef = useRef<HTMLDivElement>(null)
   const categoriesDropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   // Keyboard shortcut '/' to focus search
   useEffect(() => {
@@ -128,10 +134,21 @@ export const Header: React.FC<HeaderProps> = ({
       ) {
         setCategoriesDropdownOpen(false)
       }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target as Node)
+      ) {
+        setMobileMenuOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Close the mobile menu when the category selection or search changes
+  useEffect(() => {
+    setMobileMenuOpen(false)
+  }, [selectedCategory, searchQuery])
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-2xl bg-[#060B1E]/95 border-b border-slate-400/10 shadow-2xl transition-all">
@@ -292,17 +309,29 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Actions: Currency, Cart, Sign Up, Profile Dropdown */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
+          {/* Mobile menu toggle (below lg — the desktop nav is hidden) */}
+          <button
+            id="header-mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 rounded-xl bg-[#0B1536] border border-slate-400/15 hover:border-yellow-400/40 text-slate-300 hover:text-white transition"
+            title="Menu"
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
+
           {/* Currency Switcher */}
           <div className="relative" ref={currencyDropdownRef}>
             <button
               id="header-currency-btn"
               onClick={() => setCurrencyDropdownOpen(!currencyDropdownOpen)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#0B1536] border border-slate-400/15 text-slate-200 text-xs font-mono transition"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#0B1536] border border-slate-400/15 text-slate-200 text-xs font-mono transition"
             >
               <span>{CURRENCY_META[selectedCurrency]?.flag}</span>
-              <span>{selectedCurrency}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <span className="hidden sm:inline">{selectedCurrency}</span>
+              <ChevronDown className="hidden sm:inline w-3 h-3 text-slate-400" />
             </button>
 
             {currencyDropdownOpen && (
@@ -343,8 +372,9 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </button>
 
-          {/* Sign Up Button (With Water-Glow Hover State from Screenshot 2) */}
-          <div className="relative group">
+          {/* Sign Up Button — desktop/tablet only; on phones the profile
+              button opens the same auth flow, keeping the bar within viewport */}
+          <div className="relative group hidden sm:block">
             <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 rounded-full blur-md opacity-0 group-hover:opacity-90 transition duration-300 pointer-events-none"></div>
             <button
               id="header-signup-btn"
@@ -376,8 +406,6 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
-
-            {/* Profile Dropdown Menu (Exact 7 items from Screenshot 2) */}
             {profileDropdownOpen && user && (
               <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-[#091330] border border-slate-400/20 shadow-2xl backdrop-blur-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-4 py-2 border-b border-slate-400/10 mb-1">
@@ -477,6 +505,136 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Row — always-visible compact search below the main bar
+          (the desktop inline search is hidden below sm). This also gives the
+          Browse Now search trigger a real target on phones. */}
+      <div className="sm:hidden px-4 pb-3">
+        <div
+          className={`flex items-center rounded-2xl bg-[#091330]/90 border transition-all duration-300 ${
+            searchFocused
+              ? 'border-yellow-400/70 ring-2 ring-yellow-400/20'
+              : 'border-slate-400/15'
+          }`}
+        >
+          <Search className="w-4 h-4 ml-3.5 text-slate-400 shrink-0" />
+          <input
+            id="header-search-input-mobile"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            placeholder="Search products…"
+            className="w-full bg-transparent px-3 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="p-1.5 mr-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition"
+              aria-label="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Navigation Menu — full nav tree for phone/tablet widths
+          where the desktop nav links are hidden (audit §2/§12) */}
+      {mobileMenuOpen && (
+        <div
+          ref={mobileMenuRef}
+          id="header-mobile-menu"
+          className="lg:hidden absolute top-full left-0 right-0 max-h-[calc(100vh-64px)] overflow-y-auto bg-[#060B1E]/98 backdrop-blur-2xl border-b border-slate-400/15 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-150"
+        >
+          <div className="px-4 py-4 space-y-1">
+            {[
+              { label: 'Home', icon: <Home className="w-4 h-4" />, action: onNavigateHome, active: selectedCategory === 'all' && !searchQuery },
+              { label: 'Products', icon: <ShoppingBag className="w-4 h-4" />, action: () => onSelectCategory('all'), active: selectedCategory === 'all' && !!searchQuery },
+              { label: 'Subscriptions', icon: <Repeat className="w-4 h-4" />, action: () => onSelectCategory('Subscriptions'), active: selectedCategory === 'Subscriptions' },
+              { label: 'Offers', icon: <BadgePercent className="w-4 h-4" />, action: onOpenOffers, active: false },
+              { label: 'Support / Contact', icon: <Mail className="w-4 h-4" />, action: () => onNavigate('/contact'), active: false },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  item.action()
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition ${
+                  item.active
+                    ? 'bg-yellow-400/10 text-yellow-300 border border-yellow-400/25'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+
+            <div className="pt-3 pb-1 px-1 text-[10px] font-mono uppercase tracking-wider text-amber-300/90 font-semibold">
+              Categories
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {NAV_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.path}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    onNavigate(cat.path)
+                  }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/10 text-xs text-slate-300 hover:text-white hover:border-amber-400/40 transition text-left"
+                >
+                  <cat.icon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-3 pb-1 px-1 text-[10px] font-mono uppercase tracking-wider text-cyan-300/90 font-semibold">
+              Collections
+            </div>
+            <div className="grid grid-cols-1 gap-1.5">
+              {NAV_SUBCATEGORIES.map((sub) => (
+                <button
+                  key={sub.path}
+                  onClick={() => {
+                    setMobileMenuOpen(false)
+                    onNavigate(sub.path)
+                  }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/10 text-xs text-slate-300 hover:text-white hover:border-cyan-400/40 transition text-left"
+                >
+                  <sub.icon className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  {sub.name}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  onNavigate('/compare')
+                }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/10 text-xs text-cyan-300 hover:text-cyan-200 hover:border-cyan-400/40 transition text-left"
+              >
+                <GitCompareArrows className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                Projector Comparison
+              </button>
+            </div>
+
+            {!user && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  onOpenAuth()
+                }}
+                className="w-full mt-3 py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-sm shadow-lg transition"
+              >
+                Sign Up / Sign In
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }

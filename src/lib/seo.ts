@@ -38,6 +38,75 @@ function upsertCanonical(path: string) {
   el.href = `${SITE}${path}`
 }
 
+// BreadcrumbList structured data — written on every non-home indexed route so
+// crawlers see the Home → Page hierarchy (audit §11).
+function upsertBreadcrumbJsonLd(path: string, name: string) {
+  if (path === '/') return
+  const id = 'breadcrumb-jsonld'
+  let el = document.getElementById(id) as HTMLScriptElement | null
+  if (!el) {
+    el = document.createElement('script')
+    el.id = id
+    el.type = 'application/ld+json'
+    document.head.appendChild(el)
+  }
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
+      { '@type': 'ListItem', position: 2, name, item: `${SITE}${path}` },
+    ],
+  }
+  el.textContent = JSON.stringify(data)
+}
+
+/**
+ * Product structured data for the quick-view modal — injected when a product
+ * modal opens, removed when it closes, so crawlers that render JS can pick up
+ * name/image/price/availability for the currently viewed product.
+ */
+export function applyProductJsonLd(product: {
+  name: string
+  description?: string
+  image?: string
+  price: number
+  currency?: string
+  inStock?: boolean
+  sku?: string
+} | null) {
+  const id = 'product-jsonld'
+  let el = document.getElementById(id) as HTMLScriptElement | null
+  if (!product) {
+    el?.remove()
+    return
+  }
+  if (!el) {
+    el = document.createElement('script')
+    el.id = id
+    el.type = 'application/ld+json'
+    document.head.appendChild(el)
+  }
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description || `${product.name} — instant delivery from PlayBeat Digital.`,
+    image: product.image ? (product.image.startsWith('http') ? product.image : `${SITE}${product.image}`) : undefined,
+    sku: product.sku,
+    brand: { '@type': 'Brand', name: 'PlayBeat Digital' },
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE}/`,
+      priceCurrency: product.currency || 'PKR',
+      price: String(product.price),
+      availability: product.inStock === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      seller: { '@id': `${SITE}/#organization` },
+    },
+  }
+  el.textContent = JSON.stringify(data)
+}
+
 function upsertJsonLd(path: string, name: string, description: string) {
   const id = 'route-jsonld'
   let el = document.getElementById(id) as HTMLScriptElement | null
@@ -61,7 +130,13 @@ function upsertJsonLd(path: string, name: string, description: string) {
 
 /** Apply per-route metadata. Call inside a useEffect keyed on the route. */
 export function applyRouteSeo(seo: RouteSeo) {
-  const title = seo.noindex ? `Admin — PlayBeat Digital` : `${seo.title} | PlayBeat Digital`
+  // Noindex routes keep their own explicit title (e.g. "Page Not Found",
+  // "Admin — PlayBeat Digital"); indexed routes get the brand suffix.
+  const title = seo.noindex
+    ? seo.title.includes('PlayBeat') || seo.title === 'Page Not Found (404)'
+      ? seo.title
+      : `${seo.title} — PlayBeat Digital`
+    : `${seo.title} | PlayBeat Digital`
   const desc = seo.description || DEFAULT_DESC
   const image = seo.image ? `${SITE}${seo.image}` : DEFAULT_IMAGE
 
@@ -76,7 +151,9 @@ export function applyRouteSeo(seo: RouteSeo) {
       : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1'
   )
 
-  upsertCanonical(seo.noindex ? '/admin' : seo.path)
+  // Canonical always reflects the route's own path (admin presets carry
+  // /admin paths; the 404 preset carries /404)
+  upsertCanonical(seo.path)
 
   upsertMeta('property', 'og:title', title)
   upsertMeta('property', 'og:description', desc)
@@ -89,7 +166,13 @@ export function applyRouteSeo(seo: RouteSeo) {
   upsertMeta('name', 'twitter:description', desc)
   upsertMeta('name', 'twitter:image', image)
 
-  if (!seo.noindex) upsertJsonLd(seo.path, seo.title, desc)
+  if (!seo.noindex) {
+    upsertJsonLd(seo.path, seo.title, desc)
+    upsertBreadcrumbJsonLd(seo.path, seo.title)
+  } else {
+    document.getElementById('route-jsonld')?.remove()
+    document.getElementById('breadcrumb-jsonld')?.remove()
+  }
 }
 
 // ---- Catalog-wide SEO presets -------------------------------------------
@@ -210,6 +293,12 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
       'Reach the PlayBeat team: live chat, email, WhatsApp, phone and office address — support within 2-4 hours.',
     path: '/contact',
   },
-  admin: { title: 'Admin', description: '', path: '/admin', noindex: true },
-  'admin-login': { title: 'Admin', description: '', path: '/admin/login', noindex: true },
+  admin: { title: 'Admin — PlayBeat Digital', description: '', path: '/admin', noindex: true },
+  'admin-login': { title: 'Admin — PlayBeat Digital', description: '', path: '/admin/login', noindex: true },
+  notfound: {
+    title: 'Page Not Found (404)',
+    description: 'The page you are looking for does not exist.',
+    path: '/404',
+    noindex: true,
+  },
 }

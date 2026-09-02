@@ -58,7 +58,48 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const finalCustomerEmail = customerEmail || authedUser.email || "customer@playbeat.digital";
       const orderNumber = `PB-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
-      const processedItems = items.map((item: any) => {
+      // ---- Server-side price verification (audit §14: never trust the browser) ----
+      // Recompute each line's unit price from the products collection when the
+      // product exists in the database; fall back to the client price only for
+      // items that are not in the DB. The order total is ALWAYS recomputed
+      // server-side — the client-sent totalAmount is ignored.
+      const productsCol = db.collection("products");
+      const priceLookups = await Promise.all(
+        items.map(async (item: any) => {
+          const pid = item.product?._id || item.product?.id;
+          let dbPrice: number | null = null;
+          if (pid) {
+            let doc: any = null;
+            try {
+              if (/^[0-9a-fA-F]{24}$/.test(String(pid))) {
+                doc = await productsCol.findOne({ _id: new ObjectId(String(pid)) });
+              }
+              if (!doc) doc = await productsCol.findOne({ id: String(pid) });
+            } catch {
+              /* lookup failure → fall back to client price below */
+            }
+            if (doc) {
+              dbPrice = typeof doc.price === "number" ? doc.price : Number(doc.price) || null;
+              // Variant price override: match the selected variant by name/id
+              if (
+                item.selectedVariant &&
+                Array.isArray(doc.variants) &&
+                doc.variants.length > 0
+              ) {
+                const v = doc.variants.find(
+                  (x: any) =>
+                    (item.selectedVariant.id && x.id === item.selectedVariant.id) ||
+                    (item.selectedVariant.name && x.name === item.selectedVariant.name)
+                );
+                if (v && typeof v.price === "number") dbPrice = v.price;
+              }
+            }
+          }
+          return { item, dbPrice };
+        })
+      );
+
+      const processedItems = priceLookups.map(({ item, dbPrice }: any) => {
         const isDigital = item.product?.digital !== false;
         const generatedKeys = isDigital
           ? Array.from({ length: item.quantity || 1 }).map(
@@ -66,17 +107,30 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
                 `PB-${item.product?.sku || "KEY"}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
             )
           : [];
+        const unitPrice =
+          dbPrice != null
+            ? dbPrice // verified server-side
+            : Number(item.unitPrice) || Number(item.product?.price) || 0;
         return {
           id: item.product?.id || `item-${Date.now()}`,
           productId: item.product?.id || item.product?._id,
           name: item.product?.name || "PlayBeat Product",
-          price: item.unitPrice || item.product?.price || 0,
+          price: unitPrice,
+          clientPrice: Number(item.unitPrice) || 0,
+          priceVerified: dbPrice != null,
           quantity: item.quantity || 1,
           variantName: item.selectedVariant?.name,
           licenseKeys: generatedKeys,
           deliveryType: item.product?.deliveryType || (isDigital ? "Instant Auto-Email" : "Courier Shipping"),
         };
       });
+
+      const verifiedTotal = Number(
+        processedItems.reduce(
+          (sum: number, i: any) => sum + i.price * (i.quantity || 1),
+          0
+        ).toFixed(2)
+      );
 
       const allKeys = processedItems.flatMap((i: any) => i.licenseKeys);
       const orderDoc = {
@@ -85,7 +139,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         customerName: finalCustomerName,
         customerEmail: finalCustomerEmail,
         items: processedItems,
-        totalAmount: Number(totalAmount) || 0,
+        // Server-recomputed total (client totalAmount kept only for reference)
+        totalAmount: verifiedTotal,
+        clientTotalAmount: Number(totalAmount) || 0,
         currency,
         status: "completed",
         paymentMethod,

@@ -10,7 +10,7 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 // Environment & Config
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
@@ -220,7 +220,7 @@ async function startServer() {
   // ==========================================
   const mountServerless = async () => {
     try {
-      const [{ default: authApi }, { default: productsApi }, { default: adminApi }, { default: ordersApi }, { default: mongodbApi }, { default: analyticsApi }, { default: cmsApi }] =
+      const [{ default: authApi }, { default: productsApi }, { default: adminApi }, { default: ordersApi }, { default: mongodbApi }, { default: analyticsApi }, { default: cmsApi }, { default: paymentsApi }] =
         await Promise.all([
           import("./api/auth/index.js"),
           import("./api/products/index.js"),
@@ -229,6 +229,7 @@ async function startServer() {
           import("./api/mongodb/index.js"),
           import("./api/analytics/index.js"),
           import("./api/cms/index.js"),
+          import("./api/payments/index.js"),
         ]);
       const adapt =
         (fn: any) => async (req: any, res: any) => {
@@ -245,6 +246,12 @@ async function startServer() {
       app.all("/api/admin/:path*", adapt(adminApi));
       app.all("/api/admin", adapt(adminApi));
       app.all("/api/orders/:path*", adapt(ordersApi));
+      // Bare /api/orders → shared serverless handler (price-verified order
+      // creation). Registered BEFORE the legacy inline handler below so dev
+      // behaves identically to the Vercel serverless function.
+      app.all("/api/orders", adapt(ordersApi));
+      app.all("/api/payments/:path*", adapt(paymentsApi));
+      app.all("/api/payments", adapt(paymentsApi));
       app.all("/api/mongodb/:path*", adapt(mongodbApi));
       app.all("/api/mongodb", adapt(mongodbApi));
       app.all("/api/analytics/:path*", adapt(analyticsApi));
@@ -1236,7 +1243,42 @@ Sitemap: ${PUBLIC_SITE_URL}/sitemap.xml
   // ==========================================
   // 7. VITE / STATIC SERVING & SPA FALLBACK
   // ==========================================
+  // Static legal pages — same production-parity behaviour as vercel.json
+  // rewrites: /privacy → /privacy.html etc. Crawlers and users get real
+  // server-rendered policy documents with unique titles (no SPA fallback).
+  const LEGAL_STATIC_PAGES: Record<string, string> = {
+    "/privacy": "privacy.html",
+    "/terms": "terms.html",
+    "/refund-policy": "refund-policy.html",
+    "/shipping-policy": "shipping-policy.html",
+    "/warranty": "warranty.html",
+  };
+
   if (process.env.NODE_ENV !== "production") {
+    // Dev parity: serve the generated static legal pages before Vite's SPA
+    // middleware (mirrors the Vercel rewrite table).
+    app.get(Object.keys(LEGAL_STATIC_PAGES), (req, res) => {
+      const file = LEGAL_STATIC_PAGES[req.path];
+      res.sendFile(path.join(process.cwd(), "public", file));
+    });
+    // /legal/* → canonical policy URLs (mirrors the Vercel redirects table)
+    const LEGAL_ALIASES: Record<string, string> = {
+      "/legal/privacy": "/privacy",
+      "/legal/terms": "/terms",
+      "/legal/terms-and-conditions": "/terms",
+      "/legal/refund": "/refund-policy",
+      "/legal/refund-policy": "/refund-policy",
+      "/legal/shipping": "/shipping-policy",
+      "/legal/shipping-policy": "/shipping-policy",
+      "/legal/delivery": "/shipping-policy",
+      "/legal/warranty": "/warranty",
+      "/legal/contact": "/contact",
+    };
+    app.get("/legal*", (req, res) => {
+      const target = LEGAL_ALIASES[req.path.toLowerCase()];
+      if (target) return res.redirect(308, target);
+      res.redirect(302, "/terms");
+    });
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -1245,6 +1287,9 @@ Sitemap: ${PUBLIC_SITE_URL}/sitemap.xml
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
+    app.get(Object.keys(LEGAL_STATIC_PAGES), (req, res) => {
+      res.sendFile(path.join(distPath, LEGAL_STATIC_PAGES[req.path]));
+    });
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });

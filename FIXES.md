@@ -79,3 +79,67 @@ are listed in `sitemap.xml`/`robots.txt`, and work on Vercel via SPA rewrites.
 4. After deploy, resubmit `https://playbeat.digital/sitemap.xml` in Google
    Search Console — the new URLs (`/compare`, `/warranty`, subcategory pages)
    will start indexing with their own titles and descriptions.
+
+---
+
+# Audit Response — 2026-09-02 Full Site Audit Fixes
+
+## 1. Legal page routing — FIXED (Critical)
+
+| Issue | Fix |
+|-------|-----|
+| `/privacy` & `/terms` resolved with homepage title; `/legal/privacy`, `/legal/terms`, `/legal/shipping` returned 404 | **Static, fully crawlable legal pages** generated at build time (`scripts/generate-legal-pages.mjs` → `public/*.html`): `/privacy`, `/terms`, `/refund-policy`, `/shipping-policy`, `/warranty`. Each is a complete standalone document with unique `<title>`, meta description, canonical, Open Graph, Twitter Card and JSON-LD (`WebPage` + `BreadcrumbList`) — no SPA fallback, indexable without JavaScript. |
+| `/legal/*` broken routes | 308 permanent redirects to canonical URLs: `/legal/privacy→/privacy`, `/legal/terms→/terms`, `/legal/refund→/refund-policy`, `/legal/shipping + /legal/delivery→/shipping-policy`, `/legal/warranty→/warranty`, `/legal/contact→/contact` (vercel.json `redirects` + dev parity in `server.ts`). |
+| Refund policy gaps | Added refund request window (7 days) and processing timeframes to both refund policy renderers. |
+
+## 2. Checkout — now real end-to-end (Critical)
+
+- `CartDrawer` no longer fakes keys with `Math.random()`. Checkout now calls **`POST /api/orders`** with the signed-in user's token; the server creates the order, verifies prices and returns the real order number + license keys.
+- **Legal consent checkboxes** added at checkout: "I agree to the Terms & Conditions" + "I acknowledge the Refund Policy", both required, both linking to the canonical policy pages.
+- **Failure states handled**: API/network errors show an inline error banner, the cart is preserved, and no success screen or confetti is shown unless the server confirms the order (audit §4: failed payments must not create completed orders).
+- Fixed a blocking bug where the pay button was permanently disabled (shared `isCheckingOut` flag used for both "form open" and "submitting").
+
+## 3. Payments — server-side verification + webhook (Critical)
+
+- **`api/payments/index.ts` (NEW)** — `POST /api/payments/webhook` with:
+  - HMAC-SHA256 signature verification (`x-playbeat-signature`, secret `PAYMENT_WEBHOOK_SECRET`), timing-safe compare, fail-closed (403 without a valid signature).
+  - **Idempotency**: `payment_events` collection with a unique `eventId` index — duplicate webhook deliveries return `{duplicate:true}` and never double-process.
+  - Amount cross-check: paid amount vs stored order total; mismatch flags the order (`paymentFlag: amount_mismatch`) and returns 409 instead of marking it paid.
+  - Status transitions: paid → completed, failed → payment_failed, refunded → refunded.
+- **Server-side price verification in `api/orders`**: each line item's price is recomputed from the `products` collection (including variant prices); the client-sent total is stored only as reference (`clientTotalAmount`). Verified: a forged PKR 0.02 order for a PKR 26,550 product is stored at PKR 53,100.
+- Browser never marks an order paid; only verified webhook / server logic does.
+
+## 4. 404 & error pages (audit §15)
+
+- **SPA 404** (`NotFound.tsx`): unknown URLs no longer silently render the homepage. Dedicated 404 view with "Back to Home / Shop Products / Contact Support", `noindex` robots meta and title "Page Not Found (404)". `/product/*` and `/category/*` deep links still resolve to the catalog.
+- **Static `public/404.html`** fallback with the same three recovery actions.
+
+## 5. Mobile & navigation (audit §2, §12 — screenshots)
+
+- **Mobile hamburger menu** (`lg:hidden`): full nav tree — Home / Products / Subscriptions / Offers / Support, all 6 categories, all 5 curated collections, Projector Comparison, Sign Up / Sign In. Previously the nav simply disappeared below 1024px with no menu at all.
+- **Mobile search row** (`sm:hidden`): always-visible search below the header on phones; Browse Now's search trigger now focuses it.
+- **Header overflow fixed** at ≤1024px and on phones: mobile menu toggle added, currency switcher collapses to flag-only, gold Sign Up button hidden on phones (profile button opens the same auth flow) — the right action cluster no longer clips off-screen (was right:1088 @1024, right:420 @390).
+- Verified at 1440/1366/1280/1150/1024/820/768/640/414/390: no horizontal page scroll anywhere.
+
+## 6. SEO additions (audit §11)
+
+- **BreadcrumbList JSON-LD** on every indexed route (Home → Page).
+- **Product JSON-LD** injected while the quick-view modal is open (name, image, price, currency, availability, brand, SKU), removed on close.
+- Canonical now always reflects the route's own path; noindex routes (admin, 404) strip route JSON-LD.
+
+## 7. Performance (audit §13)
+
+- Vendor chunk splitting via `manualChunks` (react / motion / lucide / misc): main bundle 916 KB → 822 KB + long-lived cacheable vendor chunks.
+
+## 8. Dev/production parity
+
+- `server.ts` now mounts the shared serverless handlers for `/api/orders` (bare path) and `/api/payments`, serves the static legal pages and mirrors the `/legal/*` redirects — local dev behaves identically to Vercel.
+- `PORT` now respects `process.env.PORT`.
+
+## Verified end-to-end
+
+- Forged lowball order → server recomputed total (PKR 0.02 → PKR 53,100) ✔
+- Signed webhook → order marked paid ✔; replay → `{duplicate:true}` ✔; bad signature → 403 ✔; amount mismatch → 409 + order flagged ✔
+- Real UI checkout (sign in → cart → consent checkboxes → order) → Order Confirmed with server order number ✔
+- `/legal/shipping` → 308 → `/shipping-policy` ✔; `/privacy` serves static document with unique title ✔
+- Unknown URL → 404 page with noindex, URL preserved ✔

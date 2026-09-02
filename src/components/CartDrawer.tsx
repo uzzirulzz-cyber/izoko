@@ -16,10 +16,13 @@ import {
   Copy,
   CheckCheck,
   Lock,
+  AlertTriangle,
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { CartItem, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 interface CartDrawerProps {
   isOpen: boolean
@@ -49,9 +52,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [couponError, setCouponError] = useState('')
   const [couponSuccess, setCouponSuccess] = useState('')
   const [isCheckingOut, setIsCheckingOut] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'easypaisa' | 'jazzcash' | 'crypto'>('card')
+  // Separate flag: order submission in flight (isCheckingOut only means the
+  // checkout form is open — reusing it for both left the pay button permanently
+  // disabled, so checkout could never be submitted)
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'easypaisa' | 'jazzcash' | 'crypto' | 'bank'>('card')
   const [checkoutEmail, setCheckoutEmail] = useState('')
   const [checkoutName, setCheckoutName] = useState('')
+  // Legal consent (audit §5): both checkboxes are required before payment
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [acknowledgeRefund, setAcknowledgeRefund] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
   const [orderCompleted, setOrderCompleted] = useState<{
     orderId: string
     keys: { title: string; key: string }[]
@@ -83,7 +94,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   }
 
-  const handleCompleteOrder = (e: React.FormEvent) => {
+  const PAYMENT_LABELS: Record<string, string> = {
+    card: 'Credit / Debit Card',
+    easypaisa: 'EasyPaisa / JazzCash',
+    crypto: 'Binance Pay / Crypto',
+    bank: 'Direct Bank Transfer',
+  }
+
+  // REAL checkout — creates the order on the server via POST /api/orders.
+  // The server verifies prices against the product database, generates the
+  // license keys and persists the order. A failed request never clears the
+  // cart and never shows a success screen (audit §4/§5/§14).
+  const handleCompleteOrder = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!checkoutEmail) return
     // Final auth guard — no guest checkout
@@ -91,36 +113,99 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       onRequireAuth?.()
       return
     }
-
-    // Generate simulated digital license keys
-    const generatedKeys = cart.map((item) => {
-      const randomKey = `PB-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-      return {
-        title: item.product.name + (item.selectedVariant ? ` (${item.selectedVariant.name})` : ''),
-        key: item.product.digital ? randomKey : 'COURIER-DISPATCH-PKR-EXPRESS-10294',
-      }
-    })
-
-    // Trigger celebratory confetti
-    try {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#FACC15', '#38BDF8', '#FDE047', '#EAB308'],
-      })
-    } catch {
-      // ignore
+    if (!agreeTerms || !acknowledgeRefund) {
+      setCheckoutError('Please accept the Terms & Conditions and acknowledge the Refund Policy to continue.')
+      return
     }
 
-    setOrderCompleted({
-      orderId: `PB-${Math.floor(100000 + Math.random() * 900000)}`,
-      keys: generatedKeys,
-      totalPaid: formatPrice(finalTotal, currency),
-    })
+    setIsPlacingOrder(true)
+    setCheckoutError('')
 
-    onClearCart()
-    setIsCheckingOut(false)
+    try {
+      const token = localStorage.getItem('playbeat_user_token')
+      const res = await fetch(`${API_BASE}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          items: cart.map((item) => ({
+            product: {
+              id: item.product.id,
+              _id: (item.product as any)._id,
+              sku: item.product.sku,
+              name: item.product.name,
+              price: item.product.price,
+              digital: item.product.digital,
+              deliveryType: (item.product as any).deliveryType,
+            },
+            selectedVariant: item.selectedVariant
+              ? { id: item.selectedVariant.id, name: item.selectedVariant.name }
+              : undefined,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          customerName: checkoutName,
+          customerEmail: checkoutEmail,
+          totalAmount: finalTotal,
+          currency,
+          paymentMethod: PAYMENT_LABELS[selectedPaymentMethod] || selectedPaymentMethod,
+        }),
+      })
+
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        // Payment/order failure — cart is preserved, no fake confirmation.
+        setCheckoutError(data?.error || `Order could not be placed (${res.status}). Please try again or contact support.`)
+        setIsPlacingOrder(false)
+        return
+      }
+
+      // Adopt the SERVER-created order (real order number + real keys)
+      const serverOrder = data.order || {}
+      const serverKeys: { title: string; key: string }[] = (serverOrder.items || [])
+        .flatMap((it: any) =>
+          (it.licenseKeys || []).map((k: string) => ({
+            title: it.name + (it.variantName ? ` (${it.variantName})` : ''),
+            key: k,
+          }))
+        )
+      const generatedKeys = serverKeys.length
+        ? serverKeys
+        : cart.map((item) => ({
+            title: item.product.name + (item.selectedVariant ? ` (${item.selectedVariant.name})` : ''),
+            key: item.product.digital === false ? 'COURIER-DISPATCH-PENDING' : 'DELIVERY-PENDING-EMAIL',
+          }))
+
+      // Trigger celebratory confetti only after a verified successful order
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#FACC15', '#38BDF8', '#FDE047', '#EAB308'],
+        })
+      } catch {
+        // ignore
+      }
+
+      setOrderCompleted({
+        orderId: serverOrder.orderNumber || `PB-${Date.now().toString().slice(-6)}`,
+        keys: generatedKeys,
+        totalPaid: formatPrice(serverOrder.totalAmount ?? finalTotal, currency),
+      })
+
+      onClearCart()
+      setIsCheckingOut(false)
+      setIsPlacingOrder(false)
+      setAgreeTerms(false)
+      setAcknowledgeRefund(false)
+    } catch (err) {
+      setCheckoutError('Network error — we could not reach the order service. Your cart is safe; please try again.')
+      setIsPlacingOrder(false)
+    }
   }
 
   const handleCopyKey = (text: string, idx: number) => {
@@ -225,6 +310,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </button>
               </div>
 
+              {checkoutError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] leading-relaxed">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{checkoutError}</span>
+                </div>
+              )}
+
               {/* Customer Info */}
               <div className="space-y-3">
                 <div>
@@ -285,6 +377,41 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
+              {/* Legal consent (audit §5) — required checkboxes with working links */}
+              <div className="space-y-2.5 p-4 rounded-2xl bg-[#060B1E] border border-slate-400/15">
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                    className="mt-0.5 w-3.5 h-3.5 shrink-0 accent-yellow-400"
+                  />
+                  <span className="text-[11px] text-slate-300 leading-relaxed">
+                    I agree to the{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-yellow-400 font-semibold hover:underline">
+                      Terms &amp; Conditions
+                    </a>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={acknowledgeRefund}
+                    onChange={(e) => setAcknowledgeRefund(e.target.checked)}
+                    className="mt-0.5 w-3.5 h-3.5 shrink-0 accent-yellow-400"
+                  />
+                  <span className="text-[11px] text-slate-300 leading-relaxed">
+                    I acknowledge the{' '}
+                    <a href="/refund-policy" target="_blank" rel="noopener noreferrer" className="text-yellow-400 font-semibold hover:underline">
+                      Refund Policy
+                    </a>{' '}
+                    — digital keys are non-refundable once successfully activated.
+                  </span>
+                </label>
+              </div>
+
               {/* Order Summary in Checkout */}
               <div className="p-4 rounded-2xl bg-[#060B1E] border border-slate-400/15 space-y-2 text-xs text-slate-300 font-mono">
                 <div className="flex justify-between">
@@ -306,10 +433,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <button
                 type="submit"
                 id="complete-checkout-btn"
-                className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs shadow-xl transition active:scale-98 flex items-center justify-center gap-2"
+                disabled={isPlacingOrder}
+                className="w-full py-3 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs shadow-xl transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
               >
-                <Zap className="w-4 h-4 fill-slate-950" />
-                <span>Pay {formatPrice(finalTotal, currency)} & Receive Keys</span>
+                {isPlacingOrder ? (
+                  <>
+                    <Zap className="w-4 h-4 fill-slate-950 animate-pulse" />
+                    <span>Processing your order…</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 fill-slate-950" />
+                    <span>Pay {formatPrice(finalTotal, currency)} &amp; Receive Keys</span>
+                  </>
+                )}
               </button>
             </form>
           ) : (
