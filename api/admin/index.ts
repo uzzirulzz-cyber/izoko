@@ -1582,19 +1582,24 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     if (!doc || !doc.bytes) {
       return jsonError(res, "No profile picture found.", 404);
     }
-    // The driver stores Node Buffers as BSON Binary (a Uint8Array subclass) —
-    // convert back to a real Buffer, otherwise the body sends as empty.
+    // The driver stores Node Buffers as BSON Binary. Depending on the bson
+    // version, Binary is either a Uint8Array subclass OR a legacy wrapper
+    // { buffer, sub_type, position }. Cover every shape explicitly.
     const stored: any = doc.bytes;
-    const bytes: Buffer = Buffer.isBuffer(stored) ? stored : Buffer.from(stored as Uint8Array);
+    let bytes: Buffer;
+    if (Buffer.isBuffer(stored)) {
+      bytes = stored;
+    } else if (stored && Buffer.isBuffer(stored.buffer)) {
+      bytes = stored.buffer.subarray(0, stored.position || stored.buffer.length);
+    } else if (stored && stored.buffer instanceof ArrayBuffer) {
+      bytes = Buffer.from(new Uint8Array(stored.buffer, 0, stored.position || stored.buffer.byteLength));
+    } else if (stored instanceof Uint8Array) {
+      bytes = Buffer.from(stored);
+    } else {
+      bytes = Buffer.from(String(stored || ""), "base64");
+    }
     if (!bytes || bytes.length === 0) {
-      const dbg = JSON.stringify({
-        kind: stored?.constructor?.name ?? typeof stored,
-        length: stored?.length,
-        byteLength: stored?.byteLength,
-        position: stored?.position,
-        keys: stored && typeof stored === "object" ? Object.keys(stored).slice(0, 6) : null,
-      });
-      return jsonError(res, `Stored picture unreadable — debug: ${dbg}`, 500);
+      return jsonError(res, "Stored picture is unreadable — please re-upload.", 500);
     }
     // Use the raw Node response API — the VercelResponse.send() helper does not
     // reliably transmit binary bodies in this runtime.
