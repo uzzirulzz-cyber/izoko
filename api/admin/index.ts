@@ -1586,10 +1586,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     // convert back to a real Buffer, otherwise the body sends as empty.
     const stored: any = doc.bytes;
     const bytes: Buffer = Buffer.isBuffer(stored) ? stored : Buffer.from(stored as Uint8Array);
-    res.setHeader("Content-Type", String(doc.mime || "image/jpeg"));
-    res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    return res.status(200).send(bytes);
+    if (!bytes || bytes.length === 0) {
+      return jsonError(res, "Stored picture is empty — please re-upload.", 500);
+    }
+    // Use the raw Node response API — the VercelResponse.send() helper does not
+    // reliably transmit binary bodies in this runtime.
+    res.writeHead(200, {
+      "Content-Type": String(doc.mime || "image/jpeg"),
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Length": String(bytes.length),
+    });
+    res.end(bytes);
+    return;
   }
 
   // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============
