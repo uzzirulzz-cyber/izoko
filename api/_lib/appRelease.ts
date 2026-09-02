@@ -8,10 +8,10 @@ import { getDb } from "./mongo.js";
 export const APP_RELEASE_FALLBACK = {
   version: "2.0.0",
   versionCode: 2,
-  apkUrl: "/downloads/playbeat-admin-v2.0.0.apk",
+  apkUrl: "/downloads/playbeat-admin.apk",
   aabUrl: "",
   sizeBytes: 140673,
-  sha256: "c8858de60de0f2e9211143536704c8a577ddbfd7a8c62a2322f631108211f4ca",
+  sha256: "85165dd14b079582ddd09c9dfc01617bb55228487cbd010fffbbda365ae88449",
   minSupportedVersion: "1.0.0",
   forceUpdate: false,
   buildDate: "2026-09-02T17:51:00.000Z",

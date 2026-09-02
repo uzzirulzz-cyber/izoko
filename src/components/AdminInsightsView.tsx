@@ -70,7 +70,7 @@ import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
 import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
-import { MobileAppPanel } from './admin/MobileAppPanel'
+import { AndroidAppPanel } from './admin/AndroidAppPanel'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
 import { SystemHealthPanel } from './admin/SystemHealthPanel'
 import { BackupPanel } from './admin/BackupPanel'
@@ -140,7 +140,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
   // Navigation & Sub-views
   const [activeNav, setActiveNav] = useState<string>(() => {
-    // Deep-link support: /admin#orders, #products, #mobileapp ... (used by the
+    // Deep-link support: /admin#orders, #products, #androidapp ... (used by the
     // native Android bottom navigation + push deep links)
     try {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -187,7 +187,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
-      'messages', 'vault', 'backup', 'staff', 'mobileapp', 'profile',
+      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -1231,18 +1231,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                 )}
                 <button
-                  onClick={() => setActiveNav('mobileapp')}
+                  onClick={() => setActiveNav('androidapp')}
                   className={`w-full flex items-center gap-2.5 px-3 py-2 ${
-                    activeNav === 'mobileapp' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    activeNav === 'androidapp' ? 'pa-nav-item--active' : 'pa-nav-item'
                   }`}
                   style={
-                    activeNav === 'mobileapp'
+                    activeNav === 'androidapp'
                       ? ({ '--nav-a': '#f0abfc', '--nav-bg': 'rgba(217,70,239,0.09)', '--nav-edge': 'rgba(217,70,239,0.28)' } as React.CSSProperties)
                       : undefined
                   }
                 >
                   <Smartphone className="w-4 h-4 text-fuchsia-400" />
-                  {!sidebarCollapsed && <span>Mobile App (Android)</span>}
+                  {!sidebarCollapsed && <span>Android App</span>}
                   {!sidebarCollapsed && appOnlineCount > 0 && (
                     <span className="ml-auto px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold flex items-center gap-1">
                       <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -3087,10 +3087,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {activeNav === 'orders' && <OrdersLogPanel onToast={triggerToast} />}
 
             {/* ========================================================================= */}
-            {/* PANEL: MOBILE APP (ANDROID) — download, live devices, revoke control      */}
+            {/* PANEL: ANDROID APP — download, install guide, release + device control */}
             {/* ========================================================================= */}
-            {activeNav === 'mobileapp' && (
-              <MobileAppPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
+            {activeNav === 'androidapp' && (
+              <AndroidAppPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
             )}
 
             {/* ========================================================================= */}

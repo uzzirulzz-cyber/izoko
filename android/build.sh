@@ -11,7 +11,7 @@ PROJ="$(cd "$(dirname "$0")" && pwd)"
 OUT=$PROJ/build
 VERSION=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' $PROJ/AndroidManifest.xml | head -1)
 VERSION_CODE=$(sed -n 's/.*android:versionCode="\([^"]*\)".*/\1/p' $PROJ/AndroidManifest.xml | head -1)
-APK_NAME="playbeat-admin-v${VERSION}.apk"
+APK_NAME="playbeat-admin.apk"
 
 echo "==> Building Playbeat Admin v$VERSION (code $VERSION_CODE)"
 
