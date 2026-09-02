@@ -15,6 +15,9 @@ import {
   Sparkles,
   MessageSquare,
   Send,
+  AlertCircle,
+  RefreshCw,
+  Truck,
 } from 'lucide-react'
 import { CurrencyCode, Product } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -38,6 +41,292 @@ interface AccountChatMsg {
   senderName: string
   body: string
   createdAt: string
+}
+
+/**
+ * Orders tab — real order tracking from /api/orders/me.
+ * Shows every order with a status timeline (placed → paid → fulfilled),
+ * payment status badge, line items, license keys (re-copyable) and delivery
+ * method. Supports manual refresh and handles empty/error states.
+ */
+interface OrderItem {
+  name: string
+  variantName?: string
+  price: number
+  quantity: number
+  licenseKeys?: string[]
+  deliveryType?: string
+}
+
+interface PlaybeatOrder {
+  orderNumber: string
+  items: OrderItem[]
+  totalAmount: number
+  currency: string
+  status: string
+  paymentStatus?: string
+  paymentMethod?: string
+  createdAt: string
+  paidAt?: string
+}
+
+function orderTimeline(order: PlaybeatOrder): { label: string; done: boolean; note?: string }[] {
+  const placed = { label: 'Order Placed', done: true, note: new Date(order.createdAt).toLocaleDateString() }
+  const paidDone = order.status === 'completed' || order.paymentStatus === 'paid' || !!order.paidAt
+  const paid = {
+    label: 'Payment Verified',
+    done: paidDone,
+    note:
+      order.paymentStatus === 'failed' || order.status === 'payment_failed'
+        ? 'Payment failed — retry or contact support'
+        : order.paidAt
+          ? new Date(order.paidAt).toLocaleDateString()
+          : order.status === 'refunded'
+            ? 'Refunded'
+            : paidDone
+              ? 'Confirmed by gateway/webhook'
+              : 'Awaiting confirmation',
+  }
+  const failed = order.status === 'payment_failed'
+  const refunded = order.status === 'refunded'
+  const fulfil = {
+    label: order.items?.some((i) => i.deliveryType && /courier|shipped/i.test(i.deliveryType))
+      ? 'Dispatch / Delivery'
+      : 'Keys Delivered',
+    done: order.status === 'completed' && !failed && !refunded,
+    note: refunded ? 'Order refunded' : failed ? 'Held — payment not verified' : undefined,
+  }
+  return [placed, paid, fulfil]
+}
+
+const OrdersTab: React.FC<{
+  user: { name: string; email: string }
+  currency: CurrencyCode
+  onBrowse: () => void
+}> = ({ currency, onBrowse }) => {
+  const [orders, setOrders] = useState<PlaybeatOrder[] | null>(null)
+  const [error, setError] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setRefreshing(true)
+    setError('')
+    try {
+      const token = localStorage.getItem('playbeat_user_token')
+      const res = await fetch(`${API_BASE}/api/orders/me`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        setError(data?.error || `Could not load orders (${res.status}).`)
+        setOrders([])
+      } else {
+        setOrders(Array.isArray(data.orders) ? data.orders : [])
+      }
+    } catch {
+      setError('Network error — could not reach the order service.')
+      setOrders([])
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const copyKey = (key: string) => {
+    navigator.clipboard.writeText(key)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 1800)
+  }
+
+  const statusBadge = (o: PlaybeatOrder) => {
+    if (o.status === 'refunded')
+      return { label: 'Refunded', cls: 'text-slate-300 bg-slate-500/10 border-slate-400/30' }
+    if (o.status === 'payment_failed')
+      return { label: 'Payment Failed', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/30' }
+    return { label: 'Completed', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' }
+  }
+
+  if (error && !orders?.length) {
+    return (
+      <div className="space-y-3">
+        <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/25 text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+          <p className="text-xs text-rose-300">{error}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-xl bg-white/5 border border-slate-400/20 text-xs font-semibold text-slate-200 hover:bg-white/10 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!orders) {
+    return (
+      <div className="space-y-3" aria-label="Loading orders">
+        {[0, 1].map((i) => (
+          <div key={i} className="p-4 rounded-2xl bg-[#070D22] border border-slate-400/10 animate-pulse space-y-2.5">
+            <div className="h-3 w-2/5 bg-slate-400/15 rounded" />
+            <div className="h-2.5 w-3/5 bg-slate-400/10 rounded" />
+            <div className="h-2.5 w-1/4 bg-slate-400/10 rounded" />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="p-6 rounded-2xl bg-[#070D22] border border-slate-400/15 text-center space-y-3">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-yellow-400/10 border border-yellow-400/25 flex items-center justify-center">
+          <ShoppingBag className="w-5 h-5 text-yellow-400" />
+        </div>
+        <h4 className="text-sm font-bold text-white">No orders yet</h4>
+        <p className="text-xs text-slate-400 leading-relaxed max-w-[260px] mx-auto">
+          Your digital keys, subscriptions and projector orders will appear here the moment you
+          check out — with live status tracking.
+        </p>
+        <button
+          onClick={onBrowse}
+          className="px-4 py-2 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs transition"
+        >
+          Browse Products
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+          Order Tracking
+        </h4>
+        <button
+          id="orders-refresh-btn"
+          onClick={load}
+          disabled={refreshing}
+          className="text-[10px] font-mono text-yellow-400 hover:text-yellow-300 disabled:opacity-50 flex items-center gap-1 transition"
+        >
+          <RefreshCw className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
+
+      {orders.map((o) => {
+        const badge = statusBadge(o)
+        const timeline = orderTimeline(o)
+        return (
+          <div key={o.orderNumber} className="p-4 rounded-2xl bg-[#070D22] border border-slate-400/15 space-y-3">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-mono font-bold text-xs text-white truncate">
+                  #{o.orderNumber}
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                  {new Date(o.createdAt).toLocaleString()} · {o.paymentMethod || 'Paid'}
+                </div>
+              </div>
+              <span className={`shrink-0 text-[9px] font-mono font-bold px-2 py-0.5 rounded border ${badge.cls}`}>
+                {badge.label}
+              </span>
+            </div>
+
+            {/* Status timeline */}
+            <div className="flex items-center gap-1.5 py-1">
+              {timeline.map((step, i) => (
+                <React.Fragment key={step.label}>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border text-[8px] font-mono font-bold ${
+                        step.done
+                          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                          : 'bg-slate-500/10 border-slate-400/25 text-slate-500'
+                      }`}
+                    >
+                      {step.done ? '✓' : i + 1}
+                    </span>
+                    <span
+                      className={`text-[9px] font-mono uppercase tracking-wide truncate ${
+                        step.done ? 'text-slate-200' : 'text-slate-500'
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < timeline.length - 1 && (
+                    <span
+                      className={`flex-1 h-px min-w-[8px] ${
+                        step.done ? 'bg-emerald-500/40' : 'bg-slate-400/15'
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+            {timeline.some((s) => s.note) && (
+              <div className="text-[10px] text-slate-400 font-mono">
+                {timeline.find((s) => s.note)?.note}
+              </div>
+            )}
+
+            {/* Items */}
+            <div className="space-y-2">
+              {(o.items || []).map((it, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl bg-[#040816] border border-slate-400/10 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-slate-200 truncate">
+                      {it.name}
+                      {it.variantName ? ` (${it.variantName})` : ''}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                      ×{it.quantity} · {formatPrice(it.price, currency)}
+                    </span>
+                  </div>
+                  {it.licenseKeys?.map((k) => (
+                    <div
+                      key={k}
+                      className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#070D22] border border-yellow-400/20"
+                    >
+                      <code className="text-[10px] font-mono text-yellow-300 select-all truncate">{k}</code>
+                      <button
+                        onClick={() => copyKey(k)}
+                        className="text-slate-400 hover:text-white p-0.5 transition shrink-0"
+                        title="Copy key"
+                      >
+                        {copiedKey === k ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  ))}
+                  {it.deliveryType && /courier|shipped/i.test(it.deliveryType) && (
+                    <div className="text-[10px] text-sky-300 font-mono flex items-center gap-1">
+                      <Truck className="w-3 h-3" /> {it.deliveryType} — tracking sent by SMS & email
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Total */}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-400/10">
+              <span className="text-[10px] font-mono text-slate-500 uppercase">Total</span>
+              <span className="text-sm font-extrabold font-mono text-yellow-300">
+                {formatPrice(o.totalAmount, currency)}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /**
@@ -370,9 +659,22 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             </div>
           )}
 
+          {activeTab === 'orders' && (
+            <OrdersTab
+              user={user}
+              currency={currency}
+              onBrowse={() => {
+                onClose()
+                setTimeout(() => {
+                  document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+                }, 120)
+              }}
+            />
+          )}
+
           {activeTab === 'messages' && <MessagesTab user={user} />}
 
-          {(activeTab === 'profile' || activeTab === 'orders' || activeTab === 'settings') && (
+          {(activeTab === 'profile' || activeTab === 'settings') && (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-[#070D22] border border-slate-400/15 space-y-3">
                 <div className="text-xs font-mono uppercase text-slate-400 tracking-wider">

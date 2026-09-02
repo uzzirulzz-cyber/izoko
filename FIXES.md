@@ -143,3 +143,27 @@ are listed in `sitemap.xml`/`robots.txt`, and work on Vercel via SPA rewrites.
 - Real UI checkout (sign in → cart → consent checkboxes → order) → Order Confirmed with server order number ✔
 - `/legal/shipping` → 308 → `/shipping-policy` ✔; `/privacy` serves static document with unique title ✔
 - Unknown URL → 404 page with noindex, URL preserved ✔
+
+---
+
+# Enhancement Round — FAQ, Order Tracking, Image Optimization
+
+## 1. FAQ (homepage + SEO)
+
+- **NEW `FAQSection`** on the homepage (above Trust Features): 8 accordion Q&As grounded in the live shipping/refund/warranty/terms policies — delivery times, key activation, refunds, region compatibility, projector shipping, warranty, payment methods, support channels. Links to every policy page + Contact Support CTA.
+- **FAQPage JSON-LD** injected while the section is mounted — the storefront is now eligible for FAQ rich results in Google.
+
+## 2. Order tracking (account drawer)
+
+- The "Orders" tab previously fell through to the generic profile view — **no order history existed**. NEW `OrdersTab` component:
+  - Fetches `/api/orders/me` (Bearer auth) with loading skeleton, error + retry state, and an empty state with a Browse Products CTA.
+  - Every order shows: order number, date, payment method, status badge (Completed / Payment Failed / Refunded), **status timeline** (Order Placed → Payment Verified → Keys Delivered / Dispatch & Delivery) and server-verified total.
+  - Line items include variant, quantity, price, **re-copyable license keys** and courier tracking notes for physical orders (SMS + email tracking).
+  - Manual Refresh button; currency-aware totals.
+
+## 3. Image optimization
+
+- Converted **69 product images** JPG/PNG → WebP (max width 900px, quality 78): **9.4 MB → 2.3 MB (75% smaller)**.
+- Updated all 146 references in the static catalog (`products.ts`) **and migrated all 178 MongoDB product docs** (`image`, `galleryImages`, `additionalImages`, variant images) via idempotent migration script `scripts/migrate-product-images-webp.mjs`.
+- Below-fold images: `loading="lazy"` + `decoding="async"` (92/92 product images lazy); flagship showcase image gets `fetchPriority="high"` for LCP.
+- `og:image` intentionally kept as PNG for social-platform compatibility.

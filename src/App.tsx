@@ -7,6 +7,7 @@ import { ProjectorSpecMatrix } from './components/ProjectorSpecMatrix'
 import { LayoutGrid } from 'lucide-react'
 import { SmartProjectorShowcase } from './components/SmartProjectorShowcase'
 import { TrustFeatures } from './components/TrustFeatures'
+import { FAQSection } from './components/FAQSection'
 import { QuickViewModal } from './components/QuickViewModal'
 import { CartDrawer } from './components/CartDrawer'
 import { WishlistDrawer } from './components/WishlistDrawer'
@@ -1446,6 +1447,23 @@ export function App() {
                   />
                 ))}
               </div>
+            )}
+
+            {/* FAQ — grounded in the live policies, with FAQPage JSON-LD */}
+            {selectedCategory === 'all' && !searchQuery && (
+              <FAQSection onNavigate={(path) => {
+                const slug = path.replace(/^\//, '')
+                if (
+                  POLICY_ROUTES.includes(slug as Route) ||
+                  CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+                  SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+                ) {
+                  navigate(slug as Route)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                } else {
+                  navigatePath(path)
+                }
+              }} />
             )}
 
             {/* Bottom Trust Features Bar (Matching Screenshot 3) */}

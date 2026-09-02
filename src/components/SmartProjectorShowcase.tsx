@@ -94,6 +94,8 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
                 <img
                   src={flagship.image}
                   alt={flagship.name}
+                  fetchPriority="high"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A122E] via-transparent to-transparent sm:bg-gradient-to-r"></div>
@@ -185,6 +187,8 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
                   <img
                     src={p.image}
                     alt={p.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-transparent"></div>
@@ -298,6 +302,7 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
                         src={p.image}
                         alt={p.name}
                         loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0B1220] via-transparent to-transparent"></div>

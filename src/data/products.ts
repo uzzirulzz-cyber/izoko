@@ -14,7 +14,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     description: 'The complete PlayBeat catalog — streaming, subscriptions, software, gift cards, gaming and smart projectors',
     accentColor: 'text-amber-400',
     glowColor: 'glow-amber',
-    image: '/assets/images/products/netflix.jpg',
+    image: '/assets/images/products/netflix.webp',
   },
   {
     name: 'Streaming',
@@ -24,7 +24,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-rose-400',
     glowColor: 'glow-red',
     badgeText: 'Hot',
-    image: '/assets/images/products/netflix.jpg',
+    image: '/assets/images/products/netflix.webp',
   },
   {
     name: 'Subscriptions',
@@ -34,7 +34,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-emerald-400',
     glowColor: 'glow-emerald',
     badgeText: 'Trending',
-    image: '/assets/images/products/chatgpt.jpg',
+    image: '/assets/images/products/chatgpt.webp',
   },
   {
     name: 'Gift Cards',
@@ -44,7 +44,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-yellow-400',
     glowColor: 'glow-amber',
     badgeText: 'Instant',
-    image: '/assets/images/products/playstation-giftcard.jpg',
+    image: '/assets/images/products/playstation-giftcard.webp',
   },
   {
     name: 'Gaming',
@@ -54,7 +54,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-indigo-400',
     glowColor: 'glow-indigo',
     badgeText: 'Play',
-    image: '/assets/images/products/xbox-game-pass.jpg',
+    image: '/assets/images/products/xbox-game-pass.webp',
   },
   {
     name: 'Software',
@@ -64,7 +64,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-purple-400',
     glowColor: 'glow-purple',
     badgeText: 'Genuine',
-    image: '/assets/images/products/windows-11.jpg',
+    image: '/assets/images/products/windows-11.webp',
   },
   {
     name: 'Smart Projectors',
@@ -74,7 +74,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
     accentColor: 'text-cyan-400',
     glowColor: 'glow-cyan',
     badgeText: '4K Cinema',
-    image: '/assets/images/products/proj-hy320-ntv.jpg',
+    image: '/assets/images/products/proj-hy320-ntv.webp',
   },
 ]
 
@@ -90,9 +90,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 500,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/youtube-premium.jpg",
+    "image": "/assets/images/products/youtube-premium.webp",
     "galleryImages": [
-      "/assets/images/products/youtube-premium.jpg"
+      "/assets/images/products/youtube-premium.webp"
     ],
     "tags": [
       "Instant",
@@ -167,9 +167,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 250,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/prime-video.png",
+    "image": "/assets/images/products/prime-video.webp",
     "galleryImages": [
-      "/assets/images/products/prime-video.png"
+      "/assets/images/products/prime-video.webp"
     ],
     "tags": [
       "Instant",
@@ -236,9 +236,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 750,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/netflix.jpg",
+    "image": "/assets/images/products/netflix.webp",
     "galleryImages": [
-      "/assets/images/products/netflix.jpg"
+      "/assets/images/products/netflix.webp"
     ],
     "tags": [
       "Instant",
@@ -297,9 +297,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 850,
     "currency": "PKR",
     "discountPercent": 18,
-    "image": "/assets/images/products/netflix-prime-combo.jpg",
+    "image": "/assets/images/products/netflix-prime-combo.webp",
     "galleryImages": [
-      "/assets/images/products/netflix-prime-combo.jpg"
+      "/assets/images/products/netflix-prime-combo.webp"
     ],
     "tags": [
       "Instant",
@@ -358,9 +358,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/appletv-plus.jpg",
+    "image": "/assets/images/products/appletv-plus.webp",
     "galleryImages": [
-      "/assets/images/products/appletv-plus.jpg"
+      "/assets/images/products/appletv-plus.webp"
     ],
     "tags": [
       "Instant",
@@ -419,9 +419,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 400,
     "currency": "PKR",
     "discountPercent": 25,
-    "image": "/assets/images/products/spotify.jpg",
+    "image": "/assets/images/products/spotify.webp",
     "galleryImages": [
-      "/assets/images/products/spotify.jpg"
+      "/assets/images/products/spotify.webp"
     ],
     "tags": [
       "Instant",
@@ -460,9 +460,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 950,
     "currency": "PKR",
     "discountPercent": 16,
-    "image": "/assets/images/products/sonyliv.jpg",
+    "image": "/assets/images/products/sonyliv.webp",
     "galleryImages": [
-      "/assets/images/products/sonyliv.jpg"
+      "/assets/images/products/sonyliv.webp"
     ],
     "tags": [
       "Instant",
@@ -501,9 +501,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/ullu.jpg",
+    "image": "/assets/images/products/ullu.webp",
     "galleryImages": [
-      "/assets/images/products/ullu.jpg"
+      "/assets/images/products/ullu.webp"
     ],
     "tags": [
       "Instant",
@@ -542,9 +542,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/crunchyroll.jpg",
+    "image": "/assets/images/products/crunchyroll.webp",
     "galleryImages": [
-      "/assets/images/products/crunchyroll.jpg"
+      "/assets/images/products/crunchyroll.webp"
     ],
     "tags": [
       "Instant",
@@ -583,9 +583,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 750,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/chaupal.jpg",
+    "image": "/assets/images/products/chaupal.webp",
     "galleryImages": [
-      "/assets/images/products/chaupal.jpg"
+      "/assets/images/products/chaupal.webp"
     ],
     "tags": [
       "Instant",
@@ -624,9 +624,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2000,
     "currency": "PKR",
     "discountPercent": 8,
-    "image": "/assets/images/products/disney-plus.jpg",
+    "image": "/assets/images/products/disney-plus.webp",
     "galleryImages": [
-      "/assets/images/products/disney-plus.jpg"
+      "/assets/images/products/disney-plus.webp"
     ],
     "tags": [
       "Instant",
@@ -665,9 +665,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 800,
     "currency": "PKR",
     "discountPercent": 19,
-    "image": "/assets/images/products/hbo-max.jpg",
+    "image": "/assets/images/products/hbo-max.webp",
     "galleryImages": [
-      "/assets/images/products/hbo-max.jpg"
+      "/assets/images/products/hbo-max.webp"
     ],
     "tags": [
       "Instant",
@@ -706,9 +706,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/jiohotstar.jpg",
+    "image": "/assets/images/products/jiohotstar.webp",
     "galleryImages": [
-      "/assets/images/products/jiohotstar.jpg"
+      "/assets/images/products/jiohotstar.webp"
     ],
     "tags": [
       "Instant",
@@ -747,9 +747,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 800,
     "currency": "PKR",
     "discountPercent": 19,
-    "image": "/assets/images/products/hulu.jpg",
+    "image": "/assets/images/products/hulu.webp",
     "galleryImages": [
-      "/assets/images/products/hulu.jpg"
+      "/assets/images/products/hulu.webp"
     ],
     "tags": [
       "Instant",
@@ -788,9 +788,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/zee5.jpg",
+    "image": "/assets/images/products/zee5.webp",
     "galleryImages": [
-      "/assets/images/products/zee5.jpg"
+      "/assets/images/products/zee5.webp"
     ],
     "tags": [
       "Instant",
@@ -829,9 +829,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3000,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/chatgpt.jpg",
+    "image": "/assets/images/products/chatgpt.webp",
     "galleryImages": [
-      "/assets/images/products/chatgpt.jpg"
+      "/assets/images/products/chatgpt.webp"
     ],
     "tags": [
       "Instant",
@@ -890,9 +890,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 8500,
     "currency": "PKR",
     "discountPercent": 11,
-    "image": "/assets/images/products/chatgpt.jpg",
+    "image": "/assets/images/products/chatgpt.webp",
     "galleryImages": [
-      "/assets/images/products/chatgpt.jpg"
+      "/assets/images/products/chatgpt.webp"
     ],
     "tags": [
       "Instant",
@@ -931,9 +931,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 11000,
     "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/perplexity.jpg",
+    "image": "/assets/images/products/perplexity.webp",
     "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
+      "/assets/images/products/perplexity.webp"
     ],
     "tags": [
       "Instant",
@@ -972,9 +972,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2500,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/google-veo.jpg",
+    "image": "/assets/images/products/google-veo.webp",
     "galleryImages": [
-      "/assets/images/products/google-veo.jpg"
+      "/assets/images/products/google-veo.webp"
     ],
     "tags": [
       "Instant",
@@ -1013,9 +1013,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 7000,
     "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/elevenlabs.jpg",
+    "image": "/assets/images/products/elevenlabs.webp",
     "galleryImages": [
-      "/assets/images/products/elevenlabs.jpg"
+      "/assets/images/products/elevenlabs.webp"
     ],
     "tags": [
       "Instant",
@@ -1054,9 +1054,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3000,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/leonardo-ai.jpg",
+    "image": "/assets/images/products/leonardo-ai.webp",
     "galleryImages": [
-      "/assets/images/products/leonardo-ai.jpg"
+      "/assets/images/products/leonardo-ai.webp"
     ],
     "tags": [
       "Instant",
@@ -1095,9 +1095,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 19500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/turnitin.png",
+    "image": "/assets/images/products/turnitin.webp",
     "galleryImages": [
-      "/assets/images/products/turnitin.png"
+      "/assets/images/products/turnitin.webp"
     ],
     "tags": [
       "Instant",
@@ -1136,9 +1136,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 5500,
     "currency": "PKR",
     "discountPercent": 9,
-    "image": "/assets/images/products/hailio-ai.jpg",
+    "image": "/assets/images/products/hailio-ai.webp",
     "galleryImages": [
-      "/assets/images/products/hailio-ai.jpg"
+      "/assets/images/products/hailio-ai.webp"
     ],
     "tags": [
       "Instant",
@@ -1177,9 +1177,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/helium10.jpg",
+    "image": "/assets/images/products/helium10.webp",
     "galleryImages": [
-      "/assets/images/products/helium10.jpg"
+      "/assets/images/products/helium10.webp"
     ],
     "tags": [
       "Instant",
@@ -1218,9 +1218,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2500,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/zoom.png",
+    "image": "/assets/images/products/zoom.webp",
     "galleryImages": [
-      "/assets/images/products/zoom.png"
+      "/assets/images/products/zoom.webp"
     ],
     "tags": [
       "Instant",
@@ -1287,9 +1287,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2000,
     "currency": "PKR",
     "discountPercent": 25,
-    "image": "/assets/images/products/capcut.jpg",
+    "image": "/assets/images/products/capcut.webp",
     "galleryImages": [
-      "/assets/images/products/capcut.jpg"
+      "/assets/images/products/capcut.webp"
     ],
     "tags": [
       "Instant",
@@ -1348,9 +1348,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2000,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/freepik.jpg",
+    "image": "/assets/images/products/freepik.webp",
     "galleryImages": [
-      "/assets/images/products/freepik.jpg"
+      "/assets/images/products/freepik.webp"
     ],
     "tags": [
       "Instant",
@@ -1389,9 +1389,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/quillbot.png",
+    "image": "/assets/images/products/quillbot.webp",
     "galleryImages": [
-      "/assets/images/products/quillbot.png"
+      "/assets/images/products/quillbot.webp"
     ],
     "tags": [
       "Instant",
@@ -1430,9 +1430,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/grammarly.jpg",
+    "image": "/assets/images/products/grammarly.webp",
     "galleryImages": [
-      "/assets/images/products/grammarly.jpg"
+      "/assets/images/products/grammarly.webp"
     ],
     "tags": [
       "Instant",
@@ -1471,9 +1471,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/surfshark.png",
+    "image": "/assets/images/products/surfshark.webp",
     "galleryImages": [
-      "/assets/images/products/surfshark.png"
+      "/assets/images/products/surfshark.webp"
     ],
     "tags": [
       "Instant",
@@ -1540,9 +1540,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2000,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/expressvpn.jpg",
+    "image": "/assets/images/products/expressvpn.webp",
     "galleryImages": [
-      "/assets/images/products/expressvpn.jpg"
+      "/assets/images/products/expressvpn.webp"
     ],
     "tags": [
       "Instant",
@@ -1581,9 +1581,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1100,
     "currency": "PKR",
     "discountPercent": 18,
-    "image": "/assets/images/products/expressvpn.jpg",
+    "image": "/assets/images/products/expressvpn.webp",
     "galleryImages": [
-      "/assets/images/products/expressvpn.jpg"
+      "/assets/images/products/expressvpn.webp"
     ],
     "tags": [
       "Instant",
@@ -1622,9 +1622,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 800,
     "currency": "PKR",
     "discountPercent": 19,
-    "image": "/assets/images/products/protonvpn.png",
+    "image": "/assets/images/products/protonvpn.webp",
     "galleryImages": [
-      "/assets/images/products/protonvpn.png"
+      "/assets/images/products/protonvpn.webp"
     ],
     "tags": [
       "Instant",
@@ -1663,9 +1663,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 800,
     "currency": "PKR",
     "discountPercent": 19,
-    "image": "/assets/images/products/ipvanish.jpg",
+    "image": "/assets/images/products/ipvanish.webp",
     "galleryImages": [
-      "/assets/images/products/ipvanish.jpg"
+      "/assets/images/products/ipvanish.webp"
     ],
     "tags": [
       "Instant",
@@ -1704,9 +1704,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/hotspot-shield.jpg",
+    "image": "/assets/images/products/hotspot-shield.webp",
     "galleryImages": [
-      "/assets/images/products/hotspot-shield.jpg"
+      "/assets/images/products/hotspot-shield.webp"
     ],
     "tags": [
       "Instant",
@@ -1745,9 +1745,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 550,
     "currency": "PKR",
     "discountPercent": 20,
-    "image": "/assets/images/products/xbox-giftcard.jpg",
+    "image": "/assets/images/products/xbox-giftcard.webp",
     "galleryImages": [
-      "/assets/images/products/xbox-giftcard.jpg"
+      "/assets/images/products/xbox-giftcard.webp"
     ],
     "tags": [
       "Instant",
@@ -1853,9 +1853,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3000,
     "currency": "PKR",
     "discountPercent": 6,
-    "image": "/assets/images/products/playstation-giftcard.jpg",
+    "image": "/assets/images/products/playstation-giftcard.webp",
     "galleryImages": [
-      "/assets/images/products/playstation-giftcard.jpg"
+      "/assets/images/products/playstation-giftcard.webp"
     ],
     "tags": [
       "Instant",
@@ -1940,9 +1940,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 16,
-    "image": "/assets/images/products/steam-giftcard.jpg",
+    "image": "/assets/images/products/steam-giftcard.webp",
     "galleryImages": [
-      "/assets/images/products/steam-giftcard.jpg"
+      "/assets/images/products/steam-giftcard.webp"
     ],
     "tags": [
       "Instant",
@@ -2062,9 +2062,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 2,
-    "image": "/assets/images/products/razer-gold.jpg",
+    "image": "/assets/images/products/razer-gold.webp",
     "galleryImages": [
-      "/assets/images/products/razer-gold.jpg"
+      "/assets/images/products/razer-gold.webp"
     ],
     "tags": [
       "Instant",
@@ -2149,9 +2149,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 2,
-    "image": "/assets/images/products/apple-giftcard.jpg",
+    "image": "/assets/images/products/apple-giftcard.webp",
     "galleryImages": [
-      "/assets/images/products/apple-giftcard.jpg"
+      "/assets/images/products/apple-giftcard.webp"
     ],
     "tags": [
       "Instant",
@@ -2257,9 +2257,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3500,
     "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/xbox-game-pass.jpg",
+    "image": "/assets/images/products/xbox-game-pass.webp",
     "galleryImages": [
-      "/assets/images/products/xbox-game-pass.jpg"
+      "/assets/images/products/xbox-game-pass.webp"
     ],
     "tags": [
       "Instant",
@@ -2318,9 +2318,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3500,
     "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/adobe-cc.jpg",
+    "image": "/assets/images/products/adobe-cc.webp",
     "galleryImages": [
-      "/assets/images/products/adobe-cc.jpg"
+      "/assets/images/products/adobe-cc.webp"
     ],
     "tags": [
       "Instant",
@@ -2451,9 +2451,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3500,
     "currency": "PKR",
     "discountPercent": 16,
-    "image": "/assets/images/products/office.jpg",
+    "image": "/assets/images/products/office.webp",
     "galleryImages": [
-      "/assets/images/products/office.jpg"
+      "/assets/images/products/office.webp"
     ],
     "tags": [
       "Instant",
@@ -2576,9 +2576,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 6000,
     "currency": "PKR",
     "discountPercent": 10,
-    "image": "/assets/images/products/windows-11.jpg",
+    "image": "/assets/images/products/windows-11.webp",
     "galleryImages": [
-      "/assets/images/products/windows-11.jpg"
+      "/assets/images/products/windows-11.webp"
     ],
     "tags": [
       "Instant",
@@ -2661,9 +2661,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 12000,
     "currency": "PKR",
     "discountPercent": 12,
-    "image": "/assets/images/products/cyberghost.jpg",
+    "image": "/assets/images/products/cyberghost.webp",
     "galleryImages": [
-      "/assets/images/products/cyberghost.jpg"
+      "/assets/images/products/cyberghost.webp"
     ],
     "tags": [
       "Instant",
@@ -2730,9 +2730,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 4500,
     "currency": "PKR",
     "discountPercent": 15,
-    "image": "/assets/images/products/perplexity.jpg",
+    "image": "/assets/images/products/perplexity.webp",
     "galleryImages": [
-      "/assets/images/products/perplexity.jpg"
+      "/assets/images/products/perplexity.webp"
     ],
     "tags": [
       "Instant",
@@ -2847,9 +2847,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 2000,
     "currency": "PKR",
     "discountPercent": 12,
-    "image": "/assets/images/products/bitdefender.jpg",
+    "image": "/assets/images/products/bitdefender.webp",
     "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
+      "/assets/images/products/bitdefender.webp"
     ],
     "tags": [
       "Instant",
@@ -2972,9 +2972,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 750,
     "currency": "PKR",
     "discountPercent": 19,
-    "image": "/assets/images/products/bitdefender.jpg",
+    "image": "/assets/images/products/bitdefender.webp",
     "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
+      "/assets/images/products/bitdefender.webp"
     ],
     "tags": [
       "Instant",
@@ -3041,9 +3041,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 3000,
     "currency": "PKR",
     "discountPercent": 16,
-    "image": "/assets/images/products/bitdefender.jpg",
+    "image": "/assets/images/products/bitdefender.webp",
     "galleryImages": [
-      "/assets/images/products/bitdefender.jpg"
+      "/assets/images/products/bitdefender.webp"
     ],
     "tags": [
       "Instant",
@@ -3102,9 +3102,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 12,
-    "image": "/assets/images/products/mcafee.png",
+    "image": "/assets/images/products/mcafee.webp",
     "galleryImages": [
-      "/assets/images/products/mcafee.png"
+      "/assets/images/products/mcafee.webp"
     ],
     "tags": [
       "Instant",
@@ -3187,9 +3187,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 8000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/kaspersky.jpg",
+    "image": "/assets/images/products/kaspersky.webp",
     "galleryImages": [
-      "/assets/images/products/kaspersky.jpg"
+      "/assets/images/products/kaspersky.webp"
     ],
     "tags": [
       "Instant",
@@ -3228,9 +3228,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 11000,
     "currency": "PKR",
     "discountPercent": 12,
-    "image": "/assets/images/products/kaspersky.jpg",
+    "image": "/assets/images/products/kaspersky.webp",
     "galleryImages": [
-      "/assets/images/products/kaspersky.jpg"
+      "/assets/images/products/kaspersky.webp"
     ],
     "tags": [
       "Instant",
@@ -3269,9 +3269,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 600,
     "currency": "PKR",
     "discountPercent": 17,
-    "image": "/assets/images/products/nordvpn.png",
+    "image": "/assets/images/products/nordvpn.webp",
     "galleryImages": [
-      "/assets/images/products/nordvpn.png"
+      "/assets/images/products/nordvpn.webp"
     ],
     "tags": [
       "Instant",
@@ -3394,9 +3394,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 1500,
     "currency": "PKR",
     "discountPercent": 25,
-    "image": "/assets/images/products/projector-stand.jpg",
+    "image": "/assets/images/products/projector-stand.webp",
     "galleryImages": [
-      "/assets/images/products/projector-stand.jpg"
+      "/assets/images/products/projector-stand.webp"
     ],
     "tags": [
       "Projector",
@@ -3436,9 +3436,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 36000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-a10.jpg",
+    "image": "/assets/images/products/proj-a10.webp",
     "galleryImages": [
-      "/assets/images/products/proj-a10.jpg"
+      "/assets/images/products/proj-a10.webp"
     ],
     "tags": [
       "Projector",
@@ -3489,9 +3489,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 102000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-f18.jpg",
+    "image": "/assets/images/products/proj-f18.webp",
     "galleryImages": [
-      "/assets/images/products/proj-f18.jpg"
+      "/assets/images/products/proj-f18.webp"
     ],
     "tags": [
       "Projector",
@@ -3540,9 +3540,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 49500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hcs350max.jpg",
+    "image": "/assets/images/products/proj-hcs350max.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hcs350max.jpg"
+      "/assets/images/products/proj-hcs350max.webp"
     ],
     "tags": [
       "Projector",
@@ -3591,9 +3591,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 47000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hcs350pro.jpg",
+    "image": "/assets/images/products/proj-hcs350pro.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hcs350pro.jpg"
+      "/assets/images/products/proj-hcs350pro.webp"
     ],
     "tags": [
       "Projector",
@@ -3642,9 +3642,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 48000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hongtop-p10.jpg",
+    "image": "/assets/images/products/proj-hongtop-p10.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hongtop-p10.jpg"
+      "/assets/images/products/proj-hongtop-p10.webp"
     ],
     "tags": [
       "Projector",
@@ -3691,9 +3691,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 30500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy300-plus.jpg",
+    "image": "/assets/images/products/proj-hy300-plus.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy300-plus.jpg"
+      "/assets/images/products/proj-hy300-plus.webp"
     ],
     "tags": [
       "Projector",
@@ -3740,9 +3740,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 47000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy320-ntv.jpg",
+    "image": "/assets/images/products/proj-hy320-ntv.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy320-ntv.jpg"
+      "/assets/images/products/proj-hy320-ntv.webp"
     ],
     "tags": [
       "Projector",
@@ -3787,9 +3787,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 60500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy7.jpg",
+    "image": "/assets/images/products/proj-hy7.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy7.jpg"
+      "/assets/images/products/proj-hy7.webp"
     ],
     "tags": [
       "Projector",
@@ -3829,9 +3829,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 24500,
     "currency": "PKR",
     "discountPercent": 14,
-    "image": "/assets/images/products/proj-hy300-pro.jpg",
+    "image": "/assets/images/products/proj-hy300-pro.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy300-pro.jpg"
+      "/assets/images/products/proj-hy300-pro.webp"
     ],
     "tags": [
       "Projector",
@@ -3876,9 +3876,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 26000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy300pro-plus.jpg",
+    "image": "/assets/images/products/proj-hy300pro-plus.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy300pro-plus.jpg"
+      "/assets/images/products/proj-hy300pro-plus.webp"
     ],
     "tags": [
       "Projector",
@@ -3923,9 +3923,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 26500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy300x.jpg",
+    "image": "/assets/images/products/proj-hy300x.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy300x.jpg"
+      "/assets/images/products/proj-hy300x.webp"
     ],
     "tags": [
       "Projector",
@@ -3970,9 +3970,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 39500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy310.jpg",
+    "image": "/assets/images/products/proj-hy310.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy310.jpg"
+      "/assets/images/products/proj-hy310.webp"
     ],
     "tags": [
       "Projector",
@@ -4017,9 +4017,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 29000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy320mini.jpg",
+    "image": "/assets/images/products/proj-hy320mini.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy320mini.jpg"
+      "/assets/images/products/proj-hy320mini.webp"
     ],
     "tags": [
       "Projector",
@@ -4064,9 +4064,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 41500,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy320pro.jpg",
+    "image": "/assets/images/products/proj-hy320pro.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy320pro.jpg"
+      "/assets/images/products/proj-hy320pro.webp"
     ],
     "tags": [
       "Projector",
@@ -4111,9 +4111,9 @@ const RAW_PRODUCTS_CATALOG: any[] = [
     "originalPrice": 49000,
     "currency": "PKR",
     "discountPercent": 13,
-    "image": "/assets/images/products/proj-hy350.jpg",
+    "image": "/assets/images/products/proj-hy350.webp",
     "galleryImages": [
-      "/assets/images/products/proj-hy350.jpg"
+      "/assets/images/products/proj-hy350.webp"
     ],
     "tags": [
       "Projector",
