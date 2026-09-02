@@ -712,6 +712,9 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(true);
         s.setUserAgentString(s.getUserAgentString() + Api.UA_SUFFIX);
+        // Pin text zoom to 100%: system-wide font scale (Settings > Display)
+        // would otherwise inflate the console layout and break the phone fit.
+        s.setTextZoom(100);
 
         // ---- pull-to-refresh (native, framework-only) ----
         final float[] touchStartY = {0f};
@@ -890,17 +893,51 @@ public class MainActivity extends Activity {
                 "text/html", "utf-8", Api.BASE + "/");
     }
 
-    /** App identity + bottom-nav spacing + legacy JS heartbeat guard. */
+    /**
+     * App identity + phone "custom fit" layer for the admin console.
+     *
+     * The web console is desktop-first (fixed 256px sidebar at every width),
+     * which squeezes the content into a sliver on phone screens. Inside the APK
+     * we inject an app-only fit stylesheet, scoped to html.pb-android AND
+     * max-width:900px, so that:
+     *   - the desktop sidebar rail is replaced by the native bottom navigation
+     *   - paddings tighten to phone scale and header rows wrap
+     *   - the page never scrolls sideways (tables/modals scroll internally)
+     *   - the page renders at true device width (viewport meta enforced)
+     * Desktop browsers and tablets (>=900px CSS width) are untouched.
+     *
+     * Note: the native bottom nav sits BELOW the WebView in the layout flow —
+     * it never covers web content, so no body padding is added (the console
+     * uses the full WebView height).
+     */
     private void injectRuntime(WebView view) {
+        String css = "@media (max-width:900px){" +
+                "html.pb-android .pa-sidebar{display:none !important}" +
+                "html.pb-android .pa-topbar{padding-left:12px !important;padding-right:12px !important;" +
+                "padding-top:8px !important;padding-bottom:8px !important;gap:8px !important;flex-wrap:wrap}" +
+                "html.pb-android main{padding:12px !important;overflow-wrap:anywhere}" +
+                "html.pb-android body{overflow-x:hidden !important}" +
+                "html.pb-android{-webkit-text-size-adjust:100%}" +
+                "html.pb-android main img,html.pb-android main video{max-width:100% !important;height:auto}" +
+                "html.pb-android .justify-between,html.pb-android .items-center{flex-wrap:wrap}" +
+                "html.pb-android pre{max-width:100% !important;overflow-x:auto}" +
+                "html.pb-android div.fixed.inset-0>*{max-width:100% !important}" +
+                "}";
         String js = "(function(){" +
                 "window.PLAYBEAT_ANDROID_APP={version:'" + BuildConfig.APP_VERSION +
                 "',model:'" + jsEsc(SecureStore.deviceModel()) + "',android:'" +
                 jsEsc(SecureStore.androidVersion()) + "',nativeShell:true};" +
-                // bottom-nav breathing room so content is never covered
-                "try{var st=document.getElementById('pb-android-pad');" +
-                "if(!st){st=document.createElement('style');st.id='pb-android-pad';" +
-                "st.textContent='body{padding-bottom:58px !important;}';document.head.appendChild(st);}}catch(e){}" +
-                "})();" ;
+                "try{document.documentElement.classList.add('pb-android');}catch(e){}" +
+                // always render at true device width (safety net for any page)
+                "try{var mv=document.querySelector('meta[name=viewport]');" +
+                "if(!mv){mv=document.createElement('meta');mv.name='viewport';" +
+                "mv.content='width=device-width, initial-scale=1, viewport-fit=cover';" +
+                "document.head.appendChild(mv);}}catch(e){}" +
+                // phone fit layer (idempotent — one style tag per document)
+                "try{var st=document.getElementById('pb-android-fit');" +
+                "if(!st){st=document.createElement('style');st.id='pb-android-fit';" +
+                "st.textContent='" + jsEsc(css) + "';document.head.appendChild(st);}}catch(e){}" +
+                "})();";
         view.evaluateJavascript(js, null);
     }
 

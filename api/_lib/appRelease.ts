@@ -6,16 +6,16 @@
 import { getDb } from "./mongo.js";
 
 export const APP_RELEASE_FALLBACK = {
-  version: "2.0.0",
-  versionCode: 2,
+  version: "3.1.0",
+  versionCode: 4,
   apkUrl: "/downloads/playbeat-admin.apk",
   aabUrl: "",
-  sizeBytes: 140673,
-  sha256: "85165dd14b079582ddd09c9dfc01617bb55228487cbd010fffbbda365ae88449",
+  sizeBytes: 144769,
+  sha256: "7a8eeeb32e39975e3773d6f9e285453a49aa95b88d5cd0b4a062a3ba501b1021",
   minSupportedVersion: "1.0.0",
   forceUpdate: false,
-  buildDate: "2026-09-02T17:51:00.000Z",
-  minAndroid: "7.0 (API 24)",
+  buildDate: "2026-09-02T21:29:00.000Z",
+  minAndroid: "5.0 (API 21)",
   targetAndroid: "Android 14 (API 34)",
   releaseNotes: [
     "Native enterprise login — same super admin / staff credentials as the web panel",
