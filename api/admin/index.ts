@@ -30,8 +30,13 @@
 //   DELETE /api/admin/profile/avatar           (remove profile picture)
 //   GET    /api/admin/avatar?email=...         (public avatar image bytes — no secrets)
 //   POST   /api/admin/documents/chunk          (vault upload — one base64 chunk)
-//   POST   /api/admin/documents/finalize       (vault upload — assemble + validate + store)
-//   GET    /api/admin/documents                (vault list + storage stats; ?q=&type=)
+//   POST   /api/admin/documents/finalize       (vault upload — assemble + validate + store; optional folderId)
+//   GET    /api/admin/documents                (vault list + storage stats; ?q=&type=&folder=root|<id>)
+//   GET    /api/admin/documents/folders        (vault folder list + per-folder counts)
+//   POST   /api/admin/documents/folders        (create a vault folder)
+//   PATCH  /api/admin/documents/folders/:id    (rename a vault folder)
+//   DELETE /api/admin/documents/folders/:id    (delete a vault folder — optional moveFilesToRoot)
+//   POST   /api/admin/documents/:id/move       (move a file between folders)
 //   GET    /api/admin/documents/:id/download   (vault binary download — admin auth)
 //   DELETE /api/admin/documents/:id            (vault delete — manager+ or uploader)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
@@ -68,6 +73,8 @@ function escapeRegExp(s: string): string {
 // assembled on POST /documents/finalize. Bytes live in the GridFS bucket
 // "admin_documents" (no 16MB document limit); metadata lives in the
 // "admin_documents" collection, staging chunks in "admin_document_chunks".
+// Files can be organized into folders ("admin_document_folders", flat list;
+// documents carry denormalized folderId + folderName for cheap filtering).
 // =====================================================================
 const DOC_MAX_BYTES = 50 * 1024 * 1024; // 50MB per file
 const DOC_CHUNK_MAX = 3 * 1024 * 1024; // decoded per-chunk ceiling
@@ -2123,6 +2130,17 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (typeof sessionId !== "string" || !/^[a-zA-Z0-9_-]{8,64}$/.test(sessionId)) {
         return jsonError(res, "Invalid upload session id.", 400);
       }
+      // optional destination folder — must exist before we assemble bytes
+      const rawFolderId = (req.body || {}).folderId;
+      let destFolder: { id: ObjectId; name: string } | null = null;
+      if (rawFolderId !== null && rawFolderId !== undefined && rawFolderId !== "") {
+        if (typeof rawFolderId !== "string" || !ObjectId.isValid(rawFolderId)) {
+          return jsonError(res, "Invalid target folder id.", 400);
+        }
+        const folder = await db.collection("admin_document_folders").findOne({ _id: new ObjectId(rawFolderId) });
+        if (!folder) return jsonError(res, "Target folder not found.", 404);
+        destFolder = { id: folder._id, name: folder.name };
+      }
       // sanitize the filename — basename only, no control characters
       const rawName = String(name || "")
         .replace(/[\\/]+/g, "_")
@@ -2177,6 +2195,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         mime: typeof mime === "string" && mime ? mime : allowed.mime,
         size: bytes.length,
         fileId,
+        folderId: destFolder ? destFolder.id : null,
+        folderName: destFolder ? destFolder.name : null,
         uploadedBy: { email: uploaderEmail, name: String(admin.name || "Administrator") },
         uploadedAt: now,
         downloads: 0,
@@ -2186,13 +2206,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       await db.collection("admin_activity").insertOne({
         adminEmail: uploaderEmail,
         type: "document_upload",
-        detail: `Uploaded document: ${safeName}`,
-        meta: { size: bytes.length, ext },
+        detail: destFolder ? `Uploaded ${safeName} to folder ${destFolder.name}` : `Uploaded document: ${safeName}`,
+        meta: { size: bytes.length, ext, folderId: destFolder ? String(destFolder.id) : null },
         createdAt: now,
       });
       return jsonOk(res, {
         success: true,
-        message: "File uploaded to the vault.",
+        message: destFolder ? `File uploaded to the vault (${destFolder.name}).` : "File uploaded to the vault.",
         document: {
           id: ins.insertedId.toString(),
           name: meta.name,
@@ -2200,6 +2220,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           group: meta.group,
           mime: meta.mime,
           size: meta.size,
+          folderId: meta.folderId ? String(meta.folderId) : null,
+          folderName: meta.folderName,
           uploadedBy: meta.uploadedBy,
           uploadedAt: now.toISOString(),
           downloads: 0,
@@ -2211,15 +2233,245 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ POST /api/admin/documents/folders (create folder) ============
+  if (route === "documents/folders" && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const rawName = String((req.body || {}).name || "")
+        .replace(/[\\/]+/g, " ")
+        .replace(/[\x00-\x1f\x7f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!rawName) return jsonError(res, "Folder name is required.", 400);
+      if (rawName.length > 60) return jsonError(res, "Folder name is too long (max 60 characters).", 400);
+      const foldersCol = db.collection("admin_document_folders");
+      const dup = await foldersCol.findOne({
+        name: { $regex: `^${escapeRegExp(rawName)}$`, $options: "i" },
+      });
+      if (dup) return jsonError(res, `A folder named "${dup.name}" already exists.`, 409);
+      const now = new Date();
+      const ins = await foldersCol.insertOne({
+        name: rawName,
+        createdBy: { email: String(admin.email || ADMIN_EMAIL).toLowerCase(), name: String(admin.name || "Administrator") },
+        createdAt: now,
+      });
+      await db.collection("admin_activity").insertOne({
+        adminEmail: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        type: "folder_create",
+        detail: `Created vault folder: ${rawName}`,
+        meta: { folderId: ins.insertedId.toString() },
+        createdAt: now,
+      });
+      return jsonOk(
+        res,
+        {
+          success: true,
+          message: "Folder created.",
+          folder: {
+            id: ins.insertedId.toString(),
+            name: rawName,
+            createdBy: { email: String(admin.email || ADMIN_EMAIL).toLowerCase(), name: String(admin.name || "Administrator") },
+            createdAt: now.toISOString(),
+            fileCount: 0,
+            totalBytes: 0,
+          },
+        },
+        201
+      );
+    } catch (err: any) {
+      console.error("POST /api/admin/documents/folders error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/documents/folders (list + per-folder stats) ============
+  if (route === "documents/folders" && req.method === "GET") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const [folders, agg] = await Promise.all([
+        db.collection("admin_document_folders").find({}).sort({ createdAt: 1 }).toArray(),
+        db
+          .collection("admin_documents")
+          .aggregate([
+            { $match: { folderId: { $ne: null } } },
+            { $group: { _id: "$folderId", count: { $sum: 1 }, bytes: { $sum: "$size" } } },
+          ])
+          .toArray(),
+      ]);
+      const statsByFolder = new Map<string, { count: number; bytes: number }>();
+      for (const row of agg) {
+        if (row._id) statsByFolder.set(String(row._id), { count: row.count, bytes: row.bytes });
+      }
+      return jsonOk(res, {
+        success: true,
+        folders: folders.map((f: any) => ({
+          id: f._id.toString(),
+          name: f.name,
+          createdBy: f.createdBy,
+          createdAt: f.createdAt,
+          fileCount: statsByFolder.get(f._id.toString())?.count || 0,
+          totalBytes: statsByFolder.get(f._id.toString())?.bytes || 0,
+        })),
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/documents/folders error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ PATCH /api/admin/documents/folders/:id (rename) ============
+  if (route.startsWith("documents/folders/") && req.method === "PATCH") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const id = route.slice("documents/folders/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid folder id.", 400);
+      const rawName = String((req.body || {}).name || "")
+        .replace(/[\\/]+/g, " ")
+        .replace(/[\x00-\x1f\x7f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!rawName) return jsonError(res, "Folder name is required.", 400);
+      if (rawName.length > 60) return jsonError(res, "Folder name is too long (max 60 characters).", 400);
+      const foldersCol = db.collection("admin_document_folders");
+      const folder = await foldersCol.findOne({ _id: new ObjectId(id) });
+      if (!folder) return jsonError(res, "Folder not found.", 404);
+      const dup = await foldersCol.findOne({
+        _id: { $ne: folder._id },
+        name: { $regex: `^${escapeRegExp(rawName)}$`, $options: "i" },
+      });
+      if (dup) return jsonError(res, `A folder named "${dup.name}" already exists.`, 409);
+      await foldersCol.updateOne({ _id: folder._id }, { $set: { name: rawName } });
+      // keep the denormalized copy on the files in sync
+      await db.collection("admin_documents").updateMany({ folderId: folder._id }, { $set: { folderName: rawName } });
+      await db.collection("admin_activity").insertOne({
+        adminEmail: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        type: "folder_rename",
+        detail: `Renamed vault folder: ${folder.name} → ${rawName}`,
+        meta: { folderId: id },
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, message: "Folder renamed.", folder: { id, name: rawName } });
+    } catch (err: any) {
+      console.error("PATCH /api/admin/documents/folders/:id error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ DELETE /api/admin/documents/folders/:id ============
+  // Empty folders delete outright. Non-empty folders return 400 unless the
+  // caller opts into { moveFilesToRoot: true }, which pulls every file back
+  // to "All Files" — files are never destroyed by a folder delete.
+  if (route.startsWith("documents/folders/") && req.method === "DELETE") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const id = route.slice("documents/folders/".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid folder id.", 400);
+      const foldersCol = db.collection("admin_document_folders");
+      const folder = await foldersCol.findOne({ _id: new ObjectId(id) });
+      if (!folder) return jsonError(res, "Folder not found.", 404);
+      const docsCol = db.collection("admin_documents");
+      const fileCount = await docsCol.countDocuments({ folderId: folder._id });
+      if (fileCount > 0 && !(req.body || {}).moveFilesToRoot) {
+        return jsonError(
+          res,
+          `"${folder.name}" still contains ${fileCount} file${fileCount === 1 ? "" : "s"}. Move or delete them first, or choose to move them back to All Files.`,
+          400
+        );
+      }
+      if (fileCount > 0) {
+        await docsCol.updateMany(
+          { folderId: folder._id },
+          { $set: { folderId: null, folderName: null } }
+        );
+      }
+      await foldersCol.deleteOne({ _id: folder._id });
+      await db.collection("admin_activity").insertOne({
+        adminEmail: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        type: "folder_delete",
+        detail: `Deleted vault folder: ${folder.name}`,
+        meta: { folderId: id, filesMovedToRoot: fileCount },
+        createdAt: new Date(),
+      });
+      return jsonOk(res, {
+        success: true,
+        message:
+          fileCount > 0
+            ? `Folder deleted — ${fileCount} file${fileCount === 1 ? "" : "s"} moved back to All Files.`
+            : "Folder deleted.",
+      });
+    } catch (err: any) {
+      console.error("DELETE /api/admin/documents/folders/:id error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/documents/:id/move (move between folders) ============
+  if (route.startsWith("documents/") && route.endsWith("/move") && req.method === "POST") {
+    try {
+      const admin = verifyAdmin(req);
+      if (!admin) return jsonError(res, "Admin authentication required", 401);
+      const id = route.slice("documents/".length, -"/move".length);
+      if (!ObjectId.isValid(id)) return jsonError(res, "Invalid document id.", 400);
+      const doc = await db.collection("admin_documents").findOne({ _id: new ObjectId(id) });
+      if (!doc) return jsonError(res, "Document not found.", 404);
+      const rawFolderId = (req.body || {}).folderId;
+      let folderId: ObjectId | null = null;
+      let folderName: string | null = null;
+      if (rawFolderId !== null && rawFolderId !== undefined && rawFolderId !== "" && rawFolderId !== "root") {
+        if (typeof rawFolderId !== "string" || !ObjectId.isValid(rawFolderId)) {
+          return jsonError(res, "Invalid target folder id.", 400);
+        }
+        const folder = await db.collection("admin_document_folders").findOne({ _id: new ObjectId(rawFolderId) });
+        if (!folder) return jsonError(res, "Target folder not found.", 404);
+        if (doc.folderId && String(doc.folderId) === String(folder._id)) {
+          return jsonOk(res, { success: true, message: "File is already in that folder.", folder: { id: rawFolderId, name: folder.name } });
+        }
+        folderId = folder._id;
+        folderName = folder.name;
+      }
+      if (doc.folderId && folderId && String(doc.folderId) === String(folderId)) {
+        return jsonOk(res, { success: true, message: "File is already in that folder.", folder: { id: String(folderId), name: folderName } });
+      }
+      await db
+        .collection("admin_documents")
+        .updateOne({ _id: doc._id }, { $set: { folderId, folderName } });
+      const label = folderName ? folderName : "All Files";
+      await db.collection("admin_activity").insertOne({
+        adminEmail: String(admin.email || ADMIN_EMAIL).toLowerCase(),
+        type: "document_move",
+        detail: `Moved ${doc.name} to ${label}`,
+        meta: { documentId: id, folderId: folderId ? String(folderId) : null },
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, message: `Moved to ${label}.`, folder: { id: folderId ? String(folderId) : null, name: folderName } });
+    } catch (err: any) {
+      console.error("POST /api/admin/documents/:id/move error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   // ============ GET /api/admin/documents (list + storage stats) ============
   if (route === "documents" && req.method === "GET") {
     try {
       const urlQ = new URL(req.url || "", "http://localhost").searchParams;
       const q = String(urlQ.get("q") || "").trim();
       const type = String(urlQ.get("type") || "").trim().toLowerCase();
+      const folder = String(urlQ.get("folder") || "").trim();
       const filter: any = {};
       if (q) filter.name = { $regex: escapeRegExp(q), $options: "i" };
       if (type && type !== "all") filter.group = type;
+      // folder scoping: "root" = files not in any folder, else the ObjectId.
+      // When the param is absent (search / type filter) results span the
+      // whole vault so nothing can hide inside a folder.
+      if (folder === "root") {
+        filter.$or = [{ folderId: null }, { folderId: { $exists: false } }];
+      } else if (folder && ObjectId.isValid(folder)) {
+        filter.folderId = new ObjectId(folder);
+      }
       const col = db.collection("admin_documents");
       const [docs, agg] = await Promise.all([
         col.find(filter).sort({ uploadedAt: -1 }).limit(300).toArray(),
@@ -2244,6 +2496,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           group: d.group,
           mime: d.mime,
           size: d.size,
+          folderId: d.folderId ? String(d.folderId) : null,
+          folderName: d.folderName || null,
           uploadedBy: d.uploadedBy,
           uploadedAt: d.uploadedAt,
           downloads: d.downloads || 0,
