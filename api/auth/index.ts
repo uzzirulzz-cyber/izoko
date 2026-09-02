@@ -2,7 +2,7 @@
 // Routes:
 //   POST /api/auth/register
 //   POST /api/auth/login
-//   POST /api/auth/social
+//   POST /api/auth/social            → 410 GONE (mock sign-up disabled; real OAuth only)
 //   GET  /api/auth/me
 //   POST /api/auth/forgot-password
 //   POST /api/auth/admin/login        (super admin env credentials OR staff account in DB)
@@ -11,8 +11,13 @@
 //   GET  /api/auth/oauth-config       (which social providers have OAuth keys configured)
 //   GET  /api/auth/oauth/:provider/start    (begin real OAuth flow when configured)
 //   GET  /api/auth/oauth/:provider/callback (OAuth code exchange → real account → redirect)
+//
+// REAL social sign-up/sign-in: Google, Facebook, TikTok, Instagram.
+// Each provider only activates when its developer credentials are present in the
+// Vercel environment variables (see getProviderConfigs for the exact env names).
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
+import { randomBytes } from "crypto";
 import { getDb } from "../_lib/mongo.js";
 import {
   handleOptions,
@@ -20,6 +25,8 @@ import {
   jsonError,
   setCookie,
   clearCookie,
+  parseCookies,
+  getToken,
   hashPassword,
   comparePassword,
   signUserToken,
@@ -39,6 +46,12 @@ type ProviderConfig = {
   scope: string;
   clientId?: string;
   clientSecret?: string;
+  // Provider quirks handled uniformly by the start/callback handlers:
+  clientIdParam?: "client_id" | "client_key";          // TikTok uses client_key
+  tokenClientAuth?: "body_secret" | "basic_auth";      // Google/FB/TikTok/IG all use body secret today
+  profileAuth?: "header" | "query";                    // Instagram reads access_token from query string
+  extraAuthParams?: Record<string, string>;            // e.g. Google prompt=select_account
+  parseProfile?: (json: any) => { id?: string; name?: string; email?: string; username?: string };
 };
 
 function getProviderConfigs(): Record<string, ProviderConfig> {
@@ -48,32 +61,64 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       tokenUrl: "https://oauth2.googleapis.com/token",
       profileUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
       scope: "openid email profile",
+      clientIdParam: "client_id",
+      tokenClientAuth: "body_secret",
+      profileAuth: "header",
+      extraAuthParams: { prompt: "select_account", access_type: "online", include_granted_scopes: "true" },
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      parseProfile: (j) => ({ id: j?.id || j?.sub, name: j?.name, email: j?.email, username: j?.email }),
     },
     facebook: {
-      authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-      tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-      profileUrl: "https://graph.facebook.com/me?fields=id,name,email",
-      scope: "email public_profile",
+      authUrl: "https://www.facebook.com/v21.0/dialog/oauth",
+      tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
+      profileUrl: "https://graph.facebook.com/v21.0/me?fields=id,name,email",
+      scope: "email,public_profile",
+      clientIdParam: "client_id",
+      tokenClientAuth: "body_secret",
+      profileAuth: "header",
       clientId: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      parseProfile: (j) => ({ id: j?.id, name: j?.name, email: j?.email, username: j?.email }),
     },
     tiktok: {
+      // TikTok Login Kit v2 — the client identifier is "client_key" (NOT client_id),
+      // and the user info endpoint nests the profile under data.user.
       authUrl: "https://www.tiktok.com/v2/auth/authorize/",
       tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
-      profileUrl: "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name",
+      profileUrl: "https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url",
       scope: "user.info.basic",
+      clientIdParam: "client_key",
+      tokenClientAuth: "body_secret",
+      profileAuth: "header",
       clientId: process.env.TIKTOK_CLIENT_KEY,
       clientSecret: process.env.TIKTOK_CLIENT_SECRET,
+      parseProfile: (j) => ({
+        id: j?.data?.user?.open_id || j?.data?.user?.union_id || j?.open_id,
+        name: j?.data?.user?.display_name || j?.data?.user?.username,
+        email: undefined, // TikTok never shares an email — a stable provider-scoped identity is generated
+        username: j?.data?.user?.display_name,
+      }),
     },
     instagram: {
-      authUrl: "https://api.instagram.com/oauth/authorize",
+      // "Instagram API with Instagram Login" (the current Meta product — the old
+      // Basic Display API was deprecated in Dec 2024). No email scope exists, so a
+      // stable provider-scoped identity email is generated from the username.
+      authUrl: "https://www.instagram.com/oauth/authorize",
       tokenUrl: "https://api.instagram.com/oauth/access_token",
-      profileUrl: "https://graph.instagram.com/me?fields=id,username",
-      scope: "instagram_basic",
+      profileUrl: "https://graph.instagram.com/v21.0/me?fields=user_id,username,account_type",
+      scope: "instagram_business_basic",
+      clientIdParam: "client_id",
+      tokenClientAuth: "body_secret",
+      profileAuth: "query",
       clientId: process.env.INSTAGRAM_CLIENT_ID,
       clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
+      parseProfile: (j) => ({
+        id: j?.user_id || j?.id,
+        name: j?.username,
+        email: undefined, // Instagram does not expose email — provider-scoped identity is generated
+        username: j?.username,
+      }),
     },
   };
 }
@@ -104,13 +149,33 @@ async function upsertSocialUser(
   if (email === ADMIN_EMAIL.toLowerCase()) {
     throw new Error("This email is reserved and cannot be claimed.");
   }
-  let user: any = await usersCol.findOne({ email });
+
+  // 1) Returning social user — match on the provider identity first (stable
+  //    even if the display name/username changes), then fall back to email.
+  let user: any = null;
+  if (profile.id) {
+    user = await usersCol.findOne({ provider: label, providerId: String(profile.id) });
+  }
+  if (!user) {
+    user = await usersCol.findOne({ email });
+    // Link the social identity onto an existing account (e.g. previously
+    // registered by email with the same address) and remember the provider id.
+    if (user && profile.id) {
+      await usersCol.updateOne(
+        { _id: user._id },
+        { $set: { provider: label, providerId: String(profile.id), updatedAt: new Date() } }
+      );
+      user = { ...user, provider: label, providerId: String(profile.id) };
+    }
+  }
+
+  // 2) First-time sign-up — create the real account record.
   if (!user) {
     const newUserDoc = {
       name: profile.name || profile.username || `${label} Member`,
       email,
       provider: label,
-      providerId: profile.id || null,
+      providerId: profile.id ? String(profile.id) : null,
       role: "user",
       createdAt: new Date(),
     };
@@ -230,50 +295,17 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   }
 
   // ============ /api/auth/social ============
-  // Creates/retrieves a REAL user account in MongoDB tagged with the provider.
-  // Used by the storefront's provider-linked registration flow (works even before
-  // OAuth developer keys are added; when keys are configured the real OAuth flow
-  // below takes over automatically).
+  // DISABLED — this endpoint previously created accounts from CLIENT-SUPPLIED
+  // name/email (mock sign-up, no proof the caller owned the identity). It is
+  // now permanently rejected. Real social sign-up uses the OAuth flow:
+  //   GET /api/auth/oauth/:provider/start  → provider consent → callback →
+  //   real profile fetched server-side from the provider → account created.
   if (route === "social" && req.method === "POST") {
-    try {
-      const { provider, profile } = req.body || {};
-      if (!provider) {
-        return jsonError(res, "Provider is required.", 400);
-      }
-      const label = getProviderLabel(String(provider));
-      const email = (profile?.email || "").toLowerCase().trim();
-      const name = (profile?.name || "").trim();
-      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-        return jsonError(res, "A valid email address is required to complete registration.", 400);
-      }
-      if (!name) {
-        return jsonError(res, "Your name is required to complete registration.", 400);
-      }
-      const db = await getDb();
-      const user = await upsertSocialUser(db, String(provider), { name, email });
-      const token = signUserToken({
-        id: user._id.toString(),
-        email: user.email,
-        role: user.role || "user",
-      });
-      setCookie(res, "token", token, { maxAge: 30 * 24 * 60 * 60 });
-      const cfg = getProviderConfigs()[String(provider).toLowerCase()];
-      return jsonOk(res, {
-        success: true,
-        provider: label,
-        oauthConfigured: Boolean(cfg?.clientId && cfg?.clientSecret),
-        token,
-        user: {
-          id: user._id.toString(),
-          name: user.name,
-          email: user.email,
-          role: user.role || "user",
-        },
-      });
-    } catch (err: any) {
-      console.error("Social Auth Error:", err);
-      return jsonError(res, err.message, 500);
-    }
+    return jsonError(
+      res,
+      "Mock social sign-up has been disabled. Sign up with Google, Facebook, TikTok or Instagram via the secure OAuth button, or use email registration.",
+      410
+    );
   }
 
   // ============ /api/auth/me ============
@@ -285,8 +317,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const usersCol = db.collection("users");
       const user = await usersCol.findOne({ _id: new ObjectId(decoded.id) });
       if (!user) return jsonError(res, "User not found", 404);
+      // If the session was verified via the httpOnly cookie (e.g. right after an
+      // OAuth redirect), echo the token so the SPA can also make Bearer calls.
+      // The token belongs to the caller only — safe to return to the verified party.
+      const cameFromCookie = !req.headers?.authorization?.startsWith("Bearer ");
       return jsonOk(res, {
         success: true,
+        ...(cameFromCookie ? { token: getToken(req, "token") } : {}),
         user: {
           id: user._id.toString(),
           name: user.name,
@@ -476,20 +513,25 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     if (!cfg.clientId || !cfg.clientSecret) {
       return res.status(302).redirect(
         `/storefront?social_error=${encodeURIComponent(
-          `${getProviderLabel(provider)} OAuth keys are not configured yet — use the quick registration flow.`
+          `${getProviderLabel(provider)} sign-in is being activated — its OAuth keys are not configured yet. Please use email registration meanwhile.`
         )}`
       );
     }
     const redirectUri = `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/oauth/${provider}/callback`;
-    const state = `${provider}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-    setCookie(res, "oauth_state", state, { maxAge: 600, httpOnly: true });
-    const authUrl =
-      `${cfg.authUrl}?response_type=code` +
-      `&client_id=${encodeURIComponent(cfg.clientId)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&scope=${encodeURIComponent(cfg.scope)}` +
-      `&state=${encodeURIComponent(state)}`;
-    return res.status(302).redirect(authUrl);
+    // CSRF protection: random single-use state stored in a short-lived httpOnly
+    // cookie; the callback must receive the identical value back from the provider.
+    const state = `${provider}.${Date.now()}.${randomBytes(16).toString("hex")}`;
+    setCookie(res, "oauth_state", state, { maxAge: 600, httpOnly: true, sameSite: "lax" });
+    const idParam = cfg.clientIdParam || "client_id";
+    const params = new URLSearchParams({
+      response_type: "code",
+      [idParam]: cfg.clientId,
+      redirect_uri: redirectUri,
+      scope: cfg.scope,
+      state,
+      ...(cfg.extraAuthParams || {}),
+    });
+    return res.status(302).redirect(`${cfg.authUrl}?${params.toString()}`);
   }
 
   // ============ /api/auth/oauth/:provider/callback ============
@@ -504,33 +546,75 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent("Provider not configured")}`);
     }
     if (!code) return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent("Missing OAuth code")}`);
+
+    // CSRF check: the state we set in the start-step cookie must match the state
+    // the provider echoed back (defends against forged authorization callbacks).
+    const stateCookie = parseCookies(req)["oauth_state"];
+    const stateQuery = url.searchParams.get("state");
+    if (!stateCookie || !stateQuery || stateCookie !== stateQuery) {
+      clearCookie(res, "oauth_state");
+      return res.status(302).redirect(
+        `${base}/storefront?social_error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`
+      );
+    }
+    clearCookie(res, "oauth_state");
+
     try {
       const redirectUri = `${base}/api/auth/oauth/${provider}/callback`;
+      // Token exchange — TikTok requires client_key (not client_id); the rest use client_id.
+      const idParam = cfg.clientIdParam || "client_id";
+      const tokenBody: Record<string, string> = {
+        grant_type: "authorization_code",
+        [idParam]: cfg.clientId,
+        code,
+        redirect_uri: redirectUri,
+      };
+      if (provider === "tiktok") {
+        tokenBody.client_secret = cfg.clientSecret;
+      } else {
+        tokenBody.client_id = cfg.clientId;
+        tokenBody.client_secret = cfg.clientSecret;
+      }
       const tokenRes = await fetch(cfg.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          client_id: cfg.clientId,
-          client_secret: cfg.clientSecret,
-          code,
-          redirect_uri: redirectUri,
-        } as any),
-      } as any);
+        body: new URLSearchParams(tokenBody),
+      });
       const tokenJson: any = await tokenRes.json();
-      const accessToken = tokenJson.access_token || tokenJson.data?.access_token;
-      if (!accessToken) throw new Error(tokenJson.error_description || tokenJson.error || "Token exchange failed");
-      const profRes = await fetch(cfg.profileUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const accessToken = tokenJson.access_token || tokenJson.data?.access_token || tokenJson.data?.token;
+      if (!accessToken) {
+        throw new Error(
+          tokenJson.error_description ||
+            tokenJson.error?.description ||
+            tokenJson.error_message ||
+            tokenJson.error ||
+            "Token exchange failed"
+        );
+      }
+
+      // Profile fetch — Instagram reads the token from the query string; the rest use a Bearer header.
+      const profileFetchUrl =
+        cfg.profileAuth === "query"
+          ? `${cfg.profileUrl}${cfg.profileUrl.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(accessToken)}`
+          : cfg.profileUrl;
+      const profRes = await fetch(profileFetchUrl, {
+        headers:
+          cfg.profileAuth === "query"
+            ? { Accept: "application/json" }
+            : { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
       });
       const profJson: any = await profRes.json();
+      const extracted = cfg.parseProfile
+        ? cfg.parseProfile(profJson)
+        : {
+            id: profJson.id || profJson.sub || profJson.open_id,
+            name: profJson.name || profJson.display_name || profJson.username,
+            email: profJson.email,
+            username: profJson.username,
+          };
+
       const db = await getDb();
-      const user = await upsertSocialUser(db, provider, {
-        id: profJson.id || profJson.sub || profJson.open_id || profJson.data?.open_id,
-        name: profJson.name || profJson.display_name || profJson.username || profJson.data?.display_name,
-        email: profJson.email,
-        username: profJson.username,
-      });
+      const user = await upsertSocialUser(db, provider, extracted);
       const token = signUserToken({
         id: user._id.toString(),
         email: user.email,
@@ -539,7 +623,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       setCookie(res, "token", token, { maxAge: 30 * 24 * 60 * 60 });
       return res.status(302).redirect(`${base}/storefront?social_success=${encodeURIComponent(getProviderLabel(provider))}`);
     } catch (err: any) {
-      return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(err.message)}`);
+      return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(err.message || "Sign-in failed")}`);
     }
   }
 

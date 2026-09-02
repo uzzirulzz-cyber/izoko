@@ -728,74 +728,17 @@ async function startServer() {
     }
   });
 
-  // POST /api/auth/social (Google, Facebook, TikTok OAuth Handler)
-  app.post("/api/auth/social", async (req, res) => {
-    try {
-      const { provider, token: socialToken, profile } = req.body;
-      if (!provider) {
-        return res.status(400).json({ success: false, error: "Provider is required." });
-      }
-
-      // Check environment variables for real OAuth validation
-      const googleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID);
-      const fbConfigured = Boolean(process.env.FACEBOOK_CLIENT_ID);
-      const tiktokConfigured = Boolean(process.env.TIKTOK_CLIENT_KEY);
-
-      const email =
-        profile?.email?.toLowerCase().trim() ||
-        `${provider.toLowerCase()}.${Date.now().toString().slice(-4)}@playbeat.digital`;
-      const name = profile?.name || `${provider} Member`;
-
-      // Block any attempt to register/claim the admin env account via social
-      if (email === ADMIN_EMAIL.toLowerCase().trim()) {
-        return res.status(403).json({ success: false, error: "This email is reserved and cannot be claimed." });
-      }
-
-      const db = await getDb();
-      const usersCol = db.collection("users");
-
-      let user = await usersCol.findOne({ email });
-      if (!user) {
-        const newUserDoc = {
-          name,
-          email,
-          provider,
-          role: "user",
-          createdAt: new Date(),
-        };
-        const insertRes = await usersCol.insertOne(newUserDoc);
-        user = { _id: insertRes.insertedId, ...newUserDoc };
-      }
-
-      const token = jwt.sign({ id: user._id.toString(), email: user.email, role: user.role || "user" }, SESSION_SECRET, {
-        expiresIn: "30d",
-      });
-
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      res.json({
-        success: true,
-        provider,
-        configured:
-          provider === "Google"
-            ? googleConfigured
-            : provider === "Facebook"
-            ? fbConfigured
-            : provider === "TikTok"
-            ? tiktokConfigured
-            : false,
-        token,
-        user: { id: user._id.toString(), name: user.name, email: user.email, role: user.role || "user" },
-      });
-    } catch (err: any) {
-      console.error("Social Auth Error:", err);
-      res.status(500).json({ success: false, error: err.message });
-    }
+  // POST /api/auth/social — DISABLED (mock sign-up removed)
+  // Previously created accounts from CLIENT-SUPPLIED name/email with no proof of
+  // identity. Real social sign-up is handled exclusively by the OAuth flow in the
+  // production API (api/auth/index.ts): /api/auth/oauth/:provider/start → provider
+  // consent → /callback → server-side profile fetch → real account.
+  app.post("/api/auth/social", async (_req, res) => {
+    res.status(410).json({
+      success: false,
+      error:
+        "Mock social sign-up has been disabled. Sign up with Google, Facebook, TikTok or Instagram via the secure OAuth button, or use email registration.",
+    });
   });
 
   // GET /api/auth/me (Current Session Verification)

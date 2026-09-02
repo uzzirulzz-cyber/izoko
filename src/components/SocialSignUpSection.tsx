@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { Sparkles, ShieldCheck, Zap, Gift, CheckCircle2, ArrowRight, Lock, X, AlertCircle, Loader2 } from 'lucide-react'
+import { Sparkles, ShieldCheck, Zap, Gift, CheckCircle2, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
 
 type Provider = 'Google' | 'Facebook' | 'TikTok' | 'Instagram'
+type AuthSource = Provider | 'Email'
 
 interface SocialSignUpSectionProps {
-  onSocialAuth: (provider: Provider, user: { name: string; email: string }) => void
+  onSocialAuth: (provider: AuthSource, user: { name: string; email: string }) => void
   user: { name: string; email: string } | null
 }
 
@@ -57,21 +58,27 @@ function ProviderIcon({ provider }: { provider: Provider }) {
   )
 }
 
+/**
+ * Sign-up section — REAL accounts only.
+ *  • Social buttons start the genuine OAuth flow (provider consent screen →
+ *    server-side profile fetch → real account in MongoDB). No mock fallback.
+ *  • Email registration creates a real password account (bcrypt-hashed) via
+ *    /api/auth/register, and returning users sign in via /api/auth/login.
+ */
 export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
   onSocialAuth,
   user,
 }) => {
   const [oauthProviders, setOauthProviders] = useState<Record<string, boolean>>({})
-  const [emailInput, setEmailInput] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeProvider, setActiveProvider] = useState<Provider | null>(null)
 
-  // Real registration modal state (used when OAuth keys are not yet configured)
-  const [modalProvider, setModalProvider] = useState<Provider | null>(null)
-  const [regName, setRegName] = useState('')
-  const [regEmail, setRegEmail] = useState('')
-  const [regError, setRegError] = useState<string | null>(null)
-  const [regLoading, setRegLoading] = useState(false)
+  // Real email account form state (registration or sign-in)
+  const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup')
+  const [authName, setAuthName] = useState('')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(false)
 
   // Which providers have real OAuth keys configured in the backend?
   useEffect(() => {
@@ -85,90 +92,68 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
 
   const startOauth = (provider: Provider) => {
     // Full-page redirect to the backend OAuth start route (server 302s to provider)
+    setActiveProvider(provider)
     window.location.href = `${API_BASE}/api/auth/oauth/${provider.toLowerCase()}/start`
   }
 
-  const openRegistration = (provider: Provider) => {
-    setModalProvider(provider)
-    setRegError(null)
-    setRegName('')
-    setRegEmail('')
-  }
-
   const handleProviderClick = (provider: Provider) => {
-    if (oauthProviders[provider]) {
+    setAuthError(null)
+    if (oauthProviders[provider] !== false) {
       // Real OAuth flow — provider-consented identity, fully functional
       startOauth(provider)
     } else {
-      // Provider-linked quick registration — creates a REAL account in MongoDB
-      openRegistration(provider)
+      // Keys not yet configured — steer to real email account creation instead
+      setAuthError(
+        `${provider} sign-in is being activated right now. Create your account with email below — it takes 10 seconds and works identically.`
+      )
+      setAuthMode('signup')
+      document.getElementById('playbeat-email-auth-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }
 
-  const handleRegistrationSubmit = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!modalProvider) return
-    const name = regName.trim()
-    const email = regEmail.trim()
-    setRegError(null)
-    if (!name) {
-      setRegError('Please enter your name.')
+    setAuthError(null)
+    const name = authName.trim()
+    const email = authEmail.trim().toLowerCase()
+    const password = authPassword
+    if (authMode === 'signup' && !name) {
+      setAuthError('Please enter your name.')
       return
     }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setRegError('Please enter a valid email address.')
+      setAuthError('Please enter a valid email address.')
       return
     }
-    setRegLoading(true)
+    if (password.length < 6) {
+      setAuthError('Password must be at least 6 characters long.')
+      return
+    }
+    setAuthLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/auth/social`, {
+      const endpoint = authMode === 'signup' ? '/api/auth/register' : '/api/auth/login'
+      const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ provider: modalProvider, profile: { name, email } }),
+        body: JSON.stringify(authMode === 'signup' ? { name, email, password } : { email, password }),
       })
       const data = await res.json()
       if (data?.success && data?.user) {
         if (data.token) localStorage.setItem('playbeat_user_token', data.token)
         localStorage.setItem('playbeat_user', JSON.stringify({ name: data.user.name, email: data.user.email }))
-        onSocialAuth(modalProvider, { name: data.user.name, email: data.user.email })
-        setModalProvider(null)
+        onSocialAuth('Email', { name: data.user.name, email: data.user.email })
+        setAuthName('')
+        setAuthEmail('')
+        setAuthPassword('')
       } else {
-        setRegError(data?.error || 'Registration failed. Please try again.')
+        setAuthError(data?.error || (authMode === 'signup' ? 'Registration failed. Please try again.' : 'Sign in failed. Check your email and password.'))
       }
     } catch (err: any) {
-      setRegError(err.message || 'Network error — please try again.')
+      setAuthError(err.message || 'Network error — please try again.')
     } finally {
-      setRegLoading(false)
+      setAuthLoading(false)
     }
-  }
-
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!emailInput.trim()) return
-    setIsSubmitting(true)
-    // Same real-registration pipeline under the hood (Google-labelled quick signup)
-    const email = emailInput.trim()
-    const cleanName = email.split('@')[0] || 'PlayBeat Member'
-    fetch(`${API_BASE}/api/auth/social`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ provider: 'Google', profile: { name: cleanName, email } }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.success && data?.user) {
-          if (data.token) localStorage.setItem('playbeat_user_token', data.token)
-          localStorage.setItem('playbeat_user', JSON.stringify({ name: data.user.name, email: data.user.email }))
-          onSocialAuth('Google', { name: data.user.name, email: data.user.email })
-          setEmailInput('')
-        } else {
-          alert(data?.error || 'Sign up failed — that email may already be registered.')
-        }
-      })
-      .catch(() => alert('Network error — please try again.'))
-      .finally(() => setIsSubmitting(false))
   }
 
   return (
@@ -192,7 +177,7 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
             Sign Up in Seconds & Unlock VIP Perks
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-            Connect your preferred social account for 1-click registration, instant 15-second digital license delivery, and automated warranty tracking.
+            Create your account with Google, Facebook, TikTok or Instagram in one secure click — or register with email. Instant 15-second digital license delivery and automated warranty tracking included.
           </p>
         </div>
 
@@ -219,23 +204,28 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
           </div>
         ) : (
           <div className="max-w-4xl mx-auto space-y-6">
-            {/* 4 Social Sign Up Buttons Matrix */}
+            {/* 4 Social Sign Up Buttons Matrix — real OAuth */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               {(['Google', 'Facebook', 'TikTok', 'Instagram'] as Provider[]).map((provider) => {
                 const meta = PROVIDER_META[provider]
+                const configured = oauthProviders[provider] !== false
                 return (
                   <button
                     key={provider}
                     id={`social-signup-${provider.toLowerCase()}-btn`}
                     type="button"
-                    disabled={isSubmitting || regLoading}
+                    disabled={authLoading || activeProvider === provider}
                     onClick={() => handleProviderClick(provider)}
-                    className={`group relative flex items-center justify-center gap-3 px-5 py-3.5 rounded-2xl bg-[#0A1224] hover:bg-[#0F1C38] border border-slate-700/60 ${meta.hoverBorder} text-white text-xs sm:text-sm font-bold shadow-lg hover:shadow-[0_0_20px_${meta.glow}] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50`}
+                    className={`group relative flex items-center justify-center gap-3 px-5 py-3.5 rounded-2xl bg-[#0A1224] hover:bg-[#0F1C38] border border-slate-700/60 ${meta.hoverBorder} text-white text-xs sm:text-sm font-bold shadow-lg hover:shadow-[0_0_20px_${meta.glow}] transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60`}
                   >
-                    <ProviderIcon provider={provider} />
+                    {activeProvider === provider ? (
+                      <Loader2 className="w-5 h-5 shrink-0 animate-spin text-amber-300" />
+                    ) : (
+                      <ProviderIcon provider={provider} />
+                    )}
                     <div className="text-left leading-tight">
                       <div className="text-[10px] text-slate-400 font-normal uppercase tracking-wider font-mono">
-                        Sign up with
+                        {configured ? 'Continue with' : 'Sign up with'}
                       </div>
                       <span className={`font-extrabold group-hover:${meta.color} transition`}>{provider}</span>
                     </div>
@@ -244,33 +234,97 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
               })}
             </div>
 
-            {/* Email Alternative Form */}
+            {/* Real Email Account Form */}
             <div className="pt-2">
               <div className="relative flex py-2 items-center">
                 <div className="flex-grow border-t border-slate-700/50"></div>
                 <span className="flex-shrink mx-4 text-[11px] font-mono uppercase tracking-wider text-slate-400">
-                  Or Sign Up with Email
+                  {authMode === 'signup' ? 'Or Create an Account with Email' : 'Or Sign In to Your Account'}
                 </span>
                 <div className="flex-grow border-t border-slate-700/50"></div>
               </div>
 
-              <form onSubmit={handleEmailSubmit} className="mt-3 flex flex-col sm:flex-row gap-2.5 max-w-xl mx-auto">
+              {authError && (
+                <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-[11px] mb-3 max-w-xl mx-auto">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {authError}
+                </div>
+              )}
+
+              <form
+                id="playbeat-email-auth-form"
+                onSubmit={handleAuthSubmit}
+                className="mt-3 max-w-xl mx-auto rounded-2xl bg-[#060B1E]/60 border border-slate-700/40 p-4 space-y-2.5"
+              >
+                {authMode === 'signup' && (
+                  <input
+                    type="text"
+                    required
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    placeholder="Your full name"
+                    className="w-full bg-[#040814] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
+                  />
+                )}
                 <input
                   type="email"
                   required
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="Enter your email for instant sign up..."
-                  className="flex-1 bg-[#060B1E] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full bg-[#040814] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
+                />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder={authMode === 'signup' ? 'Create a password (min 6 characters)' : 'Your password'}
+                  className="w-full bg-[#040814] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-3 rounded-xl btn-gold-gradient text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition disabled:opacity-50 shrink-0"
+                  disabled={authLoading}
+                  className="w-full px-6 py-3 rounded-xl btn-gold-gradient text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition disabled:opacity-50"
                 >
-                  <span>{isSubmitting ? 'Connecting...' : 'Create Account'}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  {authLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{authMode === 'signup' ? 'Creating your account...' : 'Signing you in...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>{authMode === 'signup' ? 'Create Free Account' : 'Sign In to Store'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
+                <p className="text-center text-[10.5px] text-slate-400 pt-1">
+                  {authMode === 'signup' ? (
+                    <>
+                      Already a member?{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('signin'); setAuthError(null) }}
+                        className="text-yellow-300 hover:text-yellow-200 font-bold underline underline-offset-2"
+                      >
+                        Sign in
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      New to PlayBeat?{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('signup'); setAuthError(null) }}
+                        className="text-yellow-300 hover:text-yellow-200 font-bold underline underline-offset-2"
+                      >
+                        Create a free account
+                      </button>
+                    </>
+                  )}
+                </p>
               </form>
             </div>
 
@@ -296,89 +350,6 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
           </div>
         )}
       </div>
-
-      {/* Provider-linked registration modal — creates a REAL account in MongoDB */}
-      {modalProvider && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => !regLoading && setModalProvider(null)}>
-          <div
-            className="w-full max-w-sm rounded-3xl bg-[#0A122E] border border-slate-400/25 p-6 shadow-2xl animate-in fade-in zoom-in-95"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between mb-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#060B1E] border border-slate-400/20 flex items-center justify-center">
-                  <ProviderIcon provider={modalProvider} />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white">Continue with {modalProvider}</div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    {oauthProviders[modalProvider]
-                      ? 'Secure OAuth sign-in'
-                      : 'Creates your real PlayBeat account'}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => !regLoading && setModalProvider(null)}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <p className="text-[11px] text-slate-400 font-sans leading-relaxed mt-3 mb-4">
-              Enter the details for your {modalProvider} account — we'll link it to your PlayBeat identity,
-              store it securely in our database, and activate instant license delivery to this email.
-            </p>
-
-            {regError && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] mb-3">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {regError}
-              </div>
-            )}
-
-            <form onSubmit={handleRegistrationSubmit} className="space-y-3">
-              <input
-                type="text"
-                autoFocus
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-                placeholder={`${modalProvider} account name`}
-                className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/60 transition"
-              />
-              <input
-                type="email"
-                value={regEmail}
-                onChange={(e) => setRegEmail(e.target.value)}
-                placeholder="you@gmail.com"
-                className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400/60 transition"
-              />
-              <button
-                type="submit"
-                disabled={regLoading}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl btn-gold-gradient text-slate-950 font-extrabold text-xs shadow-lg active:scale-[0.98] transition disabled:opacity-60"
-              >
-                {regLoading ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Creating your account…
-                  </>
-                ) : (
-                  <>
-                    <span>Continue as {modalProvider} Member</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            <p className="text-[9.5px] text-slate-500 text-center mt-3 leading-relaxed">
-              By continuing you agree to our{' '}
-              <a href="/terms" className="text-yellow-300/90 hover:underline">Terms of Service</a> and{' '}
-              <a href="/privacy" className="text-yellow-300/90 hover:underline">Privacy Policy</a>.
-            </p>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

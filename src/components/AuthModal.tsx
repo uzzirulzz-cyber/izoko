@@ -86,38 +86,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  const handleSocialAuth = async (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
+  const handleSocialAuth = (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
+    // REAL OAuth sign-up/sign-in — full-page redirect to the backend start route,
+    // which 302s to the provider's consent screen. On approval the provider
+    // returns to /api/auth/oauth/:provider/callback where the REAL profile is
+    // fetched server-side, a real account is created/linked in MongoDB, the
+    // session cookie is set, and the user lands back on /storefront?social_success=Provider.
     setError('')
     setLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/social`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          provider,
-          profile: { name: `${provider} Member`, email: `${provider.toLowerCase()}.member@playbeat.digital` },
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        setError(data.error || `${provider} sign-in failed.`)
-        setLoading(false)
-        return
-      }
-      onSuccess(
-        {
-          name: data.user?.name || `${provider} Member`,
-          email: data.user?.email || `${provider.toLowerCase()}@playbeat.digital`,
-        },
-        data.token,
-      )
-      onClose()
-    } catch (err: any) {
-      setError(err.message || 'Network error during social sign-in.')
-    } finally {
-      setLoading(false)
-    }
+    window.location.href = `${API_BASE}/api/auth/oauth/${provider.toLowerCase()}/start`
   }
 
   return (
