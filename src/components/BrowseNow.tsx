@@ -7,8 +7,6 @@ import {
   BadgePercent,
   Headphones,
   Search,
-  UserPlus,
-  LogIn,
   ArrowRight,
   Gamepad2,
   Gift,
@@ -76,7 +74,7 @@ export const BrowseNow: React.FC<BrowseNowProps> = ({
   user,
   onNavigate,
   onSelectCategory,
-  onOpenAuth,
+
   onFocusSearch,
   onOpenOffers,
 }) => {
@@ -105,25 +103,6 @@ export const BrowseNow: React.FC<BrowseNowProps> = ({
             </span>
           </div>
 
-          {/* Account actions — Sign Up / Sign In */}
-          {!user && (
-            <div className="flex items-center gap-2.5">
-              <button
-                id="browse-signup-btn"
-                onClick={onOpenAuth}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full btn-gold-gradient text-slate-950 font-bold text-xs shadow-md active:scale-95 transition"
-              >
-                <UserPlus className="w-3.5 h-3.5" /> Sign Up
-              </button>
-              <button
-                id="browse-signin-btn"
-                onClick={onOpenAuth}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-slate-400/20 hover:border-slate-400/40 text-slate-200 hover:text-white text-xs font-semibold transition"
-              >
-                <LogIn className="w-3.5 h-3.5" /> Sign In
-              </button>
-            </div>
-          )}
           {user && (
             <div className="flex items-center gap-2 text-xs text-slate-300 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
