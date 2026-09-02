@@ -11,10 +11,10 @@ export const APP_RELEASE_FALLBACK = {
   apkUrl: "/downloads/playbeat-admin-v2.0.0.apk",
   aabUrl: "",
   sizeBytes: 140673,
-  sha256: "c20f5f45ded2c641dc0e9db601f4459ab89c77fc4606d839fb931e8b5d1130cf",
+  sha256: "c8858de60de0f2e9211143536704c8a577ddbfd7a8c62a2322f631108211f4ca",
   minSupportedVersion: "1.0.0",
   forceUpdate: false,
-  buildDate: "2026-09-02T00:00:00.000Z",
+  buildDate: "2026-09-02T17:51:00.000Z",
   minAndroid: "7.0 (API 24)",
   targetAndroid: "Android 14 (API 34)",
   releaseNotes: [
