@@ -1,13 +1,17 @@
 // Shared config for Vercel serverless functions
 // Mirrors the env vars used in server.ts
 
-export const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+// SECURITY: no hardcoded fallbacks for secrets. This repo is PUBLIC — the
+// previous committed defaults (Atlas URI, admin password, JWT secret) were
+// world-readable and have been rotated / must be provided per-environment.
+// Vercel injects these for production; missing values fail CLOSED:
+//   - empty MONGODB_URI  → DB routes error out
+//   - empty SESSION_SECRET → every jwt.verify/sign throws → all auth 401
+export const MONGODB_URI = process.env.MONGODB_URI || "";
 export const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@playbeat.digital";
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeat1122";
-export const SESSION_SECRET = process.env.SESSION_SECRET || "playbeat-jwt-super-secret-key-2026";
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+export const SESSION_SECRET = process.env.SESSION_SECRET || "";
 export const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || "https://playbeat.digital";
 
 export function cleanMongoUri(uri?: string): string {

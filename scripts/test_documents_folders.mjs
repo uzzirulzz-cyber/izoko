@@ -9,7 +9,7 @@ import { createHash, randomBytes } from "crypto";
 
 const BASE = process.argv[2] || "https://playbeat.digital";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@playbeat.digital";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeat1122";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
 let failures = 0;
 function check(name, ok, extra = "") {
@@ -17,7 +17,8 @@ function check(name, ok, extra = "") {
   if (!ok) failures++;
 }
 
-// ---- 1. admin token (real login, else mint with repo fallback secret)
+// ---- 1. admin token (real login only — the old JWT-mint fallback died when
+//         SESSION_SECRET was rotated out of the repo; pass ADMIN_PASSWORD env)
 async function getToken() {
   const loginRes = await fetch(`${BASE}/api/auth/admin/login`, {
     method: "POST",
@@ -27,17 +28,7 @@ async function getToken() {
   const login = await loginRes.json().catch(() => null);
   const t = login?.token || login?.data?.token;
   if (loginRes.ok && t) return { token: t, via: "login" };
-  const { default: jwt } = await import("jsonwebtoken");
-  const minted = jwt.sign(
-    { email: ADMIN_EMAIL, role: "admin", name: "E2E Test" },
-    "playbeat-jwt-super-secret-key-2026",
-    { expiresIn: "30m" }
-  );
-  const probe = await fetch(`${BASE}/api/admin/stats`, {
-    headers: { Authorization: `Bearer ${minted}` },
-  });
-  if (probe.ok) return { token: minted, via: "minted (prod password differs)" };
-  return { token: null, via: "none" };
+  return { token: null, via: `login failed (${loginRes.status}) — set ADMIN_EMAIL/ADMIN_PASSWORD env` };
 }
 const { token, via } = await getToken();
 check("admin token", Boolean(token), `via ${via}`);
