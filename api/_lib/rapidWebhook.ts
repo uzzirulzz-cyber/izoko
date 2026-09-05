@@ -46,9 +46,8 @@ import crypto from "crypto";
 import { ObjectId } from "mongodb";
 import { getDb } from "./mongo.js";
 import { handleOptions, jsonOk, jsonError } from "./auth.js";
+import { getRapidConfig } from "./gatewayConfig.js";
 
-const WEBHOOK_SECRET = process.env.RAPID_WEBHOOK_SECRET || "";
-const WEBHOOK_SECRET_PREVIOUS = process.env.RAPID_WEBHOOK_SECRET_PREVIOUS || "";
 const MAX_TIMESTAMP_SKEW = 300; // seconds — Rapid docs: reject if > 5 minutes
 
 // ---------------------------------------------------------------------------
@@ -140,9 +139,13 @@ export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelR
   const { candidates, via } = await captureRawBody(req);
 
   // ---- 0. Fail-closed configuration guard ----
-  if (!WEBHOOK_SECRET && !WEBHOOK_SECRET_PREVIOUS) {
+  // Salts resolve at request time: gateway_config DB doc first (admin-panel
+  // managed, encrypted), env vars as fallback.
+  const cfg = await getRapidConfig();
+  const salts = [cfg.webhookSalt, cfg.webhookSaltPrev].filter(Boolean);
+  if (!salts.length) {
     console.error(
-      "rapid-webhook: RAPID_WEBHOOK_SECRET not configured — rejecting delivery (fail closed)"
+      "rapid-webhook: no webhook signing salt configured (DB or env) — rejecting delivery (fail closed)"
     );
     return jsonError(res, "Webhook endpoint not configured.", 503);
   }
@@ -151,11 +154,10 @@ export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelR
   let verified = false;
   let verifiedVia = "";
   for (const raw of candidates) {
-    const salts = [WEBHOOK_SECRET, WEBHOOK_SECRET_PREVIOUS].filter(Boolean);
     for (const salt of salts) {
       if (verifyRapidSignature(salt, tsHeader, raw, sigHeader)) {
         verified = true;
-        verifiedVia = `${via}${salts.length > 1 && salt === WEBHOOK_SECRET_PREVIOUS ? " (previous salt)" : ""}`;
+        verifiedVia = `${via}${salts.length > 1 && salt === cfg.webhookSaltPrev ? " (previous salt)" : ""}`;
         break;
       }
     }

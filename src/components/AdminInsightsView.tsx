@@ -60,6 +60,7 @@ import {
   History,
   Percent,
   Folder,
+  CreditCard,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -80,6 +81,7 @@ import { BackupPanel } from './admin/BackupPanel'
 import { CmsPanel } from './admin/CmsPanel'
 import { AnalyticsPanel } from './admin/AnalyticsPanel'
 import { OrdersLogPanel } from './admin/OrdersLogPanel'
+import { GatewayPanel } from './admin/GatewayPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 
 interface AdminInsightsViewProps {
@@ -190,11 +192,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
-      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile', 'documents',
+      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile', 'documents', 'gateway',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
-      if (h && VALID.has(h)) setActiveNav((prev) => (prev === h ? prev : h))
+      if (!h || !VALID.has(h)) return
+      // IT-scoped accounts may only deep-link to the gateway panel or profile.
+      if (itScopeRef.current && h !== 'gateway' && h !== 'profile') return
+      setActiveNav((prev) => (prev === h ? prev : h))
     }
     applyHash()
     window.addEventListener('hashchange', applyHash)
@@ -240,7 +245,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
   const [adminAuthority, setAdminAuthority] = useState<
-    'super_admin' | 'admin' | 'manager' | 'supervisor'
+    'super_admin' | 'admin' | 'manager' | 'supervisor' | 'it'
   >('super_admin')
   const [adminName, setAdminName] = useState('PlayBeat Admin')
   const [adminEmail, setAdminEmail] = useState('')
@@ -264,6 +269,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   // Power Authority gates (UI mirror of the server-side requireAuthority rules)
   const canManageStaff = adminRole === 'admin' || adminAuthority === 'admin'
   const isSuperAdminUser = adminRole === 'admin'
+  // Payment Gateway panel: super admin, Administrator authority, or IT authority.
+  const isGatewayTech = adminRole === 'admin' || adminAuthority === 'admin' || adminAuthority === 'it'
+  // IT accounts are scoped to the gateway panel ONLY (mirrors the server wall).
+  const itOnly = adminRole === 'staff' && adminAuthority === 'it'
+  const itScopeRef = useRef(false)
 
   // Resolve the signed-in administrator's identity & role (super admin vs staff)
   useEffect(() => {
@@ -276,11 +286,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         const data = await res.json()
         if (data?.success && data?.admin) {
           setAdminRole(data.admin.role === 'staff' ? 'staff' : 'admin')
-          // Power Authority: super_admin (env) | admin | manager | supervisor
+          // Power Authority: super_admin (env) | admin | manager | supervisor | it
           const auth = data.admin.authority || (data.admin.role === 'admin' ? 'super_admin' : 'supervisor')
           setAdminAuthority(auth)
+          itScopeRef.current = data.admin.role === 'staff' && auth === 'it'
           setAdminName(data.admin.name || 'PlayBeat Admin')
           setAdminEmail(data.admin.email || '')
+          // IT accounts land directly on their only section — Payment Gateway.
+          if (itScopeRef.current) setActiveNav((prev) => (prev === 'gateway' || prev === 'profile' ? prev : 'gateway'))
         }
       } catch {
         // keep defaults
@@ -810,8 +823,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               </button>
             </div>
 
-            {/* Nav Categories & Items */}
-            <div className="space-y-5 text-xs font-sans">
+            {/* Nav Categories & Items — IT-scoped accounts see ONLY the gateway
+                group (enforced by .it-scope CSS + the server-side route wall) */}
+            <div className={`space-y-5 text-xs font-sans ${itOnly ? 'it-scope' : ''}`}>
               {/* MAIN SECTION */}
               <div>
                 {!sidebarCollapsed && (
@@ -851,6 +865,36 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {!sidebarCollapsed && <span>System Health</span>}
                 </button>
               </div>
+
+              {/* PAYMENT GATEWAY — super admin, Administrator authority, IT authority.
+                  IT accounts see this group ONLY (plus Account). */}
+              {isGatewayTech && (
+                <div className="it-allow">
+                  {!sidebarCollapsed && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-sky-300/90 px-3 mb-1.5 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_currentColor]"></span>
+                      Payments
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setActiveNav('gateway')}
+                    className={`w-full flex items-center justify-between gap-2.5 px-3 py-2 ${
+                      activeNav === 'gateway' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'gateway'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="Payment Gateway — configure, test, resolve"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <CreditCard className="w-4 h-4 text-sky-400" />
+                      {!sidebarCollapsed && <span>Payment Gateway</span>}
+                    </div>
+                  </button>
+                </div>
+              )}
 
               {/* WEBSITE & ANALYTICS */}
               <div>
@@ -1271,7 +1315,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               </div>
 
               {/* ACCOUNT */}
-              <div>
+              <div className="it-allow">
                 {!sidebarCollapsed && (
                   <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-sky-300/90 px-3 mb-1.5 font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_currentColor]"></span>
@@ -3088,6 +3132,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* VIEW 4: ORDERS & FULFILLMENT */}
             {activeNav === 'orders-log' && <OrdersLogPanel onToast={triggerToast} />}
+
+            {/* VIEW: PAYMENT GATEWAY (Rapid) — config / tests / webhook logs.
+                IT-authority accounts land here exclusively. */}
+            {activeNav === 'gateway' && <GatewayPanel onToast={triggerToast} />}
 
             {/* VIEW: ADMIN PROFILE SETTINGS (identity / security / preferences / activity) */}
             {activeNav === 'profile' && (

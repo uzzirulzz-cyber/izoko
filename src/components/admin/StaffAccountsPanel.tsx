@@ -55,6 +55,12 @@ const AUTHORITY_OPTIONS = [
     tint: 'bg-teal-400/15 border-teal-400/40 text-teal-300',
     desc: 'View-first access: monitor orders, catalog and customers, handle support tickets and live chats.',
   },
+  {
+    id: 'it',
+    label: 'IT — Payment Gateway',
+    tint: 'bg-sky-400/15 border-sky-400/40 text-sky-300',
+    desc: 'Payment gateway ONLY: configure Rapid Gateway credentials, run integration tests, inspect webhook deliveries and resolve flagged payments. No other admin access.',
+  },
 ]
 
 const authorityChip = (authority?: string) => {
@@ -220,7 +226,9 @@ export const StaffAccountsPanel: React.FC<StaffAccountsPanelProps> = ({
       })
       const data = await res.json()
       if (data?.success) {
-        onToast(`${s.name} is now ${authority === 'admin' ? 'an Administrator' : `a ${authority}`}.`)
+        onToast(`${s.name} is now ${
+          AUTHORITY_OPTIONS.find((a) => a.id === authority)?.label || authority
+        }.`)
         onChanged()
       } else {
         onToast(data?.error || 'Authority update failed.')

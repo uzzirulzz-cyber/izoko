@@ -20,29 +20,13 @@
 // order is marked paid exclusively by the verified webhook at
 // /webhooks/rapid-gateway (see api/_lib/rapidWebhook.ts).
 //
-// Credentials come exclusively from the environment (fail-closed):
-//   RAPID_SECRET_KEY  — secret key from the Rapid portal (required to charge)
-//   RAPID_API_BASE    — defaults to https://api.rapidgateway.pk
-//   RAPID_METHODS     — optional comma-separated list, default all three
+// Credentials resolution order (runtime, per request):
+//   1. gateway_config Mongo collection (admin-panel managed, encrypted) — see
+//      api/_lib/gatewayConfig.ts
+//   2. environment variables (bootstrap fallback)
+// Fail-closed: if neither is present the client refuses to charge.
 
-import { PUBLIC_SITE_URL } from "./config.js";
-
-export const RAPID_API_BASE = (
-  process.env.RAPID_API_BASE || "https://api.rapidgateway.pk"
-).replace(/\/+$/, "");
-const RAPID_SECRET_KEY = process.env.RAPID_SECRET_KEY || "";
-const RAPID_METHODS = (process.env.RAPID_METHODS || "easypaisa,jazzcash,card")
-  .split(",")
-  .map((m) => m.trim())
-  .filter(Boolean);
-
-export function isRapidConfigured(): boolean {
-  return Boolean(RAPID_SECRET_KEY);
-}
-
-export function rapidWebhookUrl(): string {
-  return `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/webhooks/rapid-gateway`;
-}
+import { getRapidConfig } from "./gatewayConfig.js";
 
 export interface RapidPaymentRequest {
   orderNumber: string;
@@ -71,16 +55,17 @@ export interface RapidPaymentResult {
 export async function createRapidPayment(
   req: RapidPaymentRequest
 ): Promise<RapidPaymentResult> {
-  if (!RAPID_SECRET_KEY) {
-    return { ok: false, error: "Rapid Gateway is not configured (missing RAPID_SECRET_KEY)." };
+  const cfg = await getRapidConfig();
+  if (!cfg.secretKey) {
+    return { ok: false, error: "Rapid Gateway is not configured (no secret key — set it in Admin → Payment Gateway)." };
   }
   const body: Record<string, unknown> = {
     amount: Math.round(Number(req.amount) * 100) / 100, // major units, 2dp
     currency: (req.currency || "PKR").toUpperCase(),
-    methods: RAPID_METHODS,
+    methods: cfg.methods,
     merchantTransactionId: req.orderNumber,
     return_url: req.returnUrl,
-    webhook_url: req.webhookUrl || rapidWebhookUrl(),
+    webhook_url: req.webhookUrl || cfg.webhookUrl,
   };
   const customer: Record<string, unknown> = {};
   if (req.customerPhone) customer.phone = req.customerPhone; // E.164 per docs
@@ -89,10 +74,10 @@ export async function createRapidPayment(
   if (Object.keys(customer).length) body.customer = customer;
 
   try {
-    const res = await fetch(`${RAPID_API_BASE}/v1/payments`, {
+    const res = await fetch(`${cfg.apiBase}/v1/payments`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${RAPID_SECRET_KEY}`,
+        Authorization: `Bearer ${cfg.secretKey}`,
         "Content-Type": "application/json",
         // Idempotent per order — retries cannot create a second charge.
         "Idempotency-Key": `playbeat-order-${req.orderNumber}`,

@@ -194,18 +194,25 @@ export function isAdminCredentials(email: string, password: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// POWER AUTHORITIES — Admin / Manager / Supervisor hierarchy
+// POWER AUTHORITIES — Admin / Manager / Supervisor / IT hierarchy
 //
 // Stacked on top of the role system:
 //   • role "admin"  → super administrator (env credentials)        rank 4
 //   • role "staff"  + authority "admin"      → Administrator       rank 3
 //   • role "staff"  + authority "manager"    → Manager             rank 2
 //   • role "staff"  + authority "supervisor" → Supervisor          rank 1
+//   • role "staff"  + authority "it"         → IT — Payment Gateway rank 0
 //     (staff accounts created before this field existed default to supervisor)
+//
+// IT (rank 0) deliberately sits BELOW every other authority: it cannot pass
+// any requireAuthority(...) check (supervisor needs rank 1+). Its ONLY extra
+// capability is the payment-gateway configuration panel, guarded separately
+// by requireGatewayTech() — see api/admin gateway-* routes.
 // ---------------------------------------------------------------------------
-export type Authority = "supervisor" | "manager" | "admin";
+export type Authority = "supervisor" | "manager" | "admin" | "it";
 
 export const AUTHORITY_RANK: Record<string, number> = {
+  it: 0,
   supervisor: 1,
   manager: 2,
   admin: 3,
@@ -215,6 +222,7 @@ export const AUTHORITY_LABELS: Record<string, string> = {
   admin: "Administrator",
   manager: "Manager",
   supervisor: "Supervisor",
+  it: "IT — Payment Gateway",
   super_admin: "Super Administrator",
 };
 
@@ -222,7 +230,9 @@ export const AUTHORITY_LABELS: Record<string, string> = {
 export function authorityRank(admin: any): number {
   if (!admin) return 0;
   if (admin.role === "admin") return 4; // super administrator
-  return AUTHORITY_RANK[admin.authority] || 1;
+  // NB: must not be `|| 1` — IT's rank is legitimately 0 (lowest).
+  const r = AUTHORITY_RANK[admin.authority];
+  return r === undefined ? 1 : r; // unknown authority → treated as supervisor
 }
 
 /** Can this verified admin perform actions at the given minimum level? */
@@ -230,11 +240,46 @@ export function hasAuthority(admin: any, min: Authority): boolean {
   return authorityRank(admin) >= AUTHORITY_RANK[min];
 }
 
+/** Is this verified admin an IT-scoped account (Payment Gateway panel only)? */
+export function isItScoped(admin: any): boolean {
+  return Boolean(admin && admin.role !== "admin" && admin.authority === "it");
+}
+
 /** Normalize an incoming authority value. */
 export function normalizeAuthority(value: any): Authority {
   const v = String(value || "").toLowerCase();
-  if (v === "admin" || v === "manager" || v === "supervisor") return v as Authority;
+  if (v === "admin" || v === "manager" || v === "supervisor" || v === "it") return v as Authority;
   return "supervisor";
+}
+
+/**
+ * Payment-gateway configuration guard: super administrator, an Administrator-
+ * authority staff member, or an IT authority account. IT accounts have rank 0
+ * so they fail every OTHER requireAuthority check — this is their only door.
+ */
+export function canConfigureGateway(admin: any): boolean {
+  if (!admin) return false;
+  if (admin.role === "admin") return true; // super administrator
+  if (admin.authority === "it") return true;
+  return authorityRank(admin) >= AUTHORITY_RANK.admin;
+}
+
+/** Middleware-style guard for the /api/admin/gateway-* routes. */
+export function requireGatewayTech(req: AuthenticatedRequest, res: VercelResponse): any | null {
+  const admin = verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  if (!canConfigureGateway(admin)) {
+    res.status(403).json({
+      success: false,
+      error: "Payment Gateway access requires IT or Administrator authority.",
+    });
+    return null;
+  }
+  req.user = admin;
+  return admin;
 }
 
 // Middleware-style: requires admin with at least the given authority level.

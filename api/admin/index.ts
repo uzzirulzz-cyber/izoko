@@ -52,13 +52,17 @@ import {
   requireSuperAdmin,
   requireAuthority,
   requireStaffAuthority,
+  requireGatewayTech,
+  verifyAdmin,
+  isItScoped,
   normalizeAuthority,
   hasAuthority,
-  verifyAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
-import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME } from "../_lib/config.js";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME, PUBLIC_SITE_URL } from "../_lib/config.js";
 import { hashPassword, comparePassword } from "../_lib/auth.js";
+import { getRapidConfig, saveRapidConfig, describeGatewayStatus } from "../_lib/gatewayConfig.js";
+import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from "../_lib/appRelease.js";
 
@@ -156,6 +160,22 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // returns stored image bytes — no secrets, no user data beyond the picture.
   const isPublicAvatarGet = route === "avatar" && req.method === "GET";
   if (!isPublicAvatarGet && !requireAdmin(req, res)) return;
+
+  // IT-scope enforcement: accounts with the "it" power authority may ONLY use
+  // the payment-gateway routes (and their own profile / the public avatar).
+  // Every other admin route rejects them server-side — the UI hiding nav is
+  // convenience, this is the actual wall.
+  {
+    const currentAdmin = verifyAdmin(req as any);
+    if (
+      isItScoped(currentAdmin) &&
+      !route.startsWith("gateway") &&
+      route !== "profile" &&
+      route !== "avatar"
+    ) {
+      return jsonError(res, "IT accounts are scoped to the Payment Gateway panel only.", 403);
+    }
+  }
 
   const db = await getDb();
 
@@ -2577,6 +2597,337 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     } catch (err: any) {
       console.error("DELETE /api/admin/documents/:id error:", err);
       return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // PAYMENT GATEWAY (Rapid) — configuration, testing and diagnostics.
+  // Guard: super admin OR Administrator-authority staff OR IT authority.
+  // IT accounts reach this block through the central IT-scope guard above;
+  // every route here re-checks with requireGatewayTech (defense in depth).
+  // ===========================================================================
+
+  // ============ GET /api/admin/gateway-config ============
+  if (route === "gateway-config" && req.method === "GET") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const status = await describeGatewayStatus();
+      return jsonOk(res, { success: true, ...status });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/gateway-config ============
+  // Body: { secretKey?, webhookSalt?, webhookSaltPrev?, apiBase?, methods?, clear?: string[] }
+  // Secrets are write-only: stored AES-256-GCM encrypted, returned masked.
+  if (route === "gateway-config" && req.method === "POST") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const body = req.body || {};
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      await saveRapidConfig(
+        {
+          secretKey: typeof body.secretKey === "string" ? body.secretKey : undefined,
+          webhookSalt: typeof body.webhookSalt === "string" ? body.webhookSalt : undefined,
+          webhookSaltPrev: typeof body.webhookSaltPrev === "string" ? body.webhookSaltPrev : undefined,
+          apiBase: typeof body.apiBase === "string" ? body.apiBase : undefined,
+          methods: typeof body.methods === "string" ? body.methods : undefined,
+          clear: Array.isArray(body.clear) ? body.clear.map(String) : [],
+        },
+        actor
+      );
+      const status = await describeGatewayStatus();
+      return jsonOk(res, { success: true, message: "Gateway configuration saved.", ...status });
+    } catch (err: any) {
+      console.error("POST /api/admin/gateway-config error:", err);
+      return jsonError(res, err.message || "Could not save the gateway configuration.", 500);
+    }
+  }
+
+  // ============ GET /api/admin/gateway-logs ============
+  // Recent webhook deliveries + flagged (needs review) orders + IT test orders.
+  if (route === "gateway-logs" && req.method === "GET") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const [deliveries, flagged, testOrders] = await Promise.all([
+        db
+          .collection("rapid_webhook_log")
+          .find({})
+          .sort({ receivedAt: -1 })
+          .limit(60)
+          .project({
+            receivedAt: 1,
+            verified: 1,
+            verifiedVia: 1,
+            eventId: 1,
+            eventType: 1,
+            orderNumber: 1,
+            merchantTransactionId: 1,
+            gatewayTxnRef: 1,
+            status: 1,
+            amount: 1,
+            currency: 1,
+            environment: 1,
+            action: 1,
+            rejectReason: 1,
+            appliedPaymentStatus: 1,
+            appliedOrderStatus: 1,
+            expectedAmount: 1,
+          })
+          .toArray(),
+        db
+          .collection("orders")
+          .find({ paymentFlag: { $type: "string", $ne: "reviewed" } })
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .project({
+            orderNumber: 1,
+            customerName: 1,
+            customerEmail: 1,
+            totalAmount: 1,
+            currency: 1,
+            status: 1,
+            paymentStatus: 1,
+            paymentFlag: 1,
+            paymentFlagDetail: 1,
+            createdAt: 1,
+          })
+          .toArray(),
+        db
+          .collection("orders")
+          .find({ isGatewayTest: true })
+          .sort({ createdAt: -1 })
+          .limit(15)
+          .project({
+            orderNumber: 1,
+            totalAmount: 1,
+            currency: 1,
+            status: 1,
+            paymentStatus: 1,
+            checkoutUrl: 1,
+            rapidPaymentId: 1,
+            createdAt: 1,
+          })
+          .toArray(),
+      ]);
+      const status = await describeGatewayStatus();
+      return jsonOk(res, {
+        success: true,
+        deliveries,
+        flagged,
+        testOrders,
+        config: status,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/gateway-test ============
+  // Body: { action: "connectivity" | "webhook-selftest" | "test-payment", amount? }
+  if (route === "gateway-test" && req.method === "POST") {
+    if (!requireGatewayTech(req, res)) return;
+    const action = String((req.body || {}).action || "");
+    const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+    try {
+      // ---- connectivity: is the Rapid API base reachable (no credentials sent) ----
+      if (action === "connectivity") {
+        const cfg = await getRapidConfig(true);
+        const started = Date.now();
+        try {
+          const res2 = await fetch(cfg.apiBase, { method: "GET", signal: AbortSignal.timeout(8000) });
+          return jsonOk(res, {
+            success: true,
+            action,
+            reachable: true,
+            httpStatus: res2.status,
+            latencyMs: Date.now() - started,
+            apiBase: cfg.apiBase,
+            secretKeyPresent: Boolean(cfg.secretKey),
+          });
+        } catch (e: any) {
+          return jsonOk(res, {
+            success: true,
+            action,
+            reachable: false,
+            error: e?.message || "Unreachable",
+            latencyMs: Date.now() - started,
+            apiBase: cfg.apiBase,
+            secretKeyPresent: Boolean(cfg.secretKey),
+          });
+        }
+      }
+
+      // ---- webhook-selftest: sign a webhook.test event with the configured
+      // salt and post it to our own public webhook endpoint — exercises the
+      // full HMAC verification + logging pipeline end-to-end.
+      if (action === "webhook-selftest") {
+        const cfg = await getRapidConfig(true);
+        if (!cfg.webhookSalt && !cfg.webhookSaltPrev) {
+          return jsonError(res, "Configure the webhook signing salt first.", 400);
+        }
+        const crypto = await import("crypto");
+        const eventId = `selftest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const rawBody = JSON.stringify({
+          eventId,
+          eventType: "webhook.test",
+          environment: "ADMIN-SELFTEST",
+          occurredAt: new Date().toISOString(),
+        });
+        const ts = Math.floor(Date.now() / 1000);
+        const sig = crypto
+          .createHmac("sha256", cfg.webhookSalt || cfg.webhookSaltPrev)
+          .update(`${ts}.${rawBody}`)
+          .digest("hex")
+          .toUpperCase();
+        const started = Date.now();
+        const res2 = await fetch(cfg.webhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-RapidGateway-Signature": sig,
+            "X-RapidGateway-Timestamp": String(ts),
+            "X-RapidGateway-Event": "webhook.test",
+            "X-RapidGateway-Delivery": eventId,
+          },
+          body: rawBody,
+          signal: AbortSignal.timeout(10000),
+        });
+        const data = await res2.json().catch(() => null);
+        return jsonOk(res, {
+          success: true,
+          action,
+          httpStatus: res2.status,
+          latencyMs: Date.now() - started,
+          verified: res2.ok && data?.success === true,
+          response: data,
+        });
+      }
+
+      // ---- test-payment: create a clearly-labelled PENDING test order and
+      // ask Rapid for a hosted checkout URL. The order is NEVER marked paid
+      // except by a verified webhook — exactly like production traffic.
+      if (action === "test-payment") {
+        const cfg = await getRapidConfig(true);
+        if (!cfg.secretKey) {
+          return jsonError(res, "Configure the Rapid secret key first.", 400);
+        }
+        const amount = Math.min(Math.max(Number((req.body || {}).amount) || 100, 10), 5000);
+        const orderNumber = `PB-GWTEST-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+        const ordersCol = db.collection("orders");
+        await ordersCol.insertOne({
+          orderNumber,
+          userId: `gateway-test:${actor}`,
+          customerName: "Gateway Test (IT)",
+          customerEmail: actor,
+          items: [
+            {
+              id: "gateway-test-item",
+              productId: "gateway-test-item",
+              name: "Gateway Integration Test",
+              price: amount,
+              quantity: 1,
+              licenseKeys: [],
+              deliveryType: "Instant Auto-Email",
+            },
+          ],
+          totalAmount: amount,
+          currency: "PKR",
+          status: "pending",
+          paymentMethod: "Rapid Gateway",
+          paymentStatus: "pending",
+          paymentProvider: "rapid",
+          isGatewayTest: true,
+          licenseKeysDelivered: [],
+          createdAt: new Date(),
+        });
+        const result = await createRapidPayment({
+          orderNumber,
+          amount,
+          currency: "PKR",
+          customerEmail: actor,
+          returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(orderNumber)}`,
+        });
+        await ordersCol.updateOne(
+          { orderNumber },
+          {
+            $set: {
+              rapidPaymentId: result.paymentId || "",
+              checkoutUrl: result.checkoutUrl || "",
+              paymentInitiatedAt: new Date(),
+              ...(result.ok ? {} : { testPaymentError: String(result.error || "") }),
+            },
+          }
+        );
+        try {
+          await db.collection("gateway_config_audit").insertOne({
+            gateway: "rapid",
+            action: "test-payment",
+            orderNumber,
+            amount,
+            ok: Boolean(result.ok),
+            updatedBy: actor,
+            at: new Date(),
+          });
+        } catch { /* audit best-effort */ }
+        return jsonOk(res, {
+          success: true,
+          action,
+          orderNumber,
+          amount,
+          checkoutUrl: result.checkoutUrl || null,
+          ok: Boolean(result.ok),
+          error: result.error || null,
+        });
+      }
+
+      return jsonError(res, "Unknown test action. Use connectivity | webhook-selftest | test-payment.", 400);
+    } catch (err: any) {
+      console.error("POST /api/admin/gateway-test error:", err);
+      return jsonError(res, err.message || "Gateway test failed.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/gateway-resolve ============
+  // Body: { orderNumber, action: "mark-reviewed" | "delete-test-order", note? }
+  if (route === "gateway-resolve" && req.method === "POST") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const { orderNumber, action, note } = req.body || {};
+      if (!orderNumber || !action) return jsonError(res, "orderNumber and action are required.", 400);
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      const ordersCol = db.collection("orders");
+
+      if (action === "mark-reviewed") {
+        const r = await ordersCol.updateOne(
+          { orderNumber: String(orderNumber), paymentFlag: { $type: "string" } },
+          {
+            $set: {
+              paymentFlag: "reviewed",
+              "paymentFlagDetail.resolvedBy": actor,
+              "paymentFlagDetail.resolvedAt": new Date(),
+              "paymentFlagDetail.resolutionNote": String(note || "Reviewed by IT"),
+            },
+          }
+        );
+        if (!r.matchedCount) return jsonError(res, "Flagged order not found (or already reviewed).", 404);
+        return jsonOk(res, { success: true, message: `Order ${orderNumber} marked as reviewed.` });
+      }
+
+      if (action === "delete-test-order") {
+        // Safety: only gateway test orders (PB-GWTEST- prefix) can be deleted.
+        if (!String(orderNumber).startsWith("PB-GWTEST-")) {
+          return jsonError(res, "Only PB-GWTEST-* test orders can be deleted here.", 400);
+        }
+        const r = await ordersCol.deleteOne({ orderNumber: String(orderNumber), isGatewayTest: true });
+        if (!r.deletedCount) return jsonError(res, "Test order not found.", 404);
+        return jsonOk(res, { success: true, message: `Test order ${orderNumber} deleted.` });
+      }
+
+      return jsonError(res, "Unknown resolve action.", 400);
+    } catch (err: any) {
+      return jsonError(res, err.message || "Resolve failed.", 500);
     }
   }
 

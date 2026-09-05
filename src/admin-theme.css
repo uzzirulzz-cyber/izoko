@@ -415,3 +415,13 @@ input.pa-input:focus {
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   IT-scoped sidebar — accounts with the "it" power authority (Payment
+   Gateway only) get .it-scope on the nav container; every group without
+   .it-allow is hidden. This mirrors the server-side route wall in
+   api/admin (IT tokens are rejected on all non-gateway routes).
+   ========================================================================== */
+.it-scope > div:not(.it-allow) {
+  display: none !important;
+}
