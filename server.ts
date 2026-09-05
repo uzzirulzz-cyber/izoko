@@ -737,7 +737,7 @@ async function startServer() {
     res.status(410).json({
       success: false,
       error:
-        "Mock social sign-up has been disabled. Sign up with Google, Facebook, TikTok or Instagram via the secure OAuth button, or use email registration.",
+        "Mock social sign-up has been disabled. Sign up with Google or Facebook via the secure OAuth button, or use email registration.",
     });
   });
 

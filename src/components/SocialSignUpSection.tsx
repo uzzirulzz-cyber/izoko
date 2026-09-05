@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Sparkles, ShieldCheck, Zap, Gift, CheckCircle2, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
 
-type Provider = 'Google' | 'Facebook' | 'TikTok' | 'Instagram'
+type Provider = 'Google' | 'Facebook'
 type AuthSource = Provider | 'Email'
 
 interface SocialSignUpSectionProps {
@@ -14,8 +14,6 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const PROVIDER_META: Record<Provider, { color: string; hoverBorder: string; glow: string }> = {
   Google: { color: 'text-blue-300', hoverBorder: 'hover:border-blue-400/60', glow: 'rgba(66,133,244,0.3)' },
   Facebook: { color: 'text-blue-400', hoverBorder: 'hover:border-[#1877F2]/60', glow: 'rgba(24,119,242,0.3)' },
-  TikTok: { color: 'text-pink-300', hoverBorder: 'hover:border-pink-500/60', glow: 'rgba(255,0,80,0.3)' },
-  Instagram: { color: 'text-purple-300', hoverBorder: 'hover:border-pink-500/60', glow: 'rgba(225,48,108,0.3)' },
 }
 
 function ProviderIcon({ provider }: { provider: Provider }) {
@@ -32,30 +30,7 @@ function ProviderIcon({ provider }: { provider: Provider }) {
   if (provider === 'Facebook') {
     return <svg className="w-5 h-5 fill-[#1877F2] shrink-0" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
   }
-  if (provider === 'TikTok') {
-    return (
-      <div className="relative w-5 h-5 shrink-0 flex items-center justify-center">
-        <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.85.12V9.4a6.33 6.33 0 0 0-.85-.06A6.34 6.34 0 0 0 3.15 15.7a6.34 6.34 0 0 0 10.82 4.48c1.77-1.74 2.34-4.14 2.34-6.51V8.65c1.47 1.05 3.27 1.68 5.28 1.72V6.92a4.85 4.85 0 0 1-2-.23z" /></svg>
-        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-      </div>
-    )
-  }
-  return (
-    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="ig-grad-sec" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#fdf497" />
-          <stop offset="5%" stopColor="#fdf497" />
-          <stop offset="45%" stopColor="#fd5949" />
-          <stop offset="60%" stopColor="#d6249f" />
-          <stop offset="90%" stopColor="#285AEB" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="url(#ig-grad-sec)" strokeWidth="2" fill="none" />
-      <circle cx="12" cy="12" r="4.5" stroke="url(#ig-grad-sec)" strokeWidth="2" fill="none" />
-      <circle cx="18" cy="6" r="1.2" fill="url(#ig-grad-sec)" />
-    </svg>
-  )
+  return null
 }
 
 /**
@@ -177,7 +152,7 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
             Sign Up in Seconds & Unlock VIP Perks
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-            Create your account with Google, Facebook, TikTok or Instagram in one secure click — or register with email. Instant 15-second digital license delivery and automated warranty tracking included.
+            Create your account with Google or Facebook in one secure click — or register with email. Instant 15-second digital license delivery and automated warranty tracking included.
           </p>
         </div>
 
@@ -204,9 +179,9 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
           </div>
         ) : (
           <div className="max-w-4xl mx-auto space-y-6">
-            {/* 4 Social Sign Up Buttons Matrix — real OAuth */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-              {(['Google', 'Facebook', 'TikTok', 'Instagram'] as Provider[]).map((provider) => {
+            {/* Social Sign Up Buttons — Google & Facebook (real OAuth) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {(['Google', 'Facebook'] as Provider[]).map((provider) => {
                 const meta = PROVIDER_META[provider]
                 const configured = oauthProviders[provider] !== false
                 return (

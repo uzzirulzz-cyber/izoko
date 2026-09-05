@@ -88,7 +88,7 @@ export interface UserAccount {
   name: string
   email: string
   role?: 'user' | 'admin'
-  provider?: 'local' | 'Google' | 'Facebook' | 'TikTok' | 'Instagram'
+  provider?: 'local' | 'Google' | 'Facebook'
   createdAt?: string
 }
 

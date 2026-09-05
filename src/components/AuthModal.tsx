@@ -101,7 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  const handleSocialAuth = (provider: 'Google' | 'Facebook' | 'TikTok' | 'Instagram') => {
+  const handleSocialAuth = (provider: 'Google' | 'Facebook') => {
     // REAL OAuth sign-up/sign-in — full-page redirect to the backend start route,
     // which 302s to the provider's consent screen. On approval the provider
     // returns to /api/auth/oauth/:provider/callback where the REAL profile is
@@ -153,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* 4 Social Sign In / Sign Up Buttons */}
+        {/* Social Sign In / Sign Up Buttons — Google & Facebook */}
         <div className="space-y-2 mb-5">
           <div className="grid grid-cols-2 gap-2">
             {/* Google */}
@@ -195,46 +195,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
               </svg>
               <span>Facebook</span>
-            </button>
-
-            {/* TikTok */}
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleSocialAuth('TikTok')}
-              className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-pink-500/60 hover:bg-[#161226] text-white text-xs font-semibold transition group shadow-sm"
-            >
-              <div className="relative w-4 h-4 shrink-0 flex items-center justify-center">
-                <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.85.12V9.4a6.33 6.33 0 0 0-.85-.06A6.34 6.34 0 0 0 3.15 15.7a6.34 6.34 0 0 0 10.82 4.48c1.77-1.74 2.34-4.14 2.34-6.51V8.65c1.47 1.05 3.27 1.68 5.28 1.72V6.92a4.85 4.85 0 0 1-2-.23z" />
-                </svg>
-                <span className="absolute -top-0.5 -right-0.5 w-1 h-1 rounded-full bg-cyan-400"></span>
-              </div>
-              <span>TikTok</span>
-            </button>
-
-            {/* Instagram */}
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleSocialAuth('Instagram')}
-              className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-pink-500/60 hover:bg-[#1A1028] text-white text-xs font-semibold transition group shadow-sm"
-            >
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
-                <defs>
-                  <linearGradient id="ig-grad-modal" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#fdf497" />
-                    <stop offset="5%" stopColor="#fdf497" />
-                    <stop offset="45%" stopColor="#fd5949" />
-                    <stop offset="60%" stopColor="#d6249f" />
-                    <stop offset="90%" stopColor="#285AEB" />
-                  </linearGradient>
-                </defs>
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="url(#ig-grad-modal)" strokeWidth="2" fill="none" />
-                <circle cx="12" cy="12" r="4.5" stroke="url(#ig-grad-modal)" strokeWidth="2" fill="none" />
-                <circle cx="18" cy="6" r="1.2" fill="url(#ig-grad-modal)" />
-              </svg>
-              <span>Instagram</span>
             </button>
           </div>
 

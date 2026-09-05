@@ -12,9 +12,10 @@
 //   GET  /api/auth/oauth/:provider/start    (begin real OAuth flow when configured)
 //   GET  /api/auth/oauth/:provider/callback (OAuth code exchange → real account → redirect)
 //
-// REAL social sign-up/sign-in: Google, Facebook, TikTok, Instagram.
+// REAL social sign-up/sign-in: Google and Facebook ONLY.
 // Each provider only activates when its developer credentials are present in the
 // Vercel environment variables (see getProviderConfigs for the exact env names).
+// (TikTok / Instagram OAuth was retired — requests for those providers now 404.)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { randomBytes } from "crypto";
@@ -47,10 +48,6 @@ type ProviderConfig = {
   scope: string;
   clientId?: string;
   clientSecret?: string;
-  // Provider quirks handled uniformly by the start/callback handlers:
-  clientIdParam?: "client_id" | "client_key";          // TikTok uses client_key
-  tokenClientAuth?: "body_secret" | "basic_auth";      // Google/FB/TikTok/IG all use body secret today
-  profileAuth?: "header" | "query";                    // Instagram reads access_token from query string
   extraAuthParams?: Record<string, string>;            // e.g. Google prompt=select_account
   parseProfile?: (json: any) => { id?: string; name?: string; email?: string; username?: string };
 };
@@ -62,9 +59,6 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       tokenUrl: "https://oauth2.googleapis.com/token",
       profileUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
       scope: "openid email profile",
-      clientIdParam: "client_id",
-      tokenClientAuth: "body_secret",
-      profileAuth: "header",
       extraAuthParams: { prompt: "select_account", access_type: "online", include_granted_scopes: "true" },
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -75,51 +69,9 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
       profileUrl: "https://graph.facebook.com/v21.0/me?fields=id,name,email",
       scope: "email,public_profile",
-      clientIdParam: "client_id",
-      tokenClientAuth: "body_secret",
-      profileAuth: "header",
       clientId: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
       parseProfile: (j) => ({ id: j?.id, name: j?.name, email: j?.email, username: j?.email }),
-    },
-    tiktok: {
-      // TikTok Login Kit v2 — the client identifier is "client_key" (NOT client_id),
-      // and the user info endpoint nests the profile under data.user.
-      authUrl: "https://www.tiktok.com/v2/auth/authorize/",
-      tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
-      profileUrl: "https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,display_name,avatar_url",
-      scope: "user.info.basic",
-      clientIdParam: "client_key",
-      tokenClientAuth: "body_secret",
-      profileAuth: "header",
-      clientId: process.env.TIKTOK_CLIENT_KEY,
-      clientSecret: process.env.TIKTOK_CLIENT_SECRET,
-      parseProfile: (j) => ({
-        id: j?.data?.user?.open_id || j?.data?.user?.union_id || j?.open_id,
-        name: j?.data?.user?.display_name || j?.data?.user?.username,
-        email: undefined, // TikTok never shares an email — a stable provider-scoped identity is generated
-        username: j?.data?.user?.display_name,
-      }),
-    },
-    instagram: {
-      // "Instagram API with Instagram Login" (the current Meta product — the old
-      // Basic Display API was deprecated in Dec 2024). No email scope exists, so a
-      // stable provider-scoped identity email is generated from the username.
-      authUrl: "https://www.instagram.com/oauth/authorize",
-      tokenUrl: "https://api.instagram.com/oauth/access_token",
-      profileUrl: "https://graph.instagram.com/v21.0/me?fields=user_id,username,account_type",
-      scope: "instagram_business_basic",
-      clientIdParam: "client_id",
-      tokenClientAuth: "body_secret",
-      profileAuth: "query",
-      clientId: process.env.INSTAGRAM_CLIENT_ID,
-      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
-      parseProfile: (j) => ({
-        id: j?.user_id || j?.id,
-        name: j?.username,
-        email: undefined, // Instagram does not expose email — provider-scoped identity is generated
-        username: j?.username,
-      }),
     },
   };
 }
@@ -128,8 +80,6 @@ function getProviderLabel(provider: string): string {
   const map: Record<string, string> = {
     google: "Google",
     facebook: "Facebook",
-    tiktok: "TikTok",
-    instagram: "Instagram",
   };
   return map[provider] || provider;
 }
@@ -322,7 +272,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   if (route === "social" && req.method === "POST") {
     return jsonError(
       res,
-      "Mock social sign-up has been disabled. Sign up with Google, Facebook, TikTok or Instagram via the secure OAuth button, or use email registration.",
+      "Mock social sign-up has been disabled. Sign up with Google or Facebook via the secure OAuth button, or use email registration.",
       410
     );
   }
@@ -518,8 +468,6 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       providers: {
         Google: Boolean(cfgs.google.clientId && cfgs.google.clientSecret),
         Facebook: Boolean(cfgs.facebook.clientId && cfgs.facebook.clientSecret),
-        TikTok: Boolean(cfgs.tiktok.clientId && cfgs.tiktok.clientSecret),
-        Instagram: Boolean(cfgs.instagram.clientId && cfgs.instagram.clientSecret),
       },
     });
   }
@@ -541,10 +489,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     // cookie; the callback must receive the identical value back from the provider.
     const state = `${provider}.${Date.now()}.${randomBytes(16).toString("hex")}`;
     setCookie(res, "oauth_state", state, { maxAge: 600, httpOnly: true, sameSite: "lax" });
-    const idParam = cfg.clientIdParam || "client_id";
     const params = new URLSearchParams({
       response_type: "code",
-      [idParam]: cfg.clientId,
+      client_id: cfg.clientId,
       redirect_uri: redirectUri,
       scope: cfg.scope,
       state,
@@ -580,20 +527,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
     try {
       const redirectUri = `${base}/api/auth/oauth/${provider}/callback`;
-      // Token exchange — TikTok requires client_key (not client_id); the rest use client_id.
-      const idParam = cfg.clientIdParam || "client_id";
+      // Standard OAuth code exchange (client_id + client_secret in the body).
       const tokenBody: Record<string, string> = {
         grant_type: "authorization_code",
-        [idParam]: cfg.clientId,
+        client_id: cfg.clientId!,
+        client_secret: cfg.clientSecret!,
         code,
         redirect_uri: redirectUri,
       };
-      if (provider === "tiktok") {
-        tokenBody.client_secret = cfg.clientSecret;
-      } else {
-        tokenBody.client_id = cfg.clientId;
-        tokenBody.client_secret = cfg.clientSecret;
-      }
       const tokenRes = await fetch(cfg.tokenUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
@@ -611,16 +552,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         );
       }
 
-      // Profile fetch — Instagram reads the token from the query string; the rest use a Bearer header.
-      const profileFetchUrl =
-        cfg.profileAuth === "query"
-          ? `${cfg.profileUrl}${cfg.profileUrl.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(accessToken)}`
-          : cfg.profileUrl;
-      const profRes = await fetch(profileFetchUrl, {
-        headers:
-          cfg.profileAuth === "query"
-            ? { Accept: "application/json" }
-            : { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      // Profile fetch — Bearer-header authenticated userinfo call.
+      const profRes = await fetch(cfg.profileUrl, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
       });
       const profJson: any = await profRes.json();
       const extracted = cfg.parseProfile

@@ -74,7 +74,7 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
             optional contact number, and payment method metadata (such as the gateway used and transaction
             reference). We never store full credit or debit card numbers — all card processing is handled by
             PCI-DSS compliant gateways including Visa, Mastercard, EasyPaisa, JazzCash, Binance Pay, and
-            Apple Pay. If you sign up using a social provider (Google, Facebook, TikTok, or Instagram) we
+            Apple Pay. If you sign up using a social provider (Google or Facebook) we
             receive your name, email, and provider account identifier from that platform, nothing more.
           </p>
           <p>
@@ -143,7 +143,7 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
             You must be at least 18 years old, or have the consent and supervision of a parent or legal
             guardian, to create an account and transact. You are responsible for maintaining the
             confidentiality of your credentials and for all activity that occurs under your account. Signing
-            up through Google, Facebook, TikTok, or Instagram binds that social identity to your PlayBeat
+            up through Google or Facebook binds that social identity to your PlayBeat
             account. Notify us immediately of any unauthorized access.
           </p>
         </Section>
