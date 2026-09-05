@@ -41,6 +41,32 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ GET /api/orders/mine/:orderNumber ============
+  // Owner-scoped single order — powers the payment result page and account
+  // dashboard. License keys are ONLY returned once the order is paid
+  // (pending Rapid orders never expose keys, no matter how they were created).
+  if (pathSegments[0] === "mine" && pathSegments[1] && req.method === "GET") {
+    try {
+      const orderNumber = String(pathSegments[1]);
+      const db = await getDb();
+      const order = await db
+        .collection("orders")
+        .findOne({ orderNumber, userId: req.user.id });
+      if (!order) return jsonError(res, "Order not found.", 404);
+      const paid =
+        order.paymentStatus === "paid" ||
+        (order.status === "completed" && order.paymentStatus !== "pending");
+      const safe = { ...order };
+      if (!paid) {
+        delete (safe as any).licenseKeysDelivered;
+        safe.items = (safe.items || []).map((it: any) => ({ ...it, licenseKeys: [] }));
+      }
+      return jsonOk(res, { success: true, order: safe, paid });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   // ============ POST /api/orders (create) ============
   if (!route && req.method === "POST") {
     try {
@@ -133,7 +159,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       );
 
       const allKeys = processedItems.flatMap((i: any) => i.licenseKeys);
-      const orderDoc = {
+
+      // Rapid Gateway orders start PENDING — the verified webhook at
+      // /webhooks/rapid-gateway is the ONLY thing that may mark them paid
+      // (audit §14: never trust payment success from the browser). The server
+      // has pre-allocated the license keys in this document, but they are NOT
+      // returned to the client and are stripped from customer reads until the
+      // webhook confirms payment.
+      const isRapidPayment =
+        paymentMethod === "rapid" ||
+        paymentMethod === "rapid-gateway" ||
+        paymentMethod === "Rapid Gateway";
+
+      const orderDoc: Record<string, any> = {
         orderNumber,
         userId: req.user.id,
         customerName: finalCustomerName,
@@ -143,19 +181,38 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         totalAmount: verifiedTotal,
         clientTotalAmount: Number(totalAmount) || 0,
         currency,
-        status: "completed",
-        paymentMethod,
+        status: isRapidPayment ? "pending" : "completed",
+        paymentMethod: isRapidPayment ? "Rapid Gateway" : paymentMethod,
+        paymentStatus: isRapidPayment ? "pending" : "paid",
+        ...(isRapidPayment ? { paymentProvider: "rapid" } : {}),
         licenseKeysDelivered: allKeys,
         createdAt: new Date(),
       };
 
       const ordersCol = db.collection("orders");
       const insertResult = await ordersCol.insertOne(orderDoc);
-      return jsonOk(res, {
-        success: true,
-        message: "Order placed successfully! Digital licenses allocated instantly.",
-        order: { id: insertResult.insertedId.toString(), ...orderDoc },
-      }, 201);
+
+      // Pending Rapid orders: never echo keys or act like payment happened.
+      const responseBody = isRapidPayment
+        ? {
+            success: true,
+            message: "Order created — awaiting payment.",
+            order: {
+              id: insertResult.insertedId.toString(),
+              orderNumber,
+              totalAmount: verifiedTotal,
+              currency,
+              status: "pending",
+              paymentStatus: "pending",
+              paymentMethod: "Rapid Gateway",
+            },
+          }
+        : {
+            success: true,
+            message: "Order placed successfully! Digital licenses allocated instantly.",
+            order: { id: insertResult.insertedId.toString(), ...orderDoc },
+          };
+      return jsonOk(res, responseBody, 201);
     } catch (err: any) {
       console.error("Order Creation Error:", err);
       return jsonError(res, err.message, 500);

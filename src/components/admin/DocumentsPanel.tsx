@@ -502,7 +502,7 @@ export function DocumentsPanel({ onToast }: DocumentsPanelProps) {
             {Object.keys(stats.byGroup).length === 0 && (
               <span className="text-[10px] font-mono text-zinc-600">No files yet</span>
             )}
-            {Object.entries(stats.byGroup).map(([g, v]) => {
+            {Object.entries(stats.byGroup).map(([g, v]: [string, { count: number; bytes: number }]) => {
               const m = GROUP_META[g] || GROUP_META.text
               const Icon = m.icon
               return (

@@ -56,7 +56,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   // checkout form is open — reusing it for both left the pay button permanently
   // disabled, so checkout could never be submitted)
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'easypaisa' | 'jazzcash' | 'crypto' | 'bank'>('card')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'card' | 'easypaisa' | 'jazzcash' | 'crypto' | 'bank' | 'rapid'>('card')
   const [checkoutEmail, setCheckoutEmail] = useState('')
   const [checkoutName, setCheckoutName] = useState('')
   // Legal consent (audit §5): both checkboxes are required before payment
@@ -95,6 +95,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   }
 
   const PAYMENT_LABELS: Record<string, string> = {
+    rapid: 'Rapid Gateway',
     card: 'Credit / Debit Card',
     easypaisa: 'EasyPaisa / JazzCash',
     crypto: 'Binance Pay / Crypto',
@@ -160,6 +161,46 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         // Payment/order failure — cart is preserved, no fake confirmation.
         setCheckoutError(data?.error || `Order could not be placed (${res.status}). Please try again or contact support.`)
         setIsPlacingOrder(false)
+        return
+      }
+
+      // ---- Rapid Gateway flow: the order was created PENDING. Now ask the
+      // server to start the payment (server-side amount + webhook URL) and
+      // send the customer to Rapid's hosted checkout. The browser redirect is
+      // NEVER trusted — /webhooks/rapid-gateway verifies and fulfills.
+      if (selectedPaymentMethod === 'rapid') {
+        const orderNumber = data.order?.orderNumber
+        if (!orderNumber) {
+          setCheckoutError('Order created but payment could not start. Contact support with your order number.')
+          setIsPlacingOrder(false)
+          return
+        }
+        const token2 = localStorage.getItem('playbeat_user_token')
+        const payRes = await fetch(`${API_BASE}/api/payments/rapid/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token2 ? { Authorization: `Bearer ${token2}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ orderNumber }),
+        })
+        const payData = await payRes.json().catch(() => null)
+        if (!payRes.ok || !payData?.success || !payData?.checkoutUrl) {
+          setCheckoutError(
+            payData?.error ||
+              `Order ${orderNumber} was saved as PENDING but the payment session failed. You can retry from My Orders.`
+          )
+          setIsPlacingOrder(false)
+          return
+        }
+        try {
+          sessionStorage.setItem('playbeat_pending_checkout_order', orderNumber)
+        } catch {
+          /* ignore */
+        }
+        onClearCart()
+        window.location.href = payData.checkoutUrl
         return
       }
 
@@ -355,8 +396,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
+                    { id: 'rapid', name: 'Rapid Gateway — Card / Raast / JazzCash / easypaisa', icon: ShieldCheck, highlight: true },
                     { id: 'card', name: 'Credit / Debit Card', icon: CreditCard },
-                    { id: 'easypaisa', name: 'EasyPaisa / JazzCash', icon: QrCode },
+                    { id: 'easypaisa', name: 'EasyPaisa / JazzCash Direct', icon: QrCode },
                     { id: 'crypto', name: 'Binance Pay / Crypto', icon: Zap },
                     { id: 'bank', name: 'Direct Bank Transfer', icon: Building2 },
                   ].map((m) => (
@@ -368,7 +410,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         selectedPaymentMethod === m.id
                           ? 'bg-yellow-400/10 border-yellow-400/60 text-yellow-200 shadow-sm'
                           : 'bg-[#060B1E] border-slate-400/15 text-slate-400 hover:text-slate-200 hover:border-slate-400/30'
-                      }`}
+                      } ${m.highlight ? 'col-span-2' : ''}`}
                     >
                       <m.icon className="w-4 h-4 mb-2 text-yellow-400" />
                       <span className="font-semibold text-[11px]">{m.name}</span>
@@ -444,7 +486,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 ) : (
                   <>
                     <Zap className="w-4 h-4 fill-slate-950" />
-                    <span>Pay {formatPrice(finalTotal, currency)} &amp; Receive Keys</span>
+                    <span>
+                      {selectedPaymentMethod === 'rapid'
+                        ? `Continue to Secure Payment — ${formatPrice(finalTotal, currency)}`
+                        : `Pay ${formatPrice(finalTotal, currency)} & Receive Keys`}
+                    </span>
                   </>
                 )}
               </button>

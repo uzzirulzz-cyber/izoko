@@ -20,9 +20,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [agreeTerms, setAgreeTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   if (!isOpen) return null
 
@@ -42,6 +45,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('Passwords do not match — please re-enter them.')
+      return
+    }
+
+    if (mode === 'signup' && !agreeTerms) {
+      setError('Please accept the Terms & Conditions and Privacy Policy to continue.')
       return
     }
 
@@ -78,6 +91,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setName('')
       setEmail('')
       setPassword('')
+      setConfirmPassword('')
+      setAgreeTerms(false)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Network error during authentication.')
@@ -293,6 +308,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
           </div>
+
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-[11px] font-mono uppercase text-slate-300 mb-1.5 tracking-wider">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mode === 'signup' && (
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-slate-500 bg-[#060B1E] accent-yellow-400 shrink-0"
+              />
+              <span className="text-[11px] text-slate-400 leading-relaxed">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline">Terms &amp; Conditions</a>
+                {' '}and the{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-yellow-400 hover:underline">Privacy Policy</a>.
+              </span>
+            </label>
+          )}
 
           {/* Submit Button with Hover Water Glow */}
           <div className="pt-2">

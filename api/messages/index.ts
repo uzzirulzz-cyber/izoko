@@ -18,6 +18,7 @@
 //   GET  /api/messages/staff-dm                     (admin: my staff DM threads)
 //   POST /api/messages/staff-dm                     (admin: send staff direct message)
 //   GET  /api/messages/unread-count                 (admin: sidebar badge)
+//   POST /api/messages/bot                          (visitor/customer: ONE customer bot — catalog-grounded instant answers)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
@@ -30,6 +31,7 @@ import {
   verifyAdmin,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
+import { handleCustomerBot } from "../_lib/customerBot.js";
 
 type ChatMessage = {
   conversationId: ObjectId;
@@ -91,6 +93,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const visitorId = String(body.visitorId || url.searchParams.get("visitorId") || "").trim();
     return { user, visitorId };
   };
+
+  // ===========================================================================
+  // POST /api/messages/bot — THE single customer assistant.
+  // Catalog-grounded instant answers (products/pricing/checkout/order status)
+  // with escalation links to the human live-support thread. Rate-limited,
+  // no auth required; signed-in callers get their OWN order status.
+  // ===========================================================================
+  if (route === "bot" && req.method === "POST") {
+    return handleCustomerBot(req, res);
+  }
 
   // ===========================================================================
   // POST /api/messages/start — storefront opens a live-support conversation

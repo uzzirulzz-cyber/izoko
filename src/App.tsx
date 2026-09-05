@@ -20,6 +20,8 @@ import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
 import { NotFound } from './components/NotFound'
 import { LiveSupportWidget } from './components/LiveSupportWidget'
+import { OrderResultPage } from './components/OrderResultPage'
+import { AccountPage } from './components/AccountPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { applyRouteSeo } from './lib/seo'
@@ -130,6 +132,8 @@ type Route =
   | 'windows-office'
   | 'creative-software'
   | 'compare'
+  | 'order'
+  | 'account'
   | 'notfound'
 
 const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
@@ -208,6 +212,8 @@ function parseRoute(): Route {
   if (path === 'storefront') return 'storefront' // legacy /storefront still works
   if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
+  if (path === 'account' || path.startsWith('account/')) return 'account'
+  if (path.startsWith('order/') && path.split('/').length >= 2) return 'order'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
@@ -227,6 +233,10 @@ function routeToPath(route: Route): string {
   if (route === 'admin') return '/admin'
   if (route === 'admin-login') return '/admin/login'
   if (route === 'storefront') return '/'
+  // Order result page keeps its /order/:orderNumber URL — the number is read
+  // from the address bar, so never rewrite it
+  if (route === 'order') return window.location.pathname || '/order'
+  if (route === 'account') return '/account'
   // 404 keeps the original (unknown) URL in the address bar — never rewrite it
   if (route === 'notfound') return window.location.pathname || '/404'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
@@ -293,6 +303,10 @@ export function App() {
   useEffect(() => {
     const onPop = () => {
       setRoute(parseRoute())
+      const p = window.location.pathname
+      setOrderNumberParam(
+        p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+      )
     }
     window.addEventListener('popstate', onPop)
     window.addEventListener('hashchange', onPop)
@@ -361,6 +375,13 @@ export function App() {
 
   // User State — NO auto-login. User must explicitly sign in.
   const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+  // Order number for /order/:orderNumber — read from the address bar so the
+  // payment result page survives reloads and gateway return redirects
+  const [orderNumberParam, setOrderNumberParam] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const p = window.location.pathname
+    return p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+  })
 
   // Website Builder CMS settings — live from MongoDB via /api/cms
   const [cmsSettings, setCmsSettings] = useState<any>(null)
@@ -979,6 +1000,24 @@ export function App() {
     }
   }
 
+  // Path navigation used by the bot, account dashboard and payment result
+  // page. Special-cases the cart (a drawer, not a URL) — everything else goes
+  // through the SPA path router.
+  const handleNavigatePath = (path: string) => {
+    const p = (path || '/').replace(/\/+$/, '') || '/'
+    if (p === '/cart') {
+      if (user) {
+        setIsCartOpen(true)
+      } else {
+        setIsAuthOpen(true)
+        showToast('Please sign in to access your cart and checkout')
+      }
+      return
+    }
+    navigatePath(p)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <div className="min-h-screen bg-[#050814] text-slate-100 font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
       {/* Toast Notification */}
@@ -1083,6 +1122,40 @@ export function App() {
             }, 80)
           }}
         />
+      )}
+
+      {/* ============================================
+          ORDER RESULT PAGE — /order/:orderNumber
+          Landing point after the Rapid Gateway hosted
+          checkout return redirect (payment truth = webhook)
+          ============================================ */}
+      {route === 'order' && (
+        <>
+          <OrderResultPage
+            orderNumber={orderNumberParam}
+            user={user}
+            onRequireAuth={() => setIsAuthOpen(true)}
+            onNavigate={handleNavigatePath}
+            onClearCart={handleClearCart}
+          />
+          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+        </>
+      )}
+
+      {/* ============================================
+          CUSTOMER ACCOUNT DASHBOARD — /account
+          Profile, orders, payment history, logout
+          ============================================ */}
+      {route === 'account' && (
+        <>
+          <AccountPage
+            user={user}
+            onRequireAuth={() => setIsAuthOpen(true)}
+            onLogout={handleUserSignOut}
+            onNavigate={handleNavigatePath}
+          />
+          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+        </>
       )}
 
       {/* COMPARE PAGE — dedicated projector comparison (not on main storefront) */}
@@ -1495,7 +1568,7 @@ export function App() {
           )}
 
           {/* Live Support bubble — storefront customers chat with the admin team */}
-          <LiveSupportWidget user={user} />
+          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
         </>
       )}
     </div>

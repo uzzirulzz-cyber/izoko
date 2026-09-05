@@ -22,8 +22,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
-import { handleOptions, jsonOk, jsonError } from "../_lib/auth.js";
+import { handleOptions, jsonOk, jsonError, requireUser } from "../_lib/auth.js";
 import { handleRapidGatewayWebhook } from "../_lib/rapidWebhook.js";
+import { createRapidPayment } from "../_lib/rapidClient.js";
+import { PUBLIC_SITE_URL } from "../_lib/config.js";
 
 const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || "";
 
@@ -61,6 +63,76 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   //   - route "rapid-gateway" → direct /api/payments/rapid-gateway calls
   if (route === "rapid-gateway" || url.searchParams.get("rapid") === "1") {
     return handleRapidGatewayWebhook(req, res);
+  }
+
+  // ============ POST /api/payments/rapid/create ============
+  // Customer-initiated payment for a PENDING order. Signed-in users only; the
+  // order must belong to the caller and must not already be paid. The amount,
+  // currency and webhook URL are built SERVER-SIDE — the browser never sends
+  // an amount. Returns the hosted-checkout URL to redirect to.
+  const rapidPath = url.pathname.split("/").filter(Boolean).slice(2); // e.g. ["rapid","create"]
+  if (rapidPath[0] === "rapid" && rapidPath[1] === "create") {
+    if (req.method !== "POST") return jsonError(res, "Method not allowed", 405);
+    const admin0 = requireUser(req as any, res);
+    if (!admin0) return;
+    try {
+      const { orderNumber } = req.body || {};
+      if (!orderNumber) return jsonError(res, "orderNumber is required.", 400);
+      const db = await getDb();
+      const order = await db
+        .collection("orders")
+        .findOne({ orderNumber: String(orderNumber), userId: String((req as any).user.id) });
+      if (!order) return jsonError(res, "Order not found.", 404);
+
+      const paymentStatus = String(order.paymentStatus || "pending");
+      if (paymentStatus === "paid") {
+        return jsonError(res, "This order is already paid.", 409);
+      }
+      if (String(order.status) === "refunded") {
+        return jsonError(res, "This order was refunded and cannot be re-paid.", 409);
+      }
+
+      const result = await createRapidPayment({
+        orderNumber: order.orderNumber,
+        amount: Number(order.totalAmount),
+        currency: String(order.currency || "PKR"),
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(order.orderNumber)}`,
+      });
+      if (!result.ok || !result.checkoutUrl) {
+        console.error("rapid/create failed:", result.error);
+        return jsonError(
+          res,
+          result.error || "Could not start the payment. Please try again shortly.",
+          502
+        );
+      }
+
+      await db.collection("orders").updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            paymentProvider: "rapid",
+            rapidPaymentId: result.paymentId || "",
+            checkoutUrl: result.checkoutUrl,
+            paymentStatus: "pending",
+            status: order.status === "payment_failed" ? "pending" : order.status,
+            paymentMethod: "Rapid Gateway",
+            paymentInitiatedAt: new Date(),
+          },
+        }
+      );
+
+      return jsonOk(res, {
+        success: true,
+        orderNumber: order.orderNumber,
+        checkoutUrl: result.checkoutUrl,
+      });
+    } catch (err: any) {
+      console.error("rapid/create error:", err);
+      return jsonError(res, err?.message || "Payment initiation failed.", 500);
+    }
   }
 
   if (route !== "webhook") return jsonError(res, "Payments route not found", 404);
