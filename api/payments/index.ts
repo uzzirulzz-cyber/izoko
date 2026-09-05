@@ -26,6 +26,147 @@ import { handleOptions, jsonOk, jsonError, requireUser } from "../_lib/auth.js";
 import { handleRapidGatewayWebhook } from "../_lib/rapidWebhook.js";
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { PUBLIC_SITE_URL } from "../_lib/config.js";
+import { getRapidConfig } from "../_lib/gatewayConfig.js";
+import {
+  validateCoupon,
+  couponPublicView,
+  CouponValidationError,
+} from "../_lib/coupons.js";
+
+// ---------------------------------------------------------------------------
+// Payment method catalog — DRIVES THE CHECKOUT UI (single source of truth).
+// The storefront renders only what this endpoint returns: a method that is
+// unavailable (e.g. Rapid without configured credentials) is reported with
+// available:false and the UI disables it. Adding/retiring a gateway here is
+// enough — no storefront change required.
+// ---------------------------------------------------------------------------
+const RAPID_BRAND_MAP: Record<string, string[]> = {
+  card: ["visa", "mastercard", "amex"],
+  jazzcash: ["jazzcash"],
+  easypaisa: ["easypaisa"],
+  raast: ["raast"],
+};
+
+async function buildPaymentMethods() {
+  // Rapid availability is resolved from the runtime gateway config
+  // (DB override → env fallback) — the same source rapid/create enforces,
+  // so the UI can never offer a gateway the server would fail-closed on.
+  let rapidReady = false;
+  let rapidBrands: string[] = ["visa", "mastercard", "raast", "jazzcash", "easypaisa"];
+  try {
+    const cfg = await getRapidConfig();
+    rapidReady = Boolean(cfg.secretKey);
+    if (Array.isArray(cfg.methods) && cfg.methods.length) {
+      const set = new Set<string>(["visa", "mastercard", "raast"]);
+      for (const m of cfg.methods) {
+        for (const b of RAPID_BRAND_MAP[String(m).toLowerCase()] || []) set.add(b);
+      }
+      rapidBrands = [...set];
+    }
+  } catch {
+    /* config unreadable → report Rapid unavailable (fail-closed) */
+  }
+
+  return [
+    {
+      id: "rapid",
+      label: "Rapid Gateway",
+      tagline: "Card / Raast / JazzCash / Easypaisa",
+      description:
+        "Pay on Rapid Gateway's secure hosted checkout with card, Raast, JazzCash or Easypaisa. You return here automatically after payment.",
+      available: rapidReady,
+      mode: "hosted" as const,
+      recommended: true,
+      brands: rapidBrands,
+      unavailableReason: rapidReady
+        ? undefined
+        : "Temporarily unavailable — payment session cannot be started. Please choose another method.",
+    },
+    {
+      id: "card",
+      label: "Credit / Debit Card",
+      tagline: "Visa, Mastercard, Amex",
+      description: "Pay securely using your credit or debit card — order is confirmed for instant processing.",
+      available: true,
+      mode: "direct" as const,
+      brands: ["visa", "mastercard", "amex"],
+    },
+    {
+      id: "jazzcash",
+      label: "JazzCash",
+      tagline: "JazzCash wallet",
+      description: "Pay via your JazzCash mobile wallet — order is confirmed for instant processing.",
+      available: true,
+      mode: "direct" as const,
+      brands: ["jazzcash"],
+    },
+    {
+      id: "easypaisa",
+      label: "Easypaisa",
+      tagline: "Easypaisa wallet",
+      description: "Pay via your Easypaisa mobile wallet — order is confirmed for instant processing.",
+      available: true,
+      mode: "direct" as const,
+      brands: ["easypaisa"],
+    },
+    {
+      id: "crypto",
+      label: "Binance Pay / Crypto",
+      tagline: "USDT and other crypto",
+      description: "Pay using USDT or other supported crypto through Binance Pay — order is confirmed for instant processing.",
+      available: true,
+      mode: "direct" as const,
+      brands: ["binance"],
+    },
+    {
+      id: "bank",
+      label: "Direct Bank Transfer",
+      tagline: "Transfer directly from your bank",
+      description: "Transfer directly from your bank account — order is confirmed for instant processing with reference details emailed to you.",
+      available: true,
+      mode: "direct" as const,
+      brands: ["bank"],
+    },
+  ];
+}
+
+// GET /api/payments/methods — public catalog for the checkout UI.
+// POST /api/payments/coupon — server-side coupon validation (signed-in users,
+// matching the no-guest-checkout policy). The subtotal sent by the cart is
+// ONLY a hint for the minimum-spend check; the authoritative re-check happens
+// again inside order creation, so a stale subtotal cannot change the price.
+async function handleMethodsAndCoupon(req: VercelRequest, res: VercelResponse): Promise<boolean> {
+  const seg = new URL(req.url || "", "http://localhost").pathname
+    .split("/")
+    .filter(Boolean)
+    .slice(2);
+
+  if (seg[0] === "methods" && req.method === "GET") {
+    const methods = await buildPaymentMethods();
+    jsonOk(res, { success: true, methods });
+    return true;
+  }
+
+  if (seg[0] === "coupon" && req.method === "POST") {
+    const userOk = requireUser(req as any, res);
+    if (!userOk) return true;
+    try {
+      const { code, subtotal } = req.body || {};
+      const { coupon, discount } = await validateCoupon(code, Number(subtotal) || 0);
+      jsonOk(res, { success: true, coupon: couponPublicView(coupon, discount), discount });
+    } catch (err: any) {
+      if (err instanceof CouponValidationError) {
+        jsonError(res, err.message, err.status);
+      } else {
+        console.error("coupon validate error:", err);
+        jsonError(res, "Could not validate the coupon. Please try again.", 500);
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
 
 const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || "";
 
@@ -52,6 +193,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const url = new URL(req.url || "", "http://localhost");
   const route = url.pathname.split("/").filter(Boolean).slice(2)[0] || "";
+
+  // ---- /methods + /coupon routes (checkout catalog & coupon validation) ----
+  if (await handleMethodsAndCoupon(req, res)) return;
 
   // Rapid Gateway webhook: gateway callbacks arrive server-to-server with no
   // user session — they are authenticated by HMAC signature inside the handler
@@ -102,9 +246,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       if (!result.ok || !result.checkoutUrl) {
         console.error("rapid/create failed:", result.error);
+        // Customer-safe message — the order is safe as PENDING and can be
+        // retried; technical detail stays in the server log above.
         return jsonError(
           res,
-          result.error || "Could not start the payment. Please try again shortly.",
+          "The payment gateway is not responding right now. Your order was saved and you have NOT been charged — please retry in a moment or pick another payment method.",
           502
         );
       }

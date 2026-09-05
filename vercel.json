@@ -35,6 +35,7 @@
     { "source": "/api/messages", "destination": "/api/messages" },
     { "source": "/webhooks/rapid-gateway", "destination": "/api/payments?rapid=1" },
     { "source": "/order/:path*", "destination": "/index.html" },
+    { "source": "/checkout", "destination": "/index.html" },
     { "source": "/account", "destination": "/index.html" },
     { "source": "/account/:path*", "destination": "/index.html" },
     { "source": "/admin", "destination": "/index.html" },

@@ -22,6 +22,7 @@ import { NotFound } from './components/NotFound'
 import { LiveSupportWidget } from './components/LiveSupportWidget'
 import { OrderResultPage } from './components/OrderResultPage'
 import { AccountPage } from './components/AccountPage'
+import { CheckoutPage } from './components/CheckoutPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { applyRouteSeo } from './lib/seo'
@@ -51,6 +52,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   contact: SEO_PRESETS.contact,
   admin: SEO_PRESETS.admin,
   'admin-login': SEO_PRESETS['admin-login'],
+  checkout: SEO_PRESETS.checkout,
   notfound: SEO_PRESETS.notfound,
 }
 import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
@@ -133,6 +135,7 @@ type Route =
   | 'creative-software'
   | 'compare'
   | 'order'
+  | 'checkout'
   | 'account'
   | 'notfound'
 
@@ -213,6 +216,7 @@ function parseRoute(): Route {
   if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
   if (path === 'account' || path.startsWith('account/')) return 'account'
+  if (path === 'checkout') return 'checkout'
   if (path.startsWith('order/') && path.split('/').length >= 2) return 'order'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
@@ -237,6 +241,7 @@ function routeToPath(route: Route): string {
   // from the address bar, so never rewrite it
   if (route === 'order') return window.location.pathname || '/order'
   if (route === 'account') return '/account'
+  if (route === 'checkout') return '/checkout'
   // 404 keeps the original (unknown) URL in the address bar — never rewrite it
   if (route === 'notfound') return window.location.pathname || '/404'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
@@ -1143,6 +1148,25 @@ export function App() {
       )}
 
       {/* ============================================
+          CHECKOUT PAGE — /checkout (full-page, light UI)
+          Two-stage checkout fed by the cart drawer.
+          ============================================ */}
+      {route === 'checkout' && (
+        <CheckoutPage
+          cart={cart}
+          currency={selectedCurrency}
+          user={user}
+          onRequireAuth={() => setIsAuthOpen(true)}
+          onNavigate={handleNavigatePath}
+          onUpdateQty={handleUpdateQty}
+          onRemoveItem={handleRemoveFromCart}
+          onClearCart={handleClearCart}
+        />
+        // NOTE: no LiveSupportWidget here — its floating bubble overlaps the
+        // sticky mobile pay button (support is one tap away on any other page)
+      )}
+
+      {/* ============================================
           CUSTOMER ACCOUNT DASHBOARD — /account
           Profile, orders, payment history, logout
           ============================================ */}
@@ -1511,7 +1535,8 @@ export function App() {
             onToggleWishlist={handleToggleWishlist}
           />
 
-          {/* Cart Drawer — requires signed-in user (no guest checkout) */}
+          {/* Cart Drawer — requires signed-in user (no guest checkout).
+              CTA hands off to the full-page /checkout experience. */}
           <CartDrawer
             isOpen={isCartOpen}
             onClose={() => setIsCartOpen(false)}
@@ -1525,6 +1550,10 @@ export function App() {
               setIsCartOpen(false)
               setIsAuthOpen(true)
               showToast('Please sign in to complete checkout')
+            }}
+            onProceedToCheckout={() => {
+              setIsCartOpen(false)
+              handleNavigatePath('/checkout')
             }}
           />
 

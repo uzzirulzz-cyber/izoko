@@ -1,0 +1,426 @@
+/* =========================================================
+   PLAYBEAT CHECKOUT — Premium light design system (scoped)
+   Applied under .pbx-scope only, so the dark storefront is
+   untouched. 8px spacing system, 150–250ms transitions.
+   ========================================================= */
+
+.pbx-scope {
+  --pbx-bg: #f6f7f9;
+  --pbx-card: #ffffff;
+  --pbx-border: #e5e7eb;
+  --pbx-border-strong: #d1d5db;
+  --pbx-text: #0f172a;
+  --pbx-text-2: #475569;
+  --pbx-text-3: #94a3b8;
+  --pbx-gold: #facc15;
+  --pbx-gold-soft: #fefce8;
+  --pbx-gold-line: #fde047;
+  --pbx-blue: #2563eb;
+  --pbx-blue-dark: #1d4ed8;
+  --pbx-green: #16a34a;
+  --pbx-green-soft: #f0fdf4;
+  --pbx-red: #dc2626;
+  --pbx-red-soft: #fef2f2;
+  --pbx-ring: 0 0 0 3px rgba(250, 204, 21, 0.35);
+  --pbx-ring-blue: 0 0 0 3px rgba(37, 99, 235, 0.18);
+
+  color: var(--pbx-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--pbx-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.pbx-scope * {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* ---------- surfaces ---------- */
+.pbx-card {
+  background: var(--pbx-card);
+  border: 1px solid var(--pbx-border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.pbx-card-hover {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.pbx-card-hover:hover {
+  border-color: var(--pbx-border-strong);
+  box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+/* ---------- inputs ---------- */
+.pbx-input {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid var(--pbx-border-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--pbx-text);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  outline: none;
+}
+.pbx-input::placeholder {
+  color: var(--pbx-text-3);
+}
+.pbx-input:focus {
+  border-color: var(--pbx-gold);
+  box-shadow: var(--pbx-ring);
+}
+.pbx-input[aria-invalid='true'] {
+  border-color: var(--pbx-red);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+.pbx-input:disabled {
+  background: #f8fafc;
+  color: var(--pbx-text-3);
+  cursor: not-allowed;
+}
+
+/* ---------- CTA buttons ---------- */
+.pbx-cta {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px 24px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: #1a1a1a;
+  background: linear-gradient(135deg, #fde047 0%, #facc15 55%, #eab308 100%);
+  border: 1px solid #f5d90a;
+  box-shadow: 0 6px 16px -4px rgba(234, 179, 8, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, filter 0.18s ease;
+  cursor: pointer;
+}
+.pbx-cta:hover:not(:disabled) {
+  filter: brightness(1.03);
+  box-shadow: 0 10px 24px -6px rgba(234, 179, 8, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transform: translateY(-1px);
+}
+.pbx-cta:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+.pbx-cta:focus-visible {
+  outline: none;
+  box-shadow: var(--pbx-ring), 0 6px 16px -4px rgba(234, 179, 8, 0.45);
+}
+.pbx-cta:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35) opacity(0.6);
+  box-shadow: none;
+}
+/* sheen sweep on hover */
+.pbx-cta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.55s ease;
+  pointer-events: none;
+}
+.pbx-cta:hover:not(:disabled)::after {
+  left: 130%;
+}
+
+.pbx-btn-blue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--pbx-blue);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 12px;
+  padding: 11px 20px;
+  border: 1px solid var(--pbx-blue-dark);
+  box-shadow: 0 2px 6px -1px rgba(37, 99, 235, 0.35);
+  transition: background 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  cursor: pointer;
+}
+.pbx-btn-blue:hover:not(:disabled) {
+  background: var(--pbx-blue-dark);
+  transform: translateY(-1px);
+}
+.pbx-btn-blue:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.pbx-btn-blue:focus-visible {
+  outline: none;
+  box-shadow: var(--pbx-ring-blue);
+}
+.pbx-btn-blue:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- payment radio cards ---------- */
+.pbx-method {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1.5px solid var(--pbx-border);
+  border-radius: 16px;
+  padding: 16px;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  cursor: pointer;
+}
+.pbx-method:hover:not(.pbx-method-selected):not(:disabled) {
+  border-color: var(--pbx-border-strong);
+  box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+}
+.pbx-method:focus-visible {
+  outline: none;
+  border-color: var(--pbx-gold);
+  box-shadow: var(--pbx-ring);
+}
+.pbx-method-selected {
+  border-color: var(--pbx-gold);
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 60%);
+  box-shadow: 0 0 0 1px var(--pbx-gold), 0 8px 20px -8px rgba(234, 179, 8, 0.35);
+}
+.pbx-method-selected::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(250, 204, 21, 0.35);
+  animation: pbxPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.pbx-method:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #fafafa;
+}
+.pbx-method-error {
+  border-color: var(--pbx-red) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+@keyframes pbxPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* radio dot */
+.pbx-radio {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  border: 2px solid var(--pbx-border-strong);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.pbx-radio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #1a1a1a;
+  transform: scale(0);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pbx-method-selected .pbx-radio {
+  border-color: var(--pbx-gold);
+  background: var(--pbx-gold);
+}
+.pbx-method-selected .pbx-radio-dot {
+  transform: scale(1);
+  background: #1a1a1a;
+}
+
+/* ---------- quantity stepper ---------- */
+.pbx-qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--pbx-border-strong);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+.pbx-qty button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pbx-text-2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pbx-qty button:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: var(--pbx-text);
+}
+.pbx-qty button:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+.pbx-qty button:focus-visible {
+  outline: none;
+  box-shadow: inset var(--pbx-ring);
+}
+.pbx-qty span {
+  min-width: 28px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- logo chips ---------- */
+.pbx-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--pbx-border);
+  border-radius: 10px;
+  padding: 7px 10px;
+  height: 40px;
+  min-width: 58px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.pbx-logo-chip:hover {
+  border-color: var(--pbx-border-strong);
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.1);
+}
+
+/* ---------- coupon applied state ---------- */
+.pbx-coupon-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--pbx-green-soft);
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  animation: pbxSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pbxSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- skeleton shimmer ---------- */
+.pbx-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eef1f5;
+  border-radius: 10px;
+}
+.pbx-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: pbxShimmer 1.4s infinite;
+}
+@keyframes pbxShimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* ---------- drawer slide ---------- */
+@keyframes pbxDrawerIn {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.pbx-drawer-panel {
+  animation: pbxDrawerIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pbxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.pbx-fade-in {
+  animation: pbxFadeIn 0.2s ease;
+}
+
+/* ---------- sticky mobile checkout bar ---------- */
+.pbx-mobile-cta-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--pbx-border);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 20px -8px rgba(15, 23, 42, 0.12);
+}
+
+/* ---------- misc ---------- */
+.pbx-num {
+  font-variant-numeric: tabular-nums;
+}
+.pbx-link {
+  color: var(--pbx-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+.pbx-link:hover {
+  text-decoration: underline;
+}
+.pbx-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--pbx-border-strong);
+  accent-color: #eab308;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pbx-check:focus-visible {
+  outline: none;
+  box-shadow: var(--pbx-ring);
+}

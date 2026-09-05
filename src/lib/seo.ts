@@ -295,6 +295,13 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
   },
   admin: { title: 'Admin — PlayBeat Digital', description: '', path: '/admin', noindex: true },
   'admin-login': { title: 'Admin — PlayBeat Digital', description: '', path: '/admin/login', noindex: true },
+  // Checkout is a private, session-dependent transaction page — never indexed
+  checkout: {
+    title: 'Secure Checkout — PlayBeat Digital',
+    description: '',
+    path: '/checkout',
+    noindex: true,
+  },
   notfound: {
     title: 'Page Not Found (404)',
     description: 'The page you are looking for does not exist.',

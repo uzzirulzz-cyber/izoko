@@ -12,10 +12,26 @@ import {
   requireUser,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
+import {
+  validateCoupon,
+  CouponValidationError,
+  recordCouponRedemption,
+} from "../_lib/coupons.js";
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
   if (!requireUser(req, res)) return;
+
+  /** Out-of-stock rejection — customer-safe message, mapped to HTTP 409. */
+  class StockError extends Error {
+    constructor(name: string, stock: number) {
+      super(
+        stock === 0
+          ? `${name} is currently out of stock. Please remove it from your cart to continue.`
+          : `Only ${stock} left in stock for ${name}. Please adjust the quantity.`
+      );
+    }
+  }
 
   // Extract sub-path from req.url (Vercel rewrites /api/auth/:path* → /api/auth)
   // So we parse the ORIGINAL path from req.url to get the sub-route
@@ -70,11 +86,48 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ POST /api/orders (create) ============
   if (!route && req.method === "POST") {
     try {
-      const { items, customerName, customerEmail, totalAmount, currency = "PKR", paymentMethod = "Credit Card" } = req.body || {};
+      const { items, customerName, customerEmail, totalAmount, currency = "PKR", paymentMethod = "Credit Card", couponCode, clientRequestId } = req.body || {};
       if (!items || !Array.isArray(items) || items.length === 0) {
         return jsonError(res, "Cart items are required to create an order.", 400);
       }
       const db = await getDb();
+
+      // ---- Idempotency: a repeated submit (double-click, retried fetch,
+      // flaky network) must never create a second order. When the client
+      // sends a stable clientRequestId and an order already exists for it,
+      // the ORIGINAL order is returned unchanged. ----
+      if (clientRequestId) {
+        const existing = await db
+          .collection("orders")
+          .findOne({ userId: req.user.id, clientRequestId: String(clientRequestId).slice(0, 64) });
+        if (existing) {
+          const wasRapid = existing.paymentProvider === "rapid";
+          return jsonOk(
+            res,
+            {
+              success: true,
+              duplicate: true,
+              message: "Order already exists for this checkout session.",
+              order: wasRapid
+                ? {
+                    id: String(existing._id),
+                    orderNumber: existing.orderNumber,
+                    subtotalAmount: existing.subtotalAmount,
+                    coupon: existing.coupon,
+                    discountAmount: existing.discountAmount,
+                    totalAmount: existing.totalAmount,
+                    currency: existing.currency,
+                    status: "pending",
+                    paymentStatus: "pending",
+                    paymentMethod: "Rapid Gateway",
+                  }
+                : { id: String(existing._id), ...existing },
+            },
+            200
+          );
+        }
+      }
+
       const usersCol = db.collection("users");
       const authedUser = await usersCol.findOne({ _id: new ObjectId(req.user.id) });
       if (!authedUser) {
@@ -94,8 +147,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         items.map(async (item: any) => {
           const pid = item.product?._id || item.product?.id;
           let dbPrice: number | null = null;
+          let doc: any = null;
           if (pid) {
-            let doc: any = null;
             try {
               if (/^[0-9a-fA-F]{24}$/.test(String(pid))) {
                 doc = await productsCol.findOne({ _id: new ObjectId(String(pid)) });
@@ -121,11 +174,21 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
               }
             }
           }
-          return { item, dbPrice };
+          return { item, dbPrice, dbDoc: doc };
         })
       );
 
-      const processedItems = priceLookups.map(({ item, dbPrice }: any) => {
+      const processedItems = priceLookups.map(({ item, dbPrice, dbDoc }: any) => {
+        // ---- Stock guard: reject (never silently clamp) when the DB product
+        // tracks stock and the requested quantity exceeds it ----
+        if (
+          dbDoc &&
+          typeof dbDoc.stock === "number" &&
+          dbDoc.stock >= 0 &&
+          (item.quantity || 1) > dbDoc.stock
+        ) {
+          throw new StockError(item.product?.name || "An item", dbDoc.stock);
+        }
         const isDigital = item.product?.digital !== false;
         const generatedKeys = isDigital
           ? Array.from({ length: item.quantity || 1 }).map(
@@ -151,12 +214,33 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         };
       });
 
-      const verifiedTotal = Number(
+      const verifiedSubtotal = Number(
         processedItems.reduce(
           (sum: number, i: any) => sum + i.price * (i.quantity || 1),
           0
         ).toFixed(2)
       );
+
+      // ---- Server-side coupon validation (audit §14: never trust the client).
+      // The discount is recomputed from the VERIFIED subtotal — a coupon that
+      // was valid in the cart but not at order time (expired / min-spend) is
+      // rejected here instead of silently changing the price. ----
+      let couponDiscount = 0;
+      let appliedCoupon: Record<string, any> | null = null;
+      if (couponCode) {
+        try {
+          const { coupon, discount } = await validateCoupon(couponCode, verifiedSubtotal);
+          couponDiscount = discount;
+          appliedCoupon = { code: coupon.code, type: coupon.type, value: coupon.value, discount };
+        } catch (err: any) {
+          if (err instanceof CouponValidationError) {
+            return jsonError(res, `Coupon rejected: ${err.message}`, 409);
+          }
+          throw err;
+        }
+      }
+
+      const verifiedTotal = Number(Math.max(0, verifiedSubtotal - couponDiscount).toFixed(2));
 
       const allKeys = processedItems.flatMap((i: any) => i.licenseKeys);
 
@@ -174,10 +258,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const orderDoc: Record<string, any> = {
         orderNumber,
         userId: req.user.id,
+        ...(clientRequestId ? { clientRequestId: String(clientRequestId).slice(0, 64) } : {}),
         customerName: finalCustomerName,
         customerEmail: finalCustomerEmail,
         items: processedItems,
         // Server-recomputed total (client totalAmount kept only for reference)
+        subtotalAmount: verifiedSubtotal,
+        ...(appliedCoupon ? { coupon: appliedCoupon, discountAmount: couponDiscount } : {}),
         totalAmount: verifiedTotal,
         clientTotalAmount: Number(totalAmount) || 0,
         currency,
@@ -192,6 +279,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const ordersCol = db.collection("orders");
       const insertResult = await ordersCol.insertOne(orderDoc);
 
+      // Coupon bookkeeping after the order is persisted (never blocks)
+      if (appliedCoupon) await recordCouponRedemption(appliedCoupon.code);
+
       // Pending Rapid orders: never echo keys or act like payment happened.
       const responseBody = isRapidPayment
         ? {
@@ -200,6 +290,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             order: {
               id: insertResult.insertedId.toString(),
               orderNumber,
+              subtotalAmount: verifiedSubtotal,
+              ...(appliedCoupon ? { coupon: appliedCoupon, discountAmount: couponDiscount } : {}),
               totalAmount: verifiedTotal,
               currency,
               status: "pending",
@@ -214,6 +306,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           };
       return jsonOk(res, responseBody, 201);
     } catch (err: any) {
+      if (err instanceof StockError) {
+        return jsonError(res, err.message, 409);
+      }
       console.error("Order Creation Error:", err);
       return jsonError(res, err.message, 500);
     }
