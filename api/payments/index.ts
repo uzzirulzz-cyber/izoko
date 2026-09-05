@@ -23,6 +23,7 @@ import crypto from "crypto";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
 import { handleOptions, jsonOk, jsonError } from "../_lib/auth.js";
+import { handleRapidGatewayWebhook } from "../_lib/rapidWebhook.js";
 
 const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || "";
 
@@ -49,6 +50,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const url = new URL(req.url || "", "http://localhost");
   const route = url.pathname.split("/").filter(Boolean).slice(2)[0] || "";
+
+  // Rapid Gateway webhook: gateway callbacks arrive server-to-server with no
+  // user session — they are authenticated by HMAC signature inside the handler
+  // itself (fail-closed). It lives inside this function because the Hobby
+  // plan caps deployments at 12 serverless functions.
+  // Dispatch conditions:
+  //   - query ?rapid=1  → the /webhooks/rapid-gateway rewrite (destination must
+  //     resolve to the bare function path; suffix destinations are NOT_FOUND)
+  //   - route "rapid-gateway" → direct /api/payments/rapid-gateway calls
+  if (route === "rapid-gateway" || url.searchParams.get("rapid") === "1") {
+    return handleRapidGatewayWebhook(req, res);
+  }
 
   if (route !== "webhook") return jsonError(res, "Payments route not found", 404);
   if (req.method !== "POST") return jsonError(res, "Method not allowed", 405);

@@ -44,8 +44,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
 import { ObjectId } from "mongodb";
-import { getDb } from "../_lib/mongo.js";
-import { handleOptions, jsonOk, jsonError } from "../_lib/auth.js";
+import { getDb } from "./mongo.js";
+import { handleOptions, jsonOk, jsonError } from "./auth.js";
 
 const WEBHOOK_SECRET = process.env.RAPID_WEBHOOK_SECRET || "";
 const WEBHOOK_SECRET_PREVIOUS = process.env.RAPID_WEBHOOK_SECRET_PREVIOUS || "";
@@ -126,7 +126,7 @@ function header(req: VercelRequest, name: string): string {
   return Array.isArray(v) ? v[0] : v || "";
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
   if (req.method !== "POST") {
     return jsonError(res, "Rapid Gateway webhooks are POST-only.", 405);

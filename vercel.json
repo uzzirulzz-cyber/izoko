@@ -33,7 +33,7 @@
     { "source": "/api/app", "destination": "/api/app" },
     { "source": "/api/messages/:path*", "destination": "/api/messages" },
     { "source": "/api/messages", "destination": "/api/messages" },
-    { "source": "/webhooks/rapid-gateway", "destination": "/api/webhooks/rapid-gateway" },
+    { "source": "/webhooks/rapid-gateway", "destination": "/api/payments?rapid=1" },
     { "source": "/admin", "destination": "/index.html" },
     { "source": "/admin/login", "destination": "/index.html" },
     { "source": "/admin/:path*", "destination": "/index.html" },
