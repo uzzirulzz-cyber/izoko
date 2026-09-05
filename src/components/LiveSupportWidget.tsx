@@ -70,6 +70,18 @@ export const LiveSupportWidget: React.FC<LiveSupportWidgetProps> = ({ user, onNa
   )
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // While a premium checkout surface is on screen (light-mode cart drawer or
+  // the /checkout page render a .pbx-scope container), tuck the launcher away
+  // so the floating bubble never covers the sticky pay CTA on mobile.
+  const [suppressed, setSuppressed] = useState(false)
+  useEffect(() => {
+    const check = () => setSuppressed(Boolean(document.querySelector('.pbx-scope')))
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.body, { childList: true, subtree: true })
+    return () => obs.disconnect()
+  }, [])
+
   // Restore bot transcript for this browser session (lightweight state only —
   // no secrets, no PII beyond what the visitor typed themselves)
   useEffect(() => {
@@ -293,8 +305,10 @@ export const LiveSupportWidget: React.FC<LiveSupportWidgetProps> = ({ user, onNa
       <button
         id="live-support-launcher"
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-[60] group"
+        className={suppressed ? 'hidden' : 'fixed bottom-6 right-6 z-[60] group'}
         title="Help & Support — PlayBeat Assistant"
+        aria-hidden={suppressed || undefined}
+        tabIndex={suppressed ? -1 : 0}
       >
         <span className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 rounded-full blur-md opacity-40 group-hover:opacity-80 transition duration-300 pointer-events-none"></span>
         <span className="relative flex items-center justify-center w-14 h-14 rounded-full btn-gold-gradient shadow-2xl active:scale-95 transition-all">
@@ -313,7 +327,7 @@ export const LiveSupportWidget: React.FC<LiveSupportWidgetProps> = ({ user, onNa
       </button>
 
       {/* Chat panel */}
-      {open && (
+      {open && !suppressed && (
         <div className="fixed bottom-24 right-4 sm:right-6 z-[60] w-[calc(100vw-2rem)] sm:w-[380px] max-h-[72vh] rounded-3xl bg-[#060B1E] border border-slate-400/20 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-[#0A122E] to-[#081028] border-b border-slate-400/15">
