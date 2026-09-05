@@ -82,6 +82,7 @@ import { CmsPanel } from './admin/CmsPanel'
 import { AnalyticsPanel } from './admin/AnalyticsPanel'
 import { OrdersLogPanel } from './admin/OrdersLogPanel'
 import { GatewayPanel } from './admin/GatewayPanel'
+import { BusinessAnalyticsPanel } from './admin/BusinessAnalyticsPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 
 interface AdminInsightsViewProps {
@@ -933,6 +934,22 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <BarChart3 className="w-4 h-4 text-emerald-400" />
                     {!sidebarCollapsed && <span>Analytics & Traffic</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('business')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'business' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'business'
+                        ? ({ '--nav-a': '#fbbf24', '--nav-bg': 'rgba(251,191,36,0.09)', '--nav-edge': 'rgba(251,191,36,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="Google Analytics · Tag Manager · AdSense · Ads"
+                  >
+                    <Megaphone className="w-4 h-4 text-amber-400" />
+                    {!sidebarCollapsed && <span>Business Analytics</span>}
                   </button>
                 </div>
               </div>
@@ -3222,7 +3239,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             )}
 
             {/* ========================================================================= */}
-            {/* PANEL: ANALYTICS & TRAFFIC */}
+            {/* PANEL: BUSINESS ANALYTICS — Google stack (GA4/GTM/AdSense/Ads)            */}
+            {/* ========================================================================= */}
+            {activeNav === 'business' && (
+              <BusinessAnalyticsPanel onToast={triggerToast} />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: ANALYTICS & TRAFFIC                                                */}
             {/* ========================================================================= */}
             {activeNav === 'analytics' && (
               <div className="space-y-6">

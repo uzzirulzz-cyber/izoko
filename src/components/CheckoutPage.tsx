@@ -31,6 +31,7 @@ import { CouponInput } from './checkout/CouponInput'
 import { OrderSummary } from './checkout/OrderSummary'
 import { CheckoutCTA } from './checkout/CheckoutCTA'
 import { OrderSuccess } from './checkout/OrderSuccess'
+import { trackBeginCheckout, trackPurchase } from '../lib/googleTag'
 import { PaymentLogoRow, BrandId } from './checkout/PaymentLogos'
 import { PaymentMethodInfo, AppliedCoupon, CartTotals } from './checkout/types'
 import { fetchPaymentMethods } from './checkout/paymentApi'
@@ -149,6 +150,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     loadMethods()
   }, [loadMethods])
 
+  // GA4 ecommerce — cart signature used for begin_checkout dedup (defined near totals below).
+  const cartSignature = useMemo(
+    () => cart.map((i) => `${i.product.id}:${i.selectedVariant?.id || 'd'}:${i.quantity}`).join('|'),
+    [cart]
+  )
+
   // ---- totals (dynamic; server recomputes + re-validates at order time) ----
   const totals: CartTotals = useMemo(() => {
     const subtotal = Math.round(cart.reduce((acc, i) => acc + i.unitPrice * i.quantity, 0))
@@ -165,6 +172,35 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       total: Math.max(0, Math.round(subtotal - discount)),
     }
   }, [cart, coupon])
+
+  // GA4 ecommerce — begin_checkout (once per cart signature per session).
+  // Value comes from the same totals the customer sees; the server remains
+  // the pricing authority at order time.
+  useEffect(() => {
+    if (!cartSignature || placed) return
+    const key = `pb_begin_checkout_${cartSignature}`
+    try {
+      if (sessionStorage.getItem(key)) return
+      sessionStorage.setItem(key, '1')
+    } catch {
+      /* proceed without dedup */
+    }
+    try {
+      trackBeginCheckout({
+        value: totals.total,
+        coupon: coupon?.code,
+        items: cart.map((i) => ({
+          id: String(i.product._id || i.product.id || i.product.name),
+          name: i.product.name,
+          category: i.product.category,
+          price: i.unitPrice,
+          quantity: i.quantity,
+        })),
+      })
+    } catch {
+      /* tracking must never break checkout */
+    }
+  }, [cartSignature, cart, coupon?.code, placed, totals.total])
 
   const selectedMethodDef = methods?.find((m) => m.id === selectedMethod) || null
   const isRapid = selectedMethodDef?.id === 'rapid'
@@ -464,6 +500,18 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   if (placed) {
     return (
       <div className="pbx-scope min-h-screen">
+        <PurchaseReporter
+          orderNumber={placed.orderNumber}
+          value={totals.total}
+          coupon={coupon?.code}
+          items={cart.map((i) => ({
+            id: String(i.product._id || i.product.id || i.product.name),
+            name: i.product.name,
+            category: i.product.category,
+            price: i.unitPrice,
+            quantity: i.quantity,
+          }))}
+        />
         <OrderSuccess
           orderNumber={placed.orderNumber}
           totalLabel={placed.totalLabel}
@@ -818,4 +866,26 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       </form>
     </div>
   )
+}
+
+/**
+ * Fires the GA4 purchase event (+ Google Ads conversion) once per order when
+ * the server has CONFIRMED the order. Rendered only on the success view —
+ * it draws nothing. Values mirror the server-verified order response.
+ */
+const PurchaseReporter: React.FC<{
+  orderNumber: string
+  value: number
+  coupon?: string
+  items: { id: string; name: string; category?: string; price: number; quantity: number }[]
+}> = ({ orderNumber, value, coupon, items }) => {
+  useEffect(() => {
+    try {
+      trackPurchase({ transactionId: orderNumber, value, coupon, items })
+    } catch {
+      /* tracking must never break the success page */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumber])
+  return null
 }

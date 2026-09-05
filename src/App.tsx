@@ -28,6 +28,9 @@ import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { applyRouteSeo } from './lib/seo'
 import { applyProductJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
+import { initGoogleTracking, trackAddToCart, trackSearch, trackViewItem } from './lib/googleTag'
+import { ConsentBanner } from './components/ConsentBanner'
+import { AdSlot } from './components/AdSlot'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -427,8 +430,26 @@ export function App() {
     }
   }, [route])
 
+  // Google business tracking (GA4 / GTM / AdSense / Ads) — boot once on mount.
+  // Consent-aware: tags only load per the public config + stored consent.
+  useEffect(() => {
+    initGoogleTracking().catch(() => {})
+  }, [])
+
+
   // Track product_view events when a customer opens a product's quick view
   const handleQuickViewWithTracking = (p: Product) => {
+    // GA4 ecommerce — view_item (fire-and-forget, consent-gated inside the loader)
+    try {
+      trackViewItem({
+        id: String(p._id || p.id || p.name),
+        name: p.name,
+        category: p.category,
+        price: p.price,
+      })
+    } catch {
+      /* tracking must never break the UI */
+    }
     try {
       const sessionId = sessionStorage.getItem('playbeat_analytics_session') || 'anon'
       fetch(`${API_BASE}/api/analytics`, {
@@ -540,6 +561,20 @@ export function App() {
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('')
+
+  // GA4 search events — debounced so live-filter typing produces ONE event.
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 3) return
+    const t = setTimeout(() => {
+      try {
+        trackSearch(q)
+      } catch {
+        /* noop */
+      }
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [searchQuery])
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [priceFilter, setPriceFilter] = useState<'all' | 'under1000' | '1000to5000' | 'above5000'>('all')
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating' | 'discount'>('featured')
@@ -792,6 +827,18 @@ export function App() {
 
     const title = variant ? `${product.name} (${variant.name})` : product.name
     showToast(`Added to cart successfully! ${title}`)
+    // GA4 ecommerce — add_to_cart (uses the same price the cart will charge)
+    try {
+      trackAddToCart({
+        id: String(product._id || product.id || product.name),
+        name: product.name,
+        category: product.category,
+        price: variant ? variant.price : product.price,
+        quantity: 1,
+      })
+    } catch {
+      /* tracking must never break the UI */
+    }
   }
 
   // Instant Direct Checkout (buy now)
@@ -1521,7 +1568,11 @@ export function App() {
           </main>
 
           {/* Footer */}
+          <AdSlot slotKey="pb-footer-leaderboard" className="max-w-5xl mx-auto px-4 mb-6" minHeight={110} />
           <Footer cms={cmsSettings} />
+
+          {/* Google Consent Mode v2 banner — storefront surfaces only */}
+          <ConsentBanner />
 
           {/* Quick View Modal — storefront only */}
           <QuickViewModal

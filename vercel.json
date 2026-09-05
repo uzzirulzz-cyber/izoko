@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "node scripts/generate-legal-pages.mjs && vite build",
+  "buildCommand": "node scripts/generate-legal-pages.mjs && node scripts/generate-ads-txt.mjs && vite build",
   "outputDirectory": "dist",
   "redirects": [
     { "source": "/legal/privacy", "destination": "/privacy", "permanent": true },

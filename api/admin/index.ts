@@ -62,6 +62,11 @@ import {
 import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME, PUBLIC_SITE_URL } from "../_lib/config.js";
 import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { getRapidConfig, saveRapidConfig, describeGatewayStatus } from "../_lib/gatewayConfig.js";
+import {
+  getTrackingConfig,
+  saveTrackingConfig,
+  sanitizeTrackingPatch,
+} from "../_lib/trackingConfig.js";
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from "../_lib/appRelease.js";
@@ -2606,6 +2611,74 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // IT accounts reach this block through the central IT-scope guard above;
   // every route here re-checks with requireGatewayTech (defense in depth).
   // ===========================================================================
+
+  // ============ GET /api/admin/tracking-config ============
+  // Google business tracking (GA4 / GTM / AdSense / Ads) status + public IDs
+  // + storefront heartbeat. These IDs are public — safe to return in full.
+  if (route === "tracking-config" && req.method === "GET") {
+    try {
+      const { config, source } = await getTrackingConfig();
+      const heartbeat = await db.collection("tracking_heartbeat").findOne({ key: "storefront" });
+      const audits = await db
+        .collection("tracking_config_audit")
+        .find({})
+        .sort({ at: -1 })
+        .limit(10)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        config: {
+          ga4MeasurementId: config.ga4MeasurementId,
+          gtmContainerId: config.gtmContainerId,
+          adsenseClientId: config.adsenseClientId,
+          googleAdsConversionId: config.googleAdsConversionId,
+          googleAdsPurchaseLabel: config.googleAdsPurchaseLabel,
+          adsEnabled: config.adsEnabled,
+        },
+        source,
+        heartbeat: heartbeat
+          ? {
+              lastAt: heartbeat.lastAt,
+              ga4Loaded: Boolean(heartbeat.ga4Loaded),
+              gtmLoaded: Boolean(heartbeat.gtmLoaded),
+              adsenseLoaded: Boolean(heartbeat.adsenseLoaded),
+              userAgent: String(heartbeat.userAgent || "").slice(0, 120),
+            }
+          : null,
+        audits: audits.map((a: any) => ({ at: a.at, actor: a.actor, keys: a.keys })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load tracking configuration.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/tracking-config ============
+  // Body: { ga4MeasurementId?, gtmContainerId?, adsenseClientId?,
+  //         googleAdsConversionId?, googleAdsPurchaseLabel?, adsEnabled? }
+  // Empty string clears a value; omitted keys are left unchanged. IDs are
+  // format-validated server-side. Secrets are NOT accepted here.
+  if (route === "tracking-config" && req.method === "POST") {
+    try {
+      const body = req.body || {};
+      if (typeof body.secretKey === "string" || typeof body.clientSecret === "string") {
+        return jsonError(res, "Secrets are not accepted in tracking configuration.", 400);
+      }
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      const patch = sanitizeTrackingPatch(body);
+      if (Object.keys(patch).length === 0) {
+        return jsonError(res, "Nothing to update — provide at least one tracking field.", 400);
+      }
+      const { config, source } = await saveTrackingConfig(patch, actor);
+      return jsonOk(res, {
+        success: true,
+        message: "Tracking configuration saved.",
+        config,
+        source,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not save the tracking configuration.", 400);
+    }
+  }
 
   // ============ GET /api/admin/gateway-config ============
   if (route === "gateway-config" && req.method === "GET") {

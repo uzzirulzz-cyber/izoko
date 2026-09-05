@@ -4,6 +4,7 @@
 //   GET  /api/analytics/summary   (admin-protected traffic overview)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "../_lib/mongo.js";
+import { getTrackingConfig, touchTrackingHeartbeat } from "../_lib/trackingConfig.js";
 import {
   handleOptions,
   jsonOk,
@@ -178,6 +179,43 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       });
     } catch (err: any) {
       return jsonError(res, err.message || "Failed to load analytics", 500);
+    }
+  }
+
+  // ============ GET /api/analytics/public-config (PUBLIC) ============
+  // Returns the PUBLIC tag IDs (GA4 / GTM / AdSense / Google Ads). Measurement
+  // and container IDs are public by design — they ship in page HTML. No
+  // secrets, no credentials, no user data. Also records a best-effort
+  // heartbeat so the admin panel can show live tracking status.
+  if (route === "public-config" && req.method === "GET") {
+    try {
+      const { config } = await getTrackingConfig();
+      const anyTracking = Boolean(
+        config.ga4MeasurementId || config.gtmContainerId || config.adsenseClientId
+      );
+      if (anyTracking) {
+        const ua = String(req.headers["user-agent"] || "");
+        // fire-and-forget — do not await
+        void touchTrackingHeartbeat({
+          ua,
+          ga4: Boolean(config.ga4MeasurementId),
+          gtm: Boolean(config.gtmContainerId),
+          adsense: Boolean(config.adsenseClientId) && config.adsEnabled,
+        });
+      }
+      return jsonOk(res, {
+        success: true,
+        config: {
+          ga4: config.ga4MeasurementId || "",
+          gtm: config.gtmContainerId || "",
+          adsense: config.adsEnabled ? config.adsenseClientId : "",
+          googleAdsId: config.googleAdsConversionId || "",
+          googleAdsPurchaseLabel: config.googleAdsPurchaseLabel || "",
+          adsEnabled: Boolean(config.adsEnabled && config.adsenseClientId),
+        },
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Failed to load tracking config", 500);
     }
   }
 

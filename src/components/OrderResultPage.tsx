@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import './checkout/checkout.css'
+import { trackPurchase } from '../lib/googleTag'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
@@ -148,6 +149,29 @@ export const OrderResultPage: React.FC<OrderResultPageProps> = ({
       }
     } catch {
       /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
+
+  // GA4 purchase — fires ONLY after the SERVER confirms payment (webhook or
+  // direct confirmation), never on optimistic UI. Deduped per order number.
+  useEffect(() => {
+    if (state !== 'success' || !order) return
+    try {
+      trackPurchase({
+        transactionId: order.orderNumber,
+        value: Number(order.totalAmount) || 0,
+        currency: order.currency || 'PKR',
+        coupon: (order as any).couponCode || undefined,
+        items: (order.items || []).map((i) => ({
+          id: i.name,
+          name: i.name,
+          price: i.price,
+          quantity: i.quantity,
+        })),
+      })
+    } catch {
+      /* tracking must never break the order page */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])

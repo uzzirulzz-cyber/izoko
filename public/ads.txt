@@ -1,0 +1,5 @@
+# ads.txt — Authorized Digital Sellers for playbeat.digital
+# Managed automatically at build time (scripts/generate-ads-txt.mjs).
+# Set ADSENSE_CLIENT_ID in Vercel (or the admin Business Analytics panel,
+# then redeploy) to update the record below.
+# (no AdSense publisher id configured yet — no records declared)
