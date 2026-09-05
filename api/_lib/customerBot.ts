@@ -17,7 +17,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "./mongo.js";
 import { jsonOk, jsonError, verifyUser } from "./auth.js";
-import { clientIp, rateLimit } from "./rateLimit.js";
+import { clientIp, mongoRateLimit } from "./rateLimit.js";
 
 // Category display name → storefront URL (mirrors App.tsx CATEGORY_ROUTES)
 const CATEGORY_URLS: Record<string, string> = {
@@ -108,10 +108,24 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 2);
 }
 
+// Words too generic to drive a product-search intent — without this filter a
+// sentence like "what is the capital of france" would match products that
+// merely contain "the" in their name and hijack the honest fallback.
+const STOP_TOKENS = new Set([
+  "the", "for", "and", "you", "your", "with", "have", "has", "are", "was", "were",
+  "what", "when", "where", "which", "who", "how", "why", "can", "could", "would",
+  "want", "get", "give", "let", "its", "his", "her", "not", "but", "all", "any",
+  "much", "many", "does", "did", "about", "into", "over", "that", "this", "there",
+]);
+
+function meaningfulTokens(text: string): string[] {
+  return tokenize(text).filter((t) => !STOP_TOKENS.has(t));
+}
+
 function searchCatalog(query: string, products: BotProduct[]): BotProduct[] {
-  const tokens = tokenize(query);
+  const tokens = meaningfulTokens(query);
   if (!tokens.length) return [];
-  const stop = new Set(["the", "for", "with", "and", "have", "you", "want", "get", "can", "how", "much", "price", "plan", "buy"]);
+  const stop = STOP_TOKENS;
   const meaningful = tokens.filter((t) => !stop.has(t));
   const scored = products.map((p) => {
     const hay = `${p.name} ${p.category}`.toLowerCase();
@@ -149,12 +163,18 @@ const STATUS_LABELS: Record<string, string> = {
 export async function handleCustomerBot(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return jsonError(res, "Bot endpoint is POST-only.", 405);
 
-  // Rate limit: 20 questions per minute per IP — the bot queries the catalog
-  // on every call, so abusive bursts must not hammer the database.
+  // Rate limit: 20 questions per minute per IP, backed by MongoDB so the cap
+  // holds across all serverless instances. The bot queries the catalog on
+  // every call — abusive bursts must not hammer the database.
   const ip = clientIp(req as any);
-  const rl = rateLimit(`bot:${ip}`, 20, 60_000);
-  if (!rl.allowed) {
-    return jsonError(res, `Too many questions — please wait ${rl.retryAfterSec}s.`, 429);
+  try {
+    const db = await getDb();
+    const rl = await mongoRateLimit(db, `bot:${ip}`, 20, 60);
+    if (!rl.allowed) {
+      return jsonError(res, `Too many questions — please wait ${rl.retryAfterSec}s.`, 429);
+    }
+  } catch {
+    /* DB unreachable → allow (fail open); the bot's own errors are handled below */
   }
 
   const body = (req.body || {}) as any;
@@ -269,7 +289,7 @@ export async function handleCustomerBot(req: VercelRequest, res: VercelResponse)
     else if (
       catalog.length &&
       (has(message, "price", "cost", "how much", "plan", "plans", "variant", "denomination", "recommend", "suggest", "looking for", "need", "find") ||
-        tokenize(message).some((t) => catalog.some((p) => p.name.toLowerCase().includes(t))))
+        meaningfulTokens(message).some((t) => catalog.some((p) => p.name.toLowerCase().includes(t))))
     ) {
       products = searchCatalog(message, catalog);
       if (products.length) {

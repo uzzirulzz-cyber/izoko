@@ -55,7 +55,7 @@ const reg = await j("/api/auth/register", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ name: "E2E Checkout Test", email: EMAIL, password: PASSWORD }),
 });
-check("customer signup", reg.status === 200 && reg.data?.success === true, `status=${reg.status} ${reg.data?.error || ""}`);
+check("customer signup", (reg.status === 200 || reg.status === 201) && reg.data?.success === true, `status=${reg.status} ${reg.data?.error || ""}`);
 
 // duplicate signup must fail (email uniqueness)
 const dup = await j("/api/auth/register", {

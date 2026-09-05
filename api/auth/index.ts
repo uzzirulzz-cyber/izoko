@@ -37,6 +37,7 @@ import {
   AuthenticatedRequest,
 } from "../_lib/auth.js";
 import { ADMIN_EMAIL, PUBLIC_SITE_URL } from "../_lib/config.js";
+import { clientIp, mongoRateLimit } from "../_lib/rateLimit.js";
 
 // ---- OAuth provider configuration (activated when env vars are set in Vercel) ----
 type ProviderConfig = {
@@ -207,6 +208,12 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ /api/auth/register ============
   if (route === "register" && req.method === "POST") {
     try {
+      // Abuse damping: max 5 registrations per minute per IP (Mongo-backed,
+      // shared across serverless instances; fails open on DB errors).
+      const rl = await mongoRateLimit(await getDb(), `register:${clientIp(req as any)}`, 5, 60);
+      if (!rl.allowed) {
+        return jsonError(res, `Too many registration attempts — try again in ${rl.retryAfterSec}s.`, 429);
+      }
       const { name, email, password } = req.body || {};
       if (!name || !email || !password) {
         return jsonError(res, "Name, email, and password are required.", 400);
@@ -254,6 +261,18 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const { email, password } = req.body || {};
       if (!email || !password) {
         return jsonError(res, "Email and password are required.", 400);
+      }
+      // Brute-force damping: max 10 login attempts per minute per IP (the
+      // target email is part of the key so one attacker cannot lock out
+      // everyone sharing their NAT IP). Mongo-backed, fails open.
+      const loginRl = await mongoRateLimit(
+        await getDb(),
+        `login:${clientIp(req as any)}:${String(email).toLowerCase().trim()}`,
+        10,
+        60
+      );
+      if (!loginRl.allowed) {
+        return jsonError(res, `Too many login attempts — try again in ${loginRl.retryAfterSec}s.`, 429);
       }
       if (email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim()) {
         return jsonError(

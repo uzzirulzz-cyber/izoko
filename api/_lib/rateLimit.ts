@@ -65,3 +65,55 @@ export function rateLimit(
   buckets.set(key, bucket);
   return { allowed: true, retryAfterSec: 0 };
 }
+
+// ---------------------------------------------------------------------------
+// MongoDB-backed limiter — SHARED across all serverless instances (the
+// in-memory limiter above is per-instance and therefore leaky on Vercel,
+// where requests rotate between warm lambdas). Uses fixed time-bucket
+// counters in a TTL collection: one atomic findOneAndUpdate per call.
+// Fails OPEN on database errors — availability beats strictness for
+// non-security-critical damping (webhooks have their own crypto auth).
+// ---------------------------------------------------------------------------
+
+let ttlIndexReady = false;
+
+export async function mongoRateLimit(
+  db: any,
+  key: string,
+  limit: number,
+  windowSec: number
+): Promise<{ allowed: boolean; retryAfterSec: number }> {
+  try {
+    const col = db.collection("rate_limits");
+    if (!ttlIndexReady) {
+      try {
+        await col.createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 });
+        ttlIndexReady = true;
+      } catch {
+        /* index already exists */
+      }
+    }
+    const bucket = Math.floor(Date.now() / (windowSec * 1000));
+    const res = await col.findOneAndUpdate(
+      { _id: `${key}:${bucket}` },
+      {
+        $inc: { count: 1 },
+        $setOnInsert: { firstHit: new Date() },
+        $set: { expireAt: new Date(Date.now() + windowSec * 2000) },
+      },
+      { upsert: true, returnDocument: "after" }
+    );
+    const count = Number(res?.count ?? res?.value?.count ?? 1);
+    if (count > limit) {
+      const retryAfterSec = Math.max(
+        1,
+        windowSec - Math.floor((Date.now() % (windowSec * 1000)) / 1000)
+      );
+      return { allowed: false, retryAfterSec };
+    }
+    return { allowed: true, retryAfterSec: 0 };
+  } catch {
+    // Database hiccup → allow the request (fail open), never break the UX.
+    return { allowed: true, retryAfterSec: 0 };
+  }
+}
