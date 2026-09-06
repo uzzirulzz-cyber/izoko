@@ -8,6 +8,14 @@
     <priority>1.0</priority>
   </url>
 
+  <!-- Mobile app download page -->
+  <url>
+    <loc>https://playbeat.digital/download</loc>
+    <lastmod>2026-09-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Main categories -->
   <url>
     <loc>https://playbeat.digital/streaming</loc>

@@ -293,6 +293,12 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
       'Reach the PlayBeat team: live chat, email, WhatsApp, phone and office address — support within 2-4 hours.',
     path: '/contact',
   },
+  download: {
+    title: 'Get the PlayBeat Digital App — Android & iOS',
+    description:
+      'Download the official PlayBeat Digital mobile app for Android and iOS. Shop digital products faster, manage orders, and access your account anywhere — same account as the website.',
+    path: '/download',
+  },
   admin: { title: 'Admin — PlayBeat Digital', description: '', path: '/admin', noindex: true },
   'admin-login': { title: 'Admin — PlayBeat Digital', description: '', path: '/admin/login', noindex: true },
   // Checkout is a private, session-dependent transaction page — never indexed

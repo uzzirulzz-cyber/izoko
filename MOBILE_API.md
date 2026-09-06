@@ -158,3 +158,66 @@ WebView, so those actions use the exact same endpoints documented in
 |------------|---------|
 | `app_release` | Single doc `_id:"current"` — release metadata + update enforcement |
 | `admin_app_devices` | One doc per device — live status for the panel + revoke control |
+
+---
+
+# PlayBeat Digital — Customer Mobile App API (Task 23)
+
+The customer app (`mobile/` — Expo React Native) uses the **same public API**
+as the storefront. No separate mobile backend or customer database exists.
+
+## Customer app store config
+
+### `GET /api/app/storefront` (public)
+Powers /download, the homepage app section, and the footer app column.
+Resolution: DB `mobile_apps_config` (Admin → Mobile Apps) → env
+(`ANDROID_APP_URL` / `IOS_APP_URL` …) → safe defaults.
+
+```json
+{
+  "success": true,
+  "apps": {
+    "android": { "url": "", "version": "1.0.0", "buildNumber": 1,
+                 "minOsVersion": "8.0 (API 26)", "available": false,
+                 "packageName": "digital.playbeat.app", "source": "default" },
+    "ios": { "…": "same shape" },
+    "downloadPageVisible": true, "footerVisible": true, "homeSectionVisible": true,
+    "promoBanner": "", "releaseNotes": [],
+    "qrDestination": "download", "qrValue": "https://playbeat.digital/download",
+    "deepLinkScheme": "playbeat"
+  }
+}
+```
+A platform is listable only when `available && url` — otherwise the storefront
+renders an honest "Pending deployment" state (never a fake link).
+
+### `GET|PUT /api/admin/app/storefront-config` (super admin)
+Full config + sources + audit trail. PUT values are sanitized:
+https-only URLs (`javascript:`/`data:` rejected), semver-ish versions,
+whitelisted QR destinations. Storefront picks changes up within 30 s.
+
+### `POST /api/admin/app/push/send` (super admin)
+`{ title, body, userId? }` → Expo Push API broadcast to registered devices
+(auto-revokes `DeviceNotRegistered` tokens).
+
+## Push registration (customer)
+
+### `POST /api/app/push-token` (customer JWT)
+`{ token: "ExponentPushToken[…]", platform: "android"|"ios"|"web", appVersion?, deviceName? }`
+→ upserted in `push_tokens`. Devices register automatically after sign-in.
+
+## Mobile OAuth deep link (Google / Facebook)
+
+1. `GET /api/auth/oauth/{provider}/start?mobile=1` — provider not configured →
+   JSON `503` (app shows an honest message); configured → 302 to the provider
+   with the mobile marker carried in the `state` value (`.m` suffix).
+2. Callback validates the state cookie exactly like the web flow, then
+   redirects to `playbeat://oauth/callback?token=<jwt>&provider=…&email=…`
+   instead of the storefront. Same user records, same JWT shape.
+
+## Customer endpoints reused unchanged
+
+`/api/auth/register|login|me` · `/api/products` · `/api/categories` ·
+`/api/payments/methods` · `/api/payments/coupon` · `POST /api/orders` ·
+`/api/orders/me` · `/api/orders/mine/:num` · `/api/payments/rapid/create` ·
+`/api/messages/start` · `/api/messages/mine`

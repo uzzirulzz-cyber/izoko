@@ -473,11 +473,23 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   }
 
   // ============ /api/auth/oauth/:provider/start ============
+  // ?mobile=1 → the native app (Expo) is driving the flow via the system
+  // browser; the callback then redirects to the playbeat:// deep link with
+  // the session JWT instead of the storefront. The marker travels inside
+  // the signed state value (".m" suffix), which the provider echoes back.
   if (pathSegments[0] === "oauth" && pathSegments[2] === "start" && req.method === "GET") {
     const provider = (pathSegments[1] || "").toLowerCase();
+    const isMobile = String(url.searchParams.get("mobile") || "") === "1";
     const cfg = getProviderConfigs()[provider];
     if (!cfg) return jsonError(res, `Unknown provider: ${provider}`, 404);
     if (!cfg.clientId || !cfg.clientSecret) {
+      if (isMobile) {
+        return jsonError(
+          res,
+          `${getProviderLabel(provider)} sign-in is being activated — its OAuth keys are not configured yet. Please use email registration meanwhile.`,
+          503
+        );
+      }
       return res.status(302).redirect(
         `/storefront?social_error=${encodeURIComponent(
           `${getProviderLabel(provider)} sign-in is being activated — its OAuth keys are not configured yet. Please use email registration meanwhile.`
@@ -487,7 +499,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const redirectUri = `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/oauth/${provider}/callback`;
     // CSRF protection: random single-use state stored in a short-lived httpOnly
     // cookie; the callback must receive the identical value back from the provider.
-    const state = `${provider}.${Date.now()}.${randomBytes(16).toString("hex")}`;
+    const state = `${provider}.${Date.now()}.${randomBytes(16).toString("hex")}${isMobile ? ".m" : ""}`;
     setCookie(res, "oauth_state", state, { maxAge: 600, httpOnly: true, sameSite: "lax" });
     const params = new URLSearchParams({
       response_type: "code",
@@ -519,11 +531,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const stateQuery = url.searchParams.get("state");
     if (!stateCookie || !stateQuery || stateCookie !== stateQuery) {
       clearCookie(res, "oauth_state");
+      if (stateQuery?.endsWith(".m")) {
+        return res.status(302).redirect(`playbeat://oauth/callback?error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`);
+      }
       return res.status(302).redirect(
         `${base}/storefront?social_error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`
       );
     }
     clearCookie(res, "oauth_state");
+    const isMobileFlow = stateQuery.endsWith(".m");
 
     try {
       const redirectUri = `${base}/api/auth/oauth/${provider}/callback`;
@@ -573,9 +589,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         email: user.email,
         role: user.role || "user",
       });
+      if (isMobileFlow) {
+        // Native app flow — hand the session JWT to the app via its deep
+        // link. Same user record, same token shape as the website.
+        return res.status(302).redirect(
+          `playbeat://oauth/callback?token=${encodeURIComponent(token)}&provider=${provider}&email=${encodeURIComponent(user.email || "")}`
+        );
+      }
       setCookie(res, "token", token, { maxAge: 30 * 24 * 60 * 60 });
       return res.status(302).redirect(`${base}/storefront?social_success=${encodeURIComponent(getProviderLabel(provider))}`);
     } catch (err: any) {
+      if (typeof stateQuery === "string" && stateQuery.endsWith(".m")) {
+        return res.status(302).redirect(`playbeat://oauth/callback?error=${encodeURIComponent(err.message || "Sign-in failed")}`);
+      }
       return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(err.message || "Sign-in failed")}`);
     }
   }

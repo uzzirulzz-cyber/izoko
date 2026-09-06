@@ -31,6 +31,9 @@ import { SEO_PRESETS } from './lib/seo'
 import { initGoogleTracking, trackAddToCart, trackSearch, trackViewItem } from './lib/googleTag'
 import { ConsentBanner } from './components/ConsentBanner'
 import { AdSlot } from './components/AdSlot'
+import { DownloadPage } from './components/app/DownloadPage'
+import { AppDownloadSection } from './components/app/AppDownloadSection'
+import { InstallPwaChip } from './components/app/InstallPwaChip'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -47,6 +50,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   'windows-office': SEO_PRESETS['windows-office'],
   'creative-software': SEO_PRESETS['creative-software'],
   compare: SEO_PRESETS.compare,
+  download: SEO_PRESETS.download,
   warranty: SEO_PRESETS.warranty,
   privacy: SEO_PRESETS.privacy,
   terms: SEO_PRESETS.terms,
@@ -137,6 +141,7 @@ type Route =
   | 'windows-office'
   | 'creative-software'
   | 'compare'
+  | 'download'
   | 'order'
   | 'checkout'
   | 'account'
@@ -220,6 +225,7 @@ function parseRoute(): Route {
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
   if (path === 'account' || path.startsWith('account/')) return 'account'
   if (path === 'checkout') return 'checkout'
+  if (path === 'download' || path.startsWith('download/')) return 'download'
   if (path.startsWith('order/') && path.split('/').length >= 2) return 'order'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
@@ -245,6 +251,7 @@ function routeToPath(route: Route): string {
   if (route === 'order') return window.location.pathname || '/order'
   if (route === 'account') return '/account'
   if (route === 'checkout') return '/checkout'
+  if (route === 'download') return '/download'
   // 404 keeps the original (unknown) URL in the address bar — never rewrite it
   if (route === 'notfound') return window.location.pathname || '/404'
   if (POLICY_ROUTES.includes(route)) return `/${route}`
@@ -1144,6 +1151,19 @@ export function App() {
         <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
       )}
 
+      {/* ============================================
+          MOBILE APP DOWNLOAD PAGE — /download
+          Device-aware, premium landing for the Android/iOS
+          apps + PWA distinction. Standalone like /contact.
+          ============================================ */}
+      {route === 'download' && (
+        <>
+          <DownloadPage />
+          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          <InstallPwaChip />
+        </>
+      )}
+
       {/* DEDICATED 404 — any URL that doesn't match a known route */}
       {route === 'notfound' && (
         <NotFound
@@ -1567,9 +1587,15 @@ export function App() {
             <TrustFeatures />
           </main>
 
+          {/* Get the App section — homepage only (admin visibility-controlled) */}
+          {selectedCategory === 'all' && !searchQuery && <AppDownloadSection />}
+
           {/* Footer */}
           <AdSlot slotKey="pb-footer-leaderboard" className="max-w-5xl mx-auto px-4 mb-6" minHeight={110} />
           <Footer cms={cmsSettings} />
+
+          {/* PWA install chip — storefront only (never on checkout/admin) */}
+          <InstallPwaChip />
 
           {/* Google Consent Mode v2 banner — storefront surfaces only */}
           <ConsentBanner />

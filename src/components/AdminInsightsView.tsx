@@ -73,6 +73,7 @@ import { CampaignsPanel } from './admin/CampaignsPanel'
 import { SupportPanel } from './admin/SupportPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { AndroidAppPanel } from './admin/AndroidAppPanel'
+import { MobileAppsPanel } from './admin/MobileAppsPanel'
 import { DocumentsPanel } from './admin/DocumentsPanel'
 import AdminAvatar from './admin/AdminAvatar'
 import { StaffAccountsPanel } from './admin/StaffAccountsPanel'
@@ -193,7 +194,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
-      'messages', 'vault', 'backup', 'staff', 'androidapp', 'profile', 'documents', 'gateway',
+      'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -1328,6 +1329,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       {appOnlineCount}
                     </span>
                   )}
+                </button>
+                <button
+                  onClick={() => setActiveNav('mobile-apps')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                    activeNav === 'mobile-apps' ? 'pa-nav-item--active' : 'pa-nav-item'
+                  }`}
+                  style={
+                    activeNav === 'mobile-apps'
+                      ? ({ '--nav-a': '#fbbf24', '--nav-bg': 'rgba(251,191,36,0.09)', '--nav-edge': 'rgba(251,191,36,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
+                  title="Customer mobile apps — Android & iOS"
+                >
+                  <Smartphone className="w-4 h-4 text-amber-400" />
+                  {!sidebarCollapsed && <span>Mobile Apps</span>}
                 </button>
               </div>
 
@@ -3175,6 +3191,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'androidapp' && (
               <AndroidAppPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
+            )}
+
+            {activeNav === 'mobile-apps' && (
+              <MobileAppsPanel isSuperAdmin={adminRole === 'admin'} onToast={triggerToast} />
             )}
 
             {/* ========================================================================= */}

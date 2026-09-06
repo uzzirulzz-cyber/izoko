@@ -220,7 +220,7 @@ async function startServer() {
   // ==========================================
   const mountServerless = async () => {
     try {
-      const [{ default: authApi }, { default: productsApi }, { default: adminApi }, { default: ordersApi }, { default: mongodbApi }, { default: analyticsApi }, { default: cmsApi }, { default: paymentsApi }] =
+      const [{ default: authApi }, { default: productsApi }, { default: adminApi }, { default: ordersApi }, { default: mongodbApi }, { default: analyticsApi }, { default: cmsApi }, { default: paymentsApi }, { default: appApi }] =
         await Promise.all([
           import("./api/auth/index.js"),
           import("./api/products/index.js"),
@@ -230,6 +230,7 @@ async function startServer() {
           import("./api/analytics/index.js"),
           import("./api/cms/index.js"),
           import("./api/payments/index.js"),
+          import("./api/app/index.js"),
         ]);
       const adapt =
         (fn: any) => async (req: any, res: any) => {
@@ -258,7 +259,9 @@ async function startServer() {
       app.all("/api/analytics", adapt(analyticsApi));
       app.all("/api/cms/:path*", adapt(cmsApi));
       app.all("/api/cms", adapt(cmsApi));
-      console.log("✓ Production-parity serverless API mounted (auth/products/admin/orders/mongodb/analytics/cms)");
+      app.all("/api/app/:path*", adapt(appApi));
+      app.all("/api/app", adapt(appApi));
+      console.log("✓ Production-parity serverless API mounted (auth/products/admin/orders/mongodb/analytics/cms/app)");
     } catch (e) {
       console.warn("⚠ Could not mount serverless API handlers — falling back to inline routes only:", (e as Error).message);
     }
@@ -1115,6 +1118,7 @@ async function startServer() {
 
       const staticUrls = [
         { path: "", priority: "1.0", changefreq: "daily" },
+        { path: "/download", priority: "0.8", changefreq: "weekly" },
         { path: "/#/storefront", priority: "1.0", changefreq: "daily" },
         { path: "/privacy", priority: "0.7", changefreq: "monthly" },
         { path: "/terms", priority: "0.7", changefreq: "monthly" },

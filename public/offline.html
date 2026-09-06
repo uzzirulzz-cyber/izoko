@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>You're offline — PlayBeat Digital</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        background: radial-gradient(1200px 600px at 50% -10%, #101b3f 0%, #050814 60%);
+        color: #e2e8f0; min-height: 100vh; display: flex;
+        align-items: center; justify-content: center; padding: 24px;
+      }
+      .card {
+        max-width: 460px; width: 100%; text-align: center;
+        background: rgba(10, 18, 46, 0.8); border: 1px solid rgba(148, 163, 184, 0.15);
+        border-radius: 24px; padding: 40px 28px; backdrop-filter: blur(8px);
+      }
+      .logo { height: 44px; margin-bottom: 22px; }
+      .icon {
+        width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 20px;
+        background: rgba(255, 193, 7, 0.12); border: 1px solid rgba(255, 193, 7, 0.3);
+        display: flex; align-items: center; justify-content: center; font-size: 30px;
+      }
+      h1 { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+      p { font-size: 13px; line-height: 1.65; color: #94a3b8; margin-bottom: 24px; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: linear-gradient(135deg, #ffd54d, #f5b800); color: #0f172a;
+        font-weight: 800; font-size: 13px; padding: 12px 26px;
+        border-radius: 14px; border: 0; cursor: pointer;
+      }
+      .hint { margin-top: 16px; font-size: 11px; color: #64748b; font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="/playbeat-logo.png" alt="PlayBeat Digital" />
+      <div class="icon">📡</div>
+      <h1>You're offline</h1>
+      <p>
+        The PlayBeat Digital storefront needs an internet connection for live prices,
+        stock and secure checkout. Reconnect and try again — your cart is saved on
+        this device.
+      </p>
+      <button class="btn" onclick="location.reload()">Retry connection</button>
+      <div class="hint">PWA offline fallback · v1</div>
+    </div>
+  </body>
+</html>

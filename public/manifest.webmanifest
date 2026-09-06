@@ -1,0 +1,41 @@
+{
+  "id": "/",
+  "name": "PlayBeat Digital — Premium Digital Marketplace",
+  "short_name": "PlayBeat",
+  "description": "Instant digital keys, gaming accounts, subscriptions, AI tools and smart projectors — with 24/7 automated delivery and secure checkout.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#050814",
+  "theme_color": "#050814",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["shopping", "business", "entertainment"],
+  "icons": [
+    { "src": "/pwa/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pwa/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Products",
+      "short_name": "Products",
+      "url": "/storefront?source=pwa-shortcut",
+      "icons": [{ "src": "/pwa/pwa-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "url": "/account?tab=orders&source=pwa-shortcut",
+      "icons": [{ "src": "/pwa/pwa-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Get the Mobile App",
+      "short_name": "Get App",
+      "url": "/download?source=pwa-shortcut",
+      "icons": [{ "src": "/pwa/pwa-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

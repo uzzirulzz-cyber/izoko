@@ -70,6 +70,13 @@ import {
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from "../_lib/appRelease.js";
+import {
+  getMobileAppsConfig,
+  saveMobileAppsConfig,
+  sanitizeMobileAppsPatch,
+  resolveQrValue,
+  MOBILE_APPS_DEFAULTS,
+} from "../_lib/mobileApps.js";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1781,6 +1788,133 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return jsonOk(res, { success: true, release });
     } catch (err: any) {
       console.error("PUT /api/admin/app/release error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/app/storefront-config (super admin) ============
+  // Full customer-app configuration for the Mobile Apps panel.
+  if (route === "app/storefront-config" && req.method === "GET") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const { config, source } = await getMobileAppsConfig(true);
+      const audit = await db
+        .collection("mobile_apps_config_audit")
+        .find({})
+        .sort({ at: -1 })
+        .limit(10)
+        .toArray();
+      const pushCount = await db.collection("push_tokens").countDocuments({ revoked: { $ne: true } });
+      return jsonOk(res, {
+        success: true,
+        config,
+        source,
+        defaults: MOBILE_APPS_DEFAULTS,
+        qrValue: resolveQrValue(config, PUBLIC_SITE_URL),
+        pushTokens: pushCount,
+        audit: audit.map((a) => ({ at: a.at, actor: a.actor, keys: a.keys })),
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/app/storefront-config error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ PUT /api/admin/app/storefront-config (super admin) ============
+  // Sanitized upsert of the customer-app config; storefront picks it up
+  // within 30s — no redeploy needed.
+  if (route === "app/storefront-config" && (req.method === "PUT" || req.method === "POST")) {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = typeof req.body === "object" && req.body !== null ? req.body : {};
+      const patch = sanitizeMobileAppsPatch(body);
+      if (Object.keys(patch).length === 0) {
+        return jsonError(res, "No valid fields to update", 400);
+      }
+      const admin = req.user as any;
+      const { config } = await saveMobileAppsConfig(patch, String(admin.email || "admin"));
+      await db.collection("admin_activity").insertOne({
+        type: "mobile_apps_config_update",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: `Updated customer mobile app config (android=${
+          config.android.available ? "available" : "hidden"
+        }, ios=${config.ios.available ? "available" : "hidden"})`,
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, config });
+    } catch (err: any) {
+      console.error("PUT /api/admin/app/storefront-config error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ POST /api/admin/app/push/send (super admin) ============
+  // Sends an Expo push notification to registered customer devices.
+  // body: { title, body, data?, userId? } — userId omitted = broadcast.
+  if (route === "app/push/send" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = typeof req.body === "object" && req.body !== null ? req.body : {};
+      const title = String(body.title || "").trim().slice(0, 80);
+      const text = String(body.body || "").trim().slice(0, 200);
+      if (!title || !text) return jsonError(res, "title and body are required", 400);
+      const targetUserId = String(body.userId || "").trim();
+      const filter: any = { revoked: { $ne: true } };
+      if (targetUserId) filter.userId = targetUserId;
+      const tokens = await db
+        .collection("push_tokens")
+        .find(filter)
+        .sort({ lastSeenAt: -1 })
+        .limit(2000)
+        .toArray();
+      if (tokens.length === 0) {
+        return jsonError(res, "No registered push tokens yet — devices register on app login", 404);
+      }
+      // Expo push API — chunks of 100 messages max
+      const messages = tokens.map((t) => ({
+        to: t.token,
+        title,
+        body: text,
+        sound: "default",
+        data: typeof body.data === "object" && body.data ? body.data : {},
+      }));
+      let delivered = 0;
+      let failed = 0;
+      const badTokens: string[] = [];
+      for (let i = 0; i < messages.length; i += 100) {
+        const chunk = messages.slice(i, i + 100);
+        const r = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(chunk),
+        });
+        const j: any = await r.json().catch(() => null);
+        for (const ticket of j?.data || []) {
+          if (ticket?.status === "ok") delivered++;
+          else {
+            failed++;
+            if (ticket?.details?.error === "DeviceNotRegistered" && ticket?.id) badTokens.push(ticket.id);
+          }
+        }
+      }
+      // Auto-revoke dead tokens
+      for (const t of badTokens) {
+        await db.collection("push_tokens").updateOne({ token: t }, { $set: { revoked: true } });
+      }
+      const admin = req.user as any;
+      await db.collection("admin_activity").insertOne({
+        type: "mobile_push_sent",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: `Push "${title}" → ${delivered} delivered, ${failed} failed${targetUserId ? ` (user ${targetUserId})` : ""}`,
+        createdAt: new Date(),
+      });
+      return jsonOk(res, { success: true, delivered, failed, revokedTokens: badTokens.length });
+    } catch (err: any) {
+      console.error("POST /api/admin/app/push/send error:", err);
       return jsonError(res, err.message, 500);
     }
   }

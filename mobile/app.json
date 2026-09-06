@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "PlayBeat Digital",
+    "slug": "playbeat-digital",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "playbeat",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "primaryColor": "#050814",
+    "background": {
+      "backgroundColor": "#050814"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050814"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "bundleIdentifier": "digital.playbeat.app",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        },
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Face ID is used to unlock your PlayBeat session quickly and securely."
+      }
+    },
+    "android": {
+      "package": "digital.playbeat.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050814"
+      },
+      "edgeToEdgeEnabled": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "playbeat.digital", "pathPrefix": "/download" },
+            { "scheme": "https", "host": "playbeat.digital", "pathPrefix": "/product" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#FFC107"
+        }
+      ]
+    ]
+  }
+}
