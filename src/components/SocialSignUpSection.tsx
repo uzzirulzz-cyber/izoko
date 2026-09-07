@@ -54,6 +54,9 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
+  // Anti-autofill: keep credentials readOnly until the user actually focuses
+  // the field, so browsers never preview/autosave email or password here.
+  const [credsLocked, setCredsLocked] = useState(true)
 
   // Which providers have real OAuth keys configured in the backend?
   useEffect(() => {
@@ -228,6 +231,7 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
               <form
                 id="playbeat-email-auth-form"
                 onSubmit={handleAuthSubmit}
+                autoComplete="off"
                 className="mt-3 max-w-xl mx-auto rounded-2xl bg-[#060B1E]/60 border border-slate-700/40 p-4 space-y-2.5"
               >
                 {authMode === 'signup' && (
@@ -245,6 +249,9 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
                   required
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
+                  onFocus={() => setCredsLocked(false)}
+                  autoComplete="off"
+                  readOnly={credsLocked}
                   placeholder="Email address"
                   className="w-full bg-[#040814] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />
@@ -254,6 +261,9 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
                   minLength={6}
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
+                  onFocus={() => setCredsLocked(false)}
+                  autoComplete="new-password"
+                  readOnly={credsLocked}
                   placeholder={authMode === 'signup' ? 'Create a password (min 6 characters)' : 'Your password'}
                   className="w-full bg-[#040814] border border-slate-700/70 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />

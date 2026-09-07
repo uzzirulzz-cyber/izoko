@@ -26,6 +26,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  // Anti-autofill: credentials stay readOnly until user focus, so browsers
+  // never preview/autosave email or password in this modal.
+  const [credsLocked, setCredsLocked] = useState(true)
 
   if (!isOpen) return null
 
@@ -208,7 +211,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleEmailSubmit} className="space-y-4">
+        <form onSubmit={handleEmailSubmit} autoComplete="off" className="space-y-4">
           {mode === 'signup' && (
             <div>
               <label className="block text-[11px] font-mono uppercase text-slate-300 mb-1.5 tracking-wider">
@@ -239,6 +242,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setCredsLocked(false)}
+                autoComplete="off"
+                readOnly={credsLocked}
                 placeholder="you@example.com"
                 className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
               />
@@ -256,6 +262,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setCredsLocked(false)}
+                autoComplete="new-password"
+                readOnly={credsLocked}
                 placeholder="••••••••••••"
                 className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
               />
@@ -281,6 +290,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  onFocus={() => setCredsLocked(false)}
+                  autoComplete="new-password"
+                  readOnly={credsLocked}
                   placeholder="••••••••••••"
                   className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400 transition font-sans"
                 />
