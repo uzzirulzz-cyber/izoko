@@ -446,3 +446,29 @@ footer/legal surfaces aligned with the reviewer checklist.
   click → inline notice, no navigation; Google click → navigates to
   `/api/auth/oauth/google/start`; live production probe of the same route
   lands on Google's real "Sign in — Google Accounts" consent page.
+
+## 23. Instagram sign-in + Meta app-review compliance endpoints
+
+| File | Change |
+|------|--------|
+| `api/auth/index.ts` | **Instagram added as a third real OAuth provider** (`INSTAGRAM_CLIENT_ID`/`INSTAGRAM_CLIENT_SECRET`): instagram.com/oauth/authorize → api.instagram.com token exchange → graph.instagram.com profile (`user_id`,`username`). Instagram never shares email, so `upsertSocialUser` creates a stable provider-scoped identity (`instagram.<username>@users.playbeat.digital`). `oauth-config` now reports all three providers. **Meta app-review endpoints added** (inside the same function — 12-function cap respected): `GET /api/auth/meta/webhook` (hub.challenge echo, fail-closed against `META_WEBHOOK_VERIFY_TOKEN`), `POST /api/auth/meta/webhook` (X-Hub-Signature-256 verified over raw body — same capture strategy as the Rapid payment webhook — events stored in `meta_webhook_events`), `POST /api/auth/meta/data-deletion` (signed_request verified with the app secret → account matching `providerId` deleted → `{url, confirmation_code}` per Meta spec → `data_deletion_requests` ledger), `GET /api/auth/meta/data-deletion?code=` (branded deletion-status page), `POST /api/auth/meta/deauthorize` (signed_request verified → `deauthorizedAt` recorded). |
+| `src/components/AuthModal.tsx` | Instagram button added (full-width row, gradient camera glyph); unconfigured-provider inline notice applies to it too. |
+| `src/components/SocialSignUpSection.tsx` | Instagram added to the provider grid (`sm:grid-cols-3`) with honest "being activated" guidance until keys exist. |
+| `.env.example` | `INSTAGRAM_CLIENT_ID/SECRET` + `META_WEBHOOK_VERIFY_TOKEN` documented with all three callback URLs. |
+
+- **Meta app console configuration values** (verified live after deploy):
+  - Valid OAuth Redirect URI (Facebook Login): `https://playbeat.digital/api/auth/oauth/facebook/callback`
+  - Valid OAuth Redirect URI (Instagram Login): `https://playbeat.digital/api/auth/oauth/instagram/callback`
+  - Webhook callback URL: `https://playbeat.digital/api/auth/meta/webhook`
+  - Data deletion request URL: `https://playbeat.digital/api/auth/meta/data-deletion`
+  - Deauthorize callback URL: `https://playbeat.digital/api/auth/meta/deauthorize`
+  - Privacy Policy: `https://playbeat.digital/privacy` · Terms: `https://playbeat.digital/terms`
+- Facebook credentials were added to Vercel by the owner (dashboard) after the
+  previous deploy — the next deployment activates Facebook automatically
+  (Vercel env vars apply to new deployments only). `META_WEBHOOK_VERIFY_TOKEN`
+  generated (48-hex) and set via the Vercel API for production+preview.
+- Verification: `npx tsc --noEmit` clean; `npm run build` clean; post-deploy
+  probes: oauth-config provider booleans, facebook/start 307, webhook
+  challenge echo with the real token (and 403 with a wrong token),
+  data-deletion status page renders, instagram/start reports honest
+  not-configured state until the Instagram keys are added.

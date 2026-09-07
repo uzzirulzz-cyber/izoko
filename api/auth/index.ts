@@ -12,13 +12,20 @@
 //   GET  /api/auth/oauth/:provider/start    (begin real OAuth flow when configured)
 //   GET  /api/auth/oauth/:provider/callback (OAuth code exchange → real account → redirect)
 //
-// REAL social sign-up/sign-in: Google and Facebook ONLY.
+// Meta app-review compliance endpoints (Facebook / Instagram app console):
+//   GET  /api/auth/meta/webhook          (webhook subscribe handshake — hub.challenge echo)
+//   POST /api/auth/meta/webhook          (signed webhook event ingestion — X-Hub-Signature-256)
+//   POST /api/auth/meta/data-deletion    (data deletion request callback → {url, confirmation_code})
+//   GET  /api/auth/meta/data-deletion    (deletion status page for the confirmation URL)
+//   POST /api/auth/meta/deauthorize      (app deauthorization callback)
+//
+// REAL social sign-up/sign-in: Google, Facebook and Instagram.
 // Each provider only activates when its developer credentials are present in the
 // Vercel environment variables (see getProviderConfigs for the exact env names).
-// (TikTok / Instagram OAuth was retired — requests for those providers now 404.)
+// (TikTok OAuth was retired — requests for that provider now 404.)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import { getDb } from "../_lib/mongo.js";
 import {
   handleOptions,
@@ -73,6 +80,19 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
       parseProfile: (j) => ({ id: j?.id, name: j?.name, email: j?.email, username: j?.email }),
     },
+    instagram: {
+      // Instagram API with Instagram Login (graph.instagram.com). Instagram
+      // never shares an email — upsertSocialUser builds a stable provider-
+      // scoped identity in that case, so the flow still creates one account
+      // per Instagram user.
+      authUrl: "https://www.instagram.com/oauth/authorize",
+      tokenUrl: "https://api.instagram.com/oauth/access_token",
+      profileUrl: "https://graph.instagram.com/v21.0/me?fields=user_id,username",
+      scope: "instagram_business_basic",
+      clientId: process.env.INSTAGRAM_CLIENT_ID,
+      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
+      parseProfile: (j) => ({ id: j?.id || j?.user_id, name: j?.username, username: j?.username }),
+    },
   };
 }
 
@@ -80,8 +100,99 @@ function getProviderLabel(provider: string): string {
   const map: Record<string, string> = {
     google: "Google",
     facebook: "Facebook",
+    instagram: "Instagram",
   };
   return map[provider] || provider;
+}
+
+// ---- Meta (Facebook/Instagram) compliance endpoint helpers ----
+
+// Raw body capture (mirror of _lib/rapidWebhook.ts): Meta computes the
+// X-Hub-Signature-256 over the RAW request bytes, so re-serializing JSON is
+// avoided whenever possible — string body first, then the stream, and only as
+// a last resort a JSON round-trip (logged, never silently trusted).
+async function captureMetaRawBody(
+  req: VercelRequest
+): Promise<{ candidates: string[]; via: string }> {
+  if (typeof req.body === "string" && req.body.length > 0) {
+    return { candidates: [req.body], via: "body-string" };
+  }
+  try {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req as unknown as AsyncIterable<unknown>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string));
+    }
+    if (chunks.length) {
+      return { candidates: [Buffer.concat(chunks).toString("utf8")], via: "stream" };
+    }
+  } catch {
+    /* stream already consumed by an eager parser — fall through */
+  }
+  if (req.body && typeof req.body === "object") {
+    return { candidates: [JSON.stringify(req.body)], via: "re-serialize" };
+  }
+  return { candidates: [], via: "empty" };
+}
+
+// Every configured provider app secret — webhook deliveries and signed_request
+// callbacks may be issued by the Facebook app OR the Instagram app.
+function metaAppSecrets(): string[] {
+  return [process.env.FACEBOOK_CLIENT_SECRET, process.env.INSTAGRAM_CLIENT_SECRET].filter(
+    Boolean
+  ) as string[];
+}
+
+// X-Hub-Signature-256: "sha256=" + hex(HMAC-SHA256(appSecret, rawBody)).
+function verifyHubSignature(rawBody: string, signatureHeader: string, secrets: string[]): boolean {
+  if (!rawBody || !signatureHeader || !secrets.length) return false;
+  const provided = Buffer.from(String(signatureHeader).trim());
+  for (const secret of secrets) {
+    const expected = Buffer.from(
+      "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex")
+    );
+    if (provided.length === expected.length && timingSafeEqual(provided, expected)) return true;
+  }
+  return false;
+}
+
+// Meta signed_request (data-deletion / deauthorize callbacks):
+//   <base64url(HMAC-SHA256(secret, payload))>.<base64url(payload JSON)>
+function parseSignedRequest(raw: string, secrets: string[]): any | null {
+  const parts = String(raw || ".").split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  const b64url = (s: string) =>
+    Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  const sig = b64url(parts[0]);
+  const payload = b64url(parts[1]);
+  if (!sig.length || !payload.length) return null;
+  for (const secret of secrets) {
+    const expected = createHmac("sha256", secret).update(payload).digest();
+    if (sig.length === expected.length && timingSafeEqual(sig, expected)) {
+      try {
+        return JSON.parse(payload.toString("utf8"));
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+// Form field extraction that works whether the runtime pre-parsed the
+// urlencoded body into an object or left it as a raw string.
+function extractFormField(req: VercelRequest, field: string): string {
+  const body: any = req.body;
+  if (body && typeof body === "object" && typeof body[field] === "string") {
+    return body[field];
+  }
+  if (typeof body === "string" && body.length) {
+    try {
+      return new URLSearchParams(body).get(field) || "";
+    } catch {
+      return "";
+    }
+  }
+  return "";
 }
 
 async function upsertSocialUser(
@@ -468,6 +579,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       providers: {
         Google: Boolean(cfgs.google.clientId && cfgs.google.clientSecret),
         Facebook: Boolean(cfgs.facebook.clientId && cfgs.facebook.clientSecret),
+        Instagram: Boolean(cfgs.instagram.clientId && cfgs.instagram.clientSecret),
       },
     });
   }
@@ -604,6 +716,167 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
       return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(err.message || "Sign-in failed")}`);
     }
+  }
+
+  // ============ /api/auth/meta/webhook — Meta webhook subscription ============
+  // GET: subscription handshake — echo hub.challenge ONLY when the verify
+  // token matches META_WEBHOOK_VERIFY_TOKEN (fail-closed, like every webhook
+  // receiver in this codebase).
+  if (route === "meta/webhook" && req.method === "GET") {
+    const mode = url.searchParams.get("hub.mode");
+    const token = url.searchParams.get("hub.verify_token");
+    const challenge = url.searchParams.get("hub.challenge");
+    const expected = process.env.META_WEBHOOK_VERIFY_TOKEN;
+    if (mode === "subscribe" && expected && token && challenge && token === expected) {
+      res.status(200).setHeader("Content-Type", "text/plain; charset=utf-8");
+      return res.send(String(challenge));
+    }
+    return jsonError(res, "Webhook verification failed.", 403);
+  }
+
+  // POST: signed event delivery (Instagram/Facebook webhooks). Authenticated
+  // by X-Hub-Signature-256 over the raw body — no signature, no acceptance.
+  // Events are stored for the admin feed; nothing here can mutate user or
+  // order state.
+  if (route === "meta/webhook" && req.method === "POST") {
+    const secrets = metaAppSecrets();
+    if (!secrets.length) {
+      return jsonError(res, "Webhook endpoint not configured.", 503);
+    }
+    const { candidates, via } = await captureMetaRawBody(req);
+    const signature = String(req.headers["x-hub-signature-256"] || "");
+    const verified = candidates.some((raw) => verifyHubSignature(raw, signature, secrets));
+    if (!verified) {
+      return jsonError(res, "Invalid webhook signature.", 403);
+    }
+    let body: any = null;
+    try {
+      body = JSON.parse(candidates[0]);
+    } catch {
+      /* non-JSON delivery — still stored for diagnosis */
+    }
+    try {
+      const db = await getDb();
+      await db.collection("meta_webhook_events").insertOne({
+        object: body?.object || null,
+        eventCount: Array.isArray(body?.entry) ? body.entry.length : 0,
+        signatureVerified: true,
+        bodyCaptureVia: via,
+        body: body || (candidates[0] || "").slice(0, 8000),
+        receivedAt: new Date(),
+      });
+    } catch (e) {
+      console.error("meta-webhook: log write failed", e);
+    }
+    // Always 200 once verified — Meta retries non-2xx deliveries.
+    return res.status(200).json({ success: true });
+  }
+
+  // ============ /api/auth/meta/data-deletion — Meta data deletion callback ====
+  // Required by Meta app review for Facebook/Instagram Login. Receives a
+  // signed_request carrying the app-scoped user id, deletes the matching local
+  // account and returns { url, confirmation_code } per Meta's spec. Financial
+  // order records are retained where legally required — the status page says so.
+  if (route === "meta/data-deletion" && req.method === "POST") {
+    const secrets = metaAppSecrets();
+    if (!secrets.length) {
+      return jsonError(res, "Data deletion endpoint not configured.", 503);
+    }
+    const signedRequest = extractFormField(req, "signed_request");
+    const payload = parseSignedRequest(signedRequest, secrets);
+    if (!payload?.user_id) {
+      return jsonError(res, "Invalid signed_request.", 400);
+    }
+    const providerUserId = String(payload.user_id);
+    const confirmationCode = randomBytes(12).toString("hex");
+    try {
+      const db = await getDb();
+      const usersCol = db.collection("users");
+      const user = await usersCol.findOne({ providerId: providerUserId });
+      let status = "account_deleted";
+      if (user) {
+        await usersCol.deleteOne({ _id: user._id });
+      } else {
+        status = "no_account_found";
+      }
+      await db.collection("data_deletion_requests").insertOne({
+        confirmationCode,
+        providerUserId,
+        issuerAppId: payload.issuer || null,
+        status,
+        orderRecordsRetained: true,
+        requestedAt: new Date(),
+        processedAt: new Date(),
+      });
+      return res.status(200).json({
+        url: `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/meta/data-deletion?code=${confirmationCode}`,
+        confirmation_code: confirmationCode,
+      });
+    } catch (err: any) {
+      return jsonError(res, err?.message || "Data deletion processing failed.", 500);
+    }
+  }
+
+  // GET: deletion status page — the URL returned above must lead the user to
+  // a page showing their confirmation code and the deletion status.
+  if (route === "meta/data-deletion" && req.method === "GET") {
+    const code = (url.searchParams.get("code") || "").trim();
+    let record: any = null;
+    if (code && /^[a-f0-9]{24}$/.test(code)) {
+      try {
+        const db = await getDb();
+        record = await db
+          .collection("data_deletion_requests")
+          .findOne({ confirmationCode: code });
+      } catch {
+        /* fall through to the not-found state */
+      }
+    }
+    const statusHtml = record
+      ? `<p class="ok">Status: <strong>${
+          record.status === "account_deleted"
+            ? "Deleted — your account and profile data have been removed."
+            : record.status === "no_account_found"
+              ? "No account was linked to this request — nothing to delete."
+              : String(record.status)
+        }</strong></p><p>Processed on ${new Date(record.processedAt).toUTCString()}. Order and financial records may be retained where required by law.</p>`
+      : `<p class="err">This confirmation code is unknown or invalid. Please double-check the link you received.</p>`;
+    res.status(200).setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.send(
+      `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PlayBeat — Data Deletion Status</title><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#040814;color:#e2e8f0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:24px}main{max-width:520px;background:#0b132b;border:1px solid rgba(255,193,7,.25);border-radius:20px;padding:32px}h1{font-size:20px;margin:0 0 8px;color:#ffc61a}p{font-size:14px;line-height:1.6;color:#94a3b8}.ok{color:#6ee7b7}.err{color:#fda4af}code{background:#040814;padding:2px 8px;border-radius:6px;font-size:13px;color:#ffc61a}</style></head><body><main><h1>Data Deletion Request</h1><p>Confirmation code: <code>${code || "—"}</code></p>${statusHtml}<p style="margin-top:20px;font-size:12px">— Playbeat Digital Private Limited · support@playbeat.digital</p></main></body></html>`
+    );
+  }
+
+  // ============ /api/auth/meta/deauthorize — Meta deauthorize callback ========
+  // Required by Meta app review. Records that the user revoked the app from
+  // their Facebook/Instagram settings. The account itself stays (email login
+  // remains possible); the social link is marked so support can see it.
+  if (route === "meta/deauthorize" && req.method === "POST") {
+    const secrets = metaAppSecrets();
+    if (!secrets.length) {
+      return jsonError(res, "Deauthorize endpoint not configured.", 503);
+    }
+    const signedRequest = extractFormField(req, "signed_request");
+    const payload = parseSignedRequest(signedRequest, secrets);
+    if (!payload?.user_id) {
+      return jsonError(res, "Invalid signed_request.", 400);
+    }
+    try {
+      const db = await getDb();
+      await db.collection("users").updateOne(
+        { providerId: String(payload.user_id) },
+        { $set: { deauthorizedAt: new Date(), updatedAt: new Date() } }
+      );
+      await db.collection("meta_webhook_events").insertOne({
+        object: "deauthorize",
+        providerUserId: String(payload.user_id),
+        signatureVerified: true,
+        receivedAt: new Date(),
+      });
+    } catch (err: any) {
+      return jsonError(res, err?.message || "Deauthorize processing failed.", 500);
+    }
+    return res.status(200).json({ success: true });
   }
 
   // ============ /api/auth/admin/logout ============

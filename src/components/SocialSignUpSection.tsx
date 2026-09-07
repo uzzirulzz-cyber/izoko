@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Sparkles, ShieldCheck, Zap, Gift, CheckCircle2, ArrowRight, Lock, AlertCircle, Loader2 } from 'lucide-react'
 
-type Provider = 'Google' | 'Facebook'
+type Provider = 'Google' | 'Facebook' | 'Instagram'
 type AuthSource = Provider | 'Email'
 
 interface SocialSignUpSectionProps {
@@ -14,6 +14,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const PROVIDER_META: Record<Provider, { color: string; hoverBorder: string; glow: string }> = {
   Google: { color: 'text-blue-300', hoverBorder: 'hover:border-blue-400/60', glow: 'rgba(66,133,244,0.3)' },
   Facebook: { color: 'text-blue-400', hoverBorder: 'hover:border-[#1877F2]/60', glow: 'rgba(24,119,242,0.3)' },
+  Instagram: { color: 'text-pink-400', hoverBorder: 'hover:border-[#D62976]/60', glow: 'rgba(214,41,118,0.3)' },
 }
 
 function ProviderIcon({ provider }: { provider: Provider }) {
@@ -30,6 +31,24 @@ function ProviderIcon({ provider }: { provider: Provider }) {
   if (provider === 'Facebook') {
     return <svg className="w-5 h-5 fill-[#1877F2] shrink-0" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
   }
+  if (provider === 'Instagram') {
+    return (
+      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+        <defs>
+          <linearGradient id="ig-grad-section" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FEDA75" />
+            <stop offset="25%" stopColor="#FA7E1E" />
+            <stop offset="50%" stopColor="#D62976" />
+            <stop offset="75%" stopColor="#962FBF" />
+            <stop offset="100%" stopColor="#4F5BD5" />
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig-grad-section)" />
+        <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.8" />
+        <circle cx="17.2" cy="6.8" r="1.15" fill="#fff" />
+      </svg>
+    )
+  }
   return null
 }
 
@@ -37,6 +56,9 @@ function ProviderIcon({ provider }: { provider: Provider }) {
  * Sign-up section — REAL accounts only.
  *  • Social buttons start the genuine OAuth flow (provider consent screen →
  *    server-side profile fetch → real account in MongoDB). No mock fallback.
+ *  • Providers: Google (email+profile), Facebook (email+profile), Instagram
+ *    (username identity — Instagram never shares email; a stable provider-
+ *    scoped account identity is created instead).
  *  • Email registration creates a real password account (bcrypt-hashed) via
  *    /api/auth/register, and returning users sign in via /api/auth/login.
  */
@@ -183,8 +205,8 @@ export const SocialSignUpSection: React.FC<SocialSignUpSectionProps> = ({
         ) : (
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Social Sign Up Buttons — Google & Facebook (real OAuth) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {(['Google', 'Facebook'] as Provider[]).map((provider) => {
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {(['Google', 'Facebook', 'Instagram'] as Provider[]).map((provider) => {
                 const meta = PROVIDER_META[provider]
                 const configured = oauthProviders[provider] !== false
                 return (

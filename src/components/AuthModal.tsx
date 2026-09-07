@@ -120,7 +120,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  const handleSocialAuth = (provider: 'Google' | 'Facebook') => {
+  const handleSocialAuth = (provider: 'Google' | 'Facebook' | 'Instagram') => {
     // REAL OAuth sign-up/sign-in — full-page redirect to the backend start route,
     // which 302s to the provider's consent screen. On approval the provider
     // returns to /api/auth/oauth/:provider/callback where the REAL profile is
@@ -232,6 +232,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <span>Facebook</span>
             </button>
           </div>
+
+          {/* Instagram — full-width row so the label never squeezes */}
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => handleSocialAuth('Instagram')}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#060B1E] border border-slate-700/80 hover:border-[#D62976]/60 hover:bg-[#1A0E24] text-white text-xs font-semibold transition group shadow-sm"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <defs>
+                <linearGradient id="ig-grad-modal" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#FEDA75" />
+                  <stop offset="25%" stopColor="#FA7E1E" />
+                  <stop offset="50%" stopColor="#D62976" />
+                  <stop offset="75%" stopColor="#962FBF" />
+                  <stop offset="100%" stopColor="#4F5BD5" />
+                </linearGradient>
+              </defs>
+              <rect x="2" y="2" width="20" height="20" rx="5.5" fill="url(#ig-grad-modal)" />
+              <circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" strokeWidth="1.8" />
+              <circle cx="17.2" cy="6.8" r="1.15" fill="#fff" />
+            </svg>
+            <span>Instagram</span>
+          </button>
 
           <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-slate-700/60"></div>
