@@ -88,14 +88,17 @@ function BadgePlate({
   eyebrow,
   title,
   titleSize,
+  plateUnits = 118,
 }: {
   height: number
   icon: React.ReactNode
   eyebrow: string
   title: string
   titleSize: number
+  /** plate width in height-units — official plates are 118/40; longer titles need more */
+  plateUnits?: number
 }) {
-  const width = height * (118 / 40)
+  const width = height * (plateUnits / 40)
   const pad = height * 0.16
   const iconH = (icon as any)?.props?.height || height * 0.44
   return (
@@ -189,6 +192,7 @@ export function GooglePlayBadge({ href, height = 44, className, pendingLabel, ar
       eyebrow={isApk ? 'ANDROID APP' : 'GET IT ON'}
       title={isApk ? 'Download APK' : 'Google Play'}
       titleSize={height * 0.38}
+      plateUnits={isApk ? 134 : 118}
     />
   )
   if (!live) {
