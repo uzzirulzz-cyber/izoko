@@ -416,3 +416,33 @@ footer/legal surfaces aligned with the reviewer checklist.
   static `/terms` serves "Terms & Conditions" title; all 8 compliance URLs
   return 200; currency switch PKR→USD→PKR verified with on-page prices.
 - Screenshots: `download/compliance/01-06`.
+
+## 22. Social sign-in — Google live, Facebook activation-ready
+
+| File | Change |
+|------|--------|
+| `src/components/AuthModal.tsx` | Sign-In/Sign-Up modal now fetches `/api/auth/oauth-config` when opened. Providers whose keys are configured (Google) start the real OAuth redirect as before; unconfigured providers (Facebook, until its keys are added to Vercel) now show an honest inline amber notice — "being activated, use the email form" — instead of a full-page redirect that bounced straight back with an error toast. |
+
+- **Google sign-in/sign-up verified LIVE end-to-end in production**:
+  `/api/auth/oauth/google/start` 307-redirects to the real Google consent
+  screen (client `9010649…apps.googleusercontent.com`, redirect URI
+  `https://playbeat.digital/api/auth/oauth/google/callback` accepted — no
+  `redirect_uri_mismatch`), CSRF `state` + httpOnly `oauth_state` cookie
+  verified on the redirect. After consent the callback exchanges the code
+  server-side, fetches the real profile, creates/links the MongoDB account
+  (`upsertSocialUser`: provider-identity match → email link → create,
+  role `user`, admin email reserved), sets the 30-day session cookie and
+  returns to `/storefront?social_success=Google`, where the SPA hydrates the
+  session via `/api/auth/me` and greets the user by name.
+- **Facebook**: flow code is complete and provider-agnostic — it activates
+  with zero code changes the moment `FACEBOOK_CLIENT_ID` +
+  `FACEBOOK_CLIENT_SECRET` are set in Vercel (Valid OAuth Redirect URI:
+  `https://playbeat.digital/api/auth/oauth/facebook/callback`). Until then
+  every surface (modal, storefront section, backend start route) reports the
+  honest "being activated" state and steers to email registration.
+- Mobile flow unchanged: `?mobile=1` deep-links back to `playbeat://oauth/callback`.
+- Verification: `npx tsc --noEmit` clean; `npm run build` clean; local
+  preview (agent-browser, mocked oauth-config `Facebook:false`): Facebook
+  click → inline notice, no navigation; Google click → navigates to
+  `/api/auth/oauth/google/start`; live production probe of the same route
+  lands on Google's real "Sign in — Google Accounts" consent page.

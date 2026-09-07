@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { X, Mail, Lock, User, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
 interface AuthModalProps {
@@ -29,6 +29,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Anti-autofill: credentials stay readOnly until user focus, so browsers
   // never preview/autosave email or password in this modal.
   const [credsLocked, setCredsLocked] = useState(true)
+  // Which providers have real OAuth keys configured server-side? Fetched from
+  // the backend so unconfigured providers get honest inline guidance instead
+  // of a full-page redirect that bounces straight back with an error.
+  const [oauthProviders, setOauthProviders] = useState<Record<string, boolean>>({})
+  const [socialNotice, setSocialNotice] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) return
+    setSocialNotice('')
+    fetch(`${API_BASE}/api/auth/oauth-config`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success && d?.providers) setOauthProviders(d.providers)
+      })
+      .catch(() => setOauthProviders({}))
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -111,6 +127,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     // fetched server-side, a real account is created/linked in MongoDB, the
     // session cookie is set, and the user lands back on /storefront?social_success=Provider.
     setError('')
+    setSocialNotice('')
+    if (oauthProviders[provider] === false) {
+      // Keys not configured on the backend yet — honest inline guidance,
+      // no pointless redirect round-trip.
+      setSocialNotice(
+        `${provider} sign-in is being activated right now. Use the email form below — it takes 10 seconds and works identically.`
+      )
+      return
+    }
     setLoading(true)
     window.location.href = `${API_BASE}/api/auth/oauth/${provider.toLowerCase()}/start`
   }
@@ -153,6 +178,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="font-medium">{error}</span>
+          </div>
+        )}
+
+        {!error && socialNotice && (
+          <div className="mb-4 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+            <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="font-medium">{socialNotice}</span>
           </div>
         )}
 
