@@ -1850,6 +1850,36 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ===== POST /api/admin/app/storefront-config/reset (super admin) =====
+  // Wipes the DB override document so the customer-app config falls back to
+  // env vars → safe defaults (honest "pending deployment" state). Audit-logged.
+  if (route === "app/storefront-config/reset" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const admin = req.user as any;
+      await db.collection("mobile_apps_config").deleteOne({ _id: "customer" as any });
+      await db.collection("mobile_apps_config_audit").insertOne({
+        at: new Date(),
+        actor: String(admin.email || "admin"),
+        keys: ["__reset_to_defaults__"],
+        patch: {},
+      });
+      await db.collection("admin_activity").insertOne({
+        type: "mobile_apps_config_reset",
+        adminEmail: String(admin.email || "").toLowerCase(),
+        adminName: admin.name || "",
+        role: admin.role,
+        detail: "Reset customer mobile app config to defaults (pending launch state)",
+        createdAt: new Date(),
+      });
+      const { config, source } = await getMobileAppsConfig(true);
+      return jsonOk(res, { success: true, reset: true, config, source });
+    } catch (err: any) {
+      console.error("POST /api/admin/app/storefront-config/reset error:", err);
+      return jsonError(res, err.message, 500);
+    }
+  }
+
   // ============ POST /api/admin/app/push/send (super admin) ============
   // Sends an Expo push notification to registered customer devices.
   // body: { title, body, data?, userId? } — userId omitted = broadcast.

@@ -40,14 +40,22 @@ let cache: { value: MobileAppsConfig; source: MobileAppsSource; at: number } | n
 /** Deep link scheme the native apps register (playbeat://oauth/callback). */
 export const MOBILE_APP_SCHEME = "playbeat";
 
+/**
+ * Default Android distribution: the signed release APK published by the
+ * public GitHub repo's CI (releases/latest always points at the newest build).
+ * Admins can override with a Play listing any time — DB > env > this default.
+ */
+const DEFAULT_ANDROID_APK_URL =
+  "https://github.com/uzzirulzz-cyber/Playbeat-Digital-apk/releases/latest/download/PlayBeat.apk";
+
 function envConfig(): MobileAppsConfig {
   return {
     android: {
-      url: (process.env.ANDROID_APP_URL || "").trim(),
+      url: (process.env.ANDROID_APP_URL || DEFAULT_ANDROID_APK_URL).trim(),
       version: (process.env.ANDROID_APP_VERSION || "1.0.0").trim(),
       buildNumber: parseInt(process.env.ANDROID_APP_BUILD || "1", 10) || 1,
-      minOsVersion: (process.env.ANDROID_MIN_OS || "8.0 (API 26)").trim(),
-      available: String(process.env.ANDROID_APP_AVAILABLE ?? "false").toLowerCase() === "true",
+      minOsVersion: (process.env.ANDROID_MIN_OS || "7.0 (API 24)").trim(),
+      available: String(process.env.ANDROID_APP_AVAILABLE ?? "true").toLowerCase() === "true",
       packageName: (process.env.ANDROID_PACKAGE_NAME || "digital.playbeat.app").trim(),
     },
     ios: {

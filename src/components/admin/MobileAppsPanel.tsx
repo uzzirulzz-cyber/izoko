@@ -3,6 +3,7 @@ import {
   Smartphone,
   Apple,
   RefreshCw,
+  RotateCcw,
   Loader2,
   Save,
   QrCode,
@@ -88,6 +89,7 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
   const [state, setState] = useState<FullState | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [draft, setDraft] = useState<AppsConfig | null>(null)
 
   // push test
@@ -137,6 +139,33 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
       onToast('Network error while saving mobile app config')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const resetConfig = async () => {
+    if (
+      !window.confirm(
+        'Reset mobile app config to defaults?\n\nThis wipes every saved override (store URLs, availability switches, visibility toggles, QR destination, promo banner, release notes). The storefront falls back to env vars / safe defaults — the honest “pending deployment” state. This cannot be undone.'
+      )
+    )
+      return
+    setResetting(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/app/storefront-config/reset`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+      })
+      const data = await res.json()
+      if (res.ok && data?.success) {
+        onToast('Mobile app config reset to defaults — storefront updates within 30s')
+        load()
+      } else {
+        onToast(data?.error || data?.message || 'Could not reset mobile app config')
+      }
+    } catch {
+      onToast('Network error while resetting mobile app config')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -296,6 +325,15 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </button>
+          <button
+            onClick={resetConfig}
+            disabled={resetting}
+            title="Wipe all overrides — back to env vars / safe defaults (pending launch state)"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-400/30 text-[10px] font-mono text-red-300 hover:bg-red-500/20 hover:border-red-400/50 transition disabled:opacity-50"
+          >
+            {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+            Reset to defaults
           </button>
         </div>
       </div>

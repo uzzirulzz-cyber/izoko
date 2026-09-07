@@ -35,14 +35,19 @@ export interface StorefrontAppsConfig {
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const SITE = 'https://playbeat.digital'
 
-/** Build-time fallbacks (Vite convention). Optional — DB/admin config wins. */
+/** Build-time fallbacks (Vite convention). Optional — DB/admin config wins.
+ *  Android defaults to the signed release APK on the public GitHub repo —
+ *  same default as the server (api/_lib/mobileApps.ts). */
+const DEFAULT_ANDROID_APK_URL =
+  'https://github.com/uzzirulzz-cyber/Playbeat-Digital-apk/releases/latest/download/PlayBeat.apk'
+
 const ENV_FALLBACK: StorefrontAppsConfig = {
   android: {
-    url: sanitizeUrl((import.meta as any).env?.VITE_ANDROID_APP_URL || ''),
+    url: sanitizeUrl((import.meta as any).env?.VITE_ANDROID_APP_URL || DEFAULT_ANDROID_APK_URL),
     version: '1.0.0',
     buildNumber: 1,
-    minOsVersion: '8.0 (API 26)',
-    available: false,
+    minOsVersion: '7.0 (API 24)',
+    available: (import.meta as any).env?.VITE_ANDROID_APP_URL !== 'off',
     packageName: 'digital.playbeat.app',
   },
   ios: {

@@ -177,15 +177,17 @@ export function AppleAppStoreBadge({ href, height = 44, className, pendingLabel,
   )
 }
 
-/** Google Play badge. */
+/** Google Play badge — or an honest "Download APK" plate when the target
+ *  is a direct APK (GitHub release / self-hosted) rather than a Play listing. */
 export function GooglePlayBadge({ href, height = 44, className, pendingLabel, ariaLabel }: BadgeProps) {
   const live = Boolean(href)
+  const isApk = Boolean(href) && !/play\.google\.com/i.test(href)
   const inner = (
     <BadgePlate
       height={height}
       icon={<GooglePlayLogo size={height * 0.44} />}
-      eyebrow="GET IT ON"
-      title="Google Play"
+      eyebrow={isApk ? 'ANDROID APP' : 'GET IT ON'}
+      title={isApk ? 'Download APK' : 'Google Play'}
       titleSize={height * 0.38}
     />
   )
@@ -202,7 +204,7 @@ export function GooglePlayBadge({ href, height = 44, className, pendingLabel, ar
       target="_blank"
       rel="noopener noreferrer"
       className={className}
-      aria-label={ariaLabel || 'Get it on Google Play'}
+      aria-label={ariaLabel || (isApk ? 'Download the Android APK' : 'Get it on Google Play')}
     >
       {inner}
     </a>
