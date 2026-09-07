@@ -4,6 +4,10 @@ import { fetchAppsConfig, isListable, type StorefrontAppsConfig } from '../../li
 import { AppleAppStoreBadge, GooglePlayBadge } from './AppStoreBadges'
 import { AppQRCode } from './AppQRCode'
 
+/** Ambient brand clip shown behind the section, faded to 20% opacity. */
+const BG_VIDEO_SRC = '/media/app-bg.mp4'
+const BG_POSTER_SRC = '/media/app-bg-poster.jpg'
+
 /**
  * Homepage "Get the PlayBeat Digital App" section — premium dark/amber
  * treatment consistent with the storefront theme. Fully driven by the
@@ -14,6 +18,7 @@ import { AppQRCode } from './AppQRCode'
 export const AppDownloadSection: React.FC = () => {
   const [cfg, setCfg] = useState<StorefrontAppsConfig | null>(null)
   const [loading, setLoading] = useState(true)
+  const [bgReady, setBgReady] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -45,7 +50,34 @@ export const AppDownloadSection: React.FC = () => {
   ]
 
   return (
-    <section className="w-full bg-[#040816] border-t border-slate-400/10 overflow-hidden" aria-label="Get the PlayBeat Digital app">
+    <section className="w-full bg-[#040816] border-t border-slate-400/10 overflow-hidden relative" aria-label="Get the PlayBeat Digital app">
+      {/* Ambient brand video background — user-supplied clip, faded to 20%.
+          Silent (no audio track), loops seamlessly, never intercepts input.
+          prefers-reduced-motion users get the static poster frame instead. */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <video
+          className={`absolute inset-0 w-full h-full object-cover object-center blur-[1.5px] scale-[1.03] transition-opacity duration-[1400ms] ease-out motion-reduce:hidden ${bgReady ? 'opacity-20' : 'opacity-0'}`}
+          src={BG_VIDEO_SRC}
+          poster={BG_POSTER_SRC}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          onCanPlay={() => setBgReady(true)}
+          onLoadedData={() => setBgReady(true)}
+          onPlaying={() => setBgReady(true)}
+        />
+        {/* static poster fallback — only rendered for reduced-motion users */}
+        <img
+          src={BG_POSTER_SRC}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-20 motion-safe:hidden"
+        />
+        {/* blend the clip into the section background (edge fades + text-side scrim) */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#040816] via-transparent to-[#040816]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#040816]/55 via-transparent to-[#040816]/25" />
+      </div>
       {/* ambient glow */}
       <div className="relative max-w-[1600px] mx-auto px-4 sm:px-6 py-14 sm:py-16">
         <div
