@@ -167,3 +167,188 @@ are listed in `sitemap.xml`/`robots.txt`, and work on Vercel via SPA rewrites.
 - Updated all 146 references in the static catalog (`products.ts`) **and migrated all 178 MongoDB product docs** (`image`, `galleryImages`, `additionalImages`, variant images) via idempotent migration script `scripts/migrate-product-images-webp.mjs`.
 - Below-fold images: `loading="lazy"` + `decoding="async"` (92/92 product images lazy); flagship showcase image gets `fetchPriority="high"` for LCP.
 - `og:image` intentionally kept as PNG for social-platform compatibility.
+
+---
+
+# Enhancement Build — Catalog Alignment, Monetization & Operations (2026-09-07)
+
+Implements the enhancement brief on top of the existing architecture: **zero
+framework changes, zero new serverless functions (still exactly 12), zero
+payment-verification weakening**. All new endpoints live inside the existing
+consolidated routers; shared logic goes in `api/_lib/*`.
+
+## 1. Category alignment — 8 target categories (Section 3 "core decision")
+
+| File | Change |
+|------|--------|
+| `api/categories.ts` | **Rewritten as a DB-driven category registry.** The `categories` Mongo collection holds the 8 target categories — Gaming, Software, Gift Cards, Social Media, Web Hosting, Digital Marketing, Web3, Services — plus the established Streaming + Smart Projectors storefront categories (kept, never deleted). Each entry maps to the EXISTING product model via `productCategories` + optional `tagRegex`; old routes survive as `aliases` (`/steam-game-keys` → Gaming, `/windows-office` + `/creative-software` → Software, `/ai-subscriptions` + `/subscriptions` → Services, `/giftcards` → Gift Cards). Counts are computed live from the products collection. Lazy-seeded, idempotent. |
+| `api/products/index.ts` | New `?cat=<slug|alias>` filter resolves through the registry — the frontend only ever sends a slug; which product categories / tag matcher apply is decided server-side from the DB. Legacy `?category=` and `?categories=` keep working. |
+| `src/App.tsx` | New routes `/gift-cards`, `/services`, `/social-media`, `/web-hosting`, `/digital-marketing`, `/web3` (registry-matched catalog overlays, same UI as existing category pages); `/category/:slug` deep links overlay the same matchers. |
+| `src/lib/seo.ts` | Unique title/description/canonical presets for every new route. |
+| `src/components/CategoryNav.tsx` | Category tiles are now DB-driven (`GET /api/categories` → counts, copy, ordering) with the static catalog as fallback. New categories get real indexable links. |
+| `vercel.json` | SPA rewrites for the 6 new routes. Old routes untouched — aliases, never deletions. `/compare`, `/warranty` and legal pages unaffected. |
+
+## 2. Server-side cart (Section 4.1)
+
+- **`api/orders/index.ts`** — `GET/PUT/DELETE /api/orders/cart`: the cart lives
+  in the `carts` collection per signed-in user. `PUT` accepts ONLY product
+  refs + quantity + variant — every price is recomputed from the products
+  collection on every read, finite-stock quantities are clamped (with problem
+  flags), and the client never dictates a total.
+- **`src/App.tsx`** — signed-in cart sync: local cart pushes to the server
+  (debounced); an empty local cart adopts the server cart (cross-device).
+  Offline behaviour unchanged.
+
+## 3. Coupons — scoping + admin CRUD (Section 4.2)
+
+- **`api/_lib/coupons.ts`** — new `appliesTo: { categories, productIds }`
+  scoping validated against SERVER-verified cart lines (DB category/sku —
+  the browser cannot forge a match); `parseCouponPayload` hand-written schema
+  (code charset, percent ≤ 100, expiry, usage caps); admin projection.
+- **`api/admin/index.ts`** — `GET/POST /api/admin/coupons`, `POST
+  /api/admin/coupons/delete` (permission `coupons`), all audited.
+- **Frontend** — `CouponInput`/`paymentApi` send cart line refs so scoped
+  coupons preview correctly; new **Coupon Codes** admin panel
+  (`src/components/admin/OpsPanels.tsx`).
+
+## 4. Subscription plans (Section 4.3)
+
+- **`api/_lib/product.ts`** — `ProductPlan` sub-document (`plans: [{id, label,
+  months, price, …}]`) passes through `formatProduct`; Plan-labelled variants
+  are exposed through the same shape so the ai-subscriptions model generalizes
+  to any product. Plan prices are re-verified server-side at order time.
+- **`src/types.ts`** + **`QuickViewModal.tsx`** — plan selector renders for
+  plan-bearing products; the chosen plan rides as a variant.
+
+## 5. Digital delivery fulfillment (Section 4.4)
+
+- **`api/_lib/fulfillment.ts` (NEW)** — runs ONCE per paid order (idempotent
+  via the `fulfillments` ledger), triggered ONLY by a verified webhook (generic
+  + Rapid paths both call it): guarantees license keys, attaches product
+  `downloadUrl`/`activationNotes`, writes `delivery_events`, decrements FINITE
+  stock (+ `stock_movements`), generates the invoice, writes the in-app
+  notification, and attempts the confirmation email ONLY if `RESEND_API_KEY`
+  is configured — otherwise `emailStatus` records the honest fallback.
+- **`api/_lib/email.ts` (NEW)** — Resend via plain fetch (zero deps); never
+  fakes a send. Branded order-paid template.
+- **Customer surface** — Account → Alerts tab (`AccountDrawer`) lists
+  notifications from `GET /api/orders/notifications` (+ mark-read).
+
+## 6. Invoices (Section 4.5)
+
+- **`api/_lib/invoice.ts` (NEW)** — auto-issued on verified payment:
+  `INV-YYYY-#####` (atomic counter), branded header, line items, discount,
+  status; unique indexes make double-issue impossible. Owner fetch:
+  `GET /api/orders/invoice/:orderNumber` (owner-scoped, idempotent).
+- **`src/components/InvoicePage.tsx` (NEW)** — `/invoice/:orderNumber`
+  (noindex): branded printable invoice with **Download PDF / Print** (browser
+  print → PDF, no dependency) and honest sign-in/404 states.
+
+## 7. Reviews (Section 4.6)
+
+- **`api/products/index.ts`** — `GET /api/products/reviews` (approved only +
+  summary), `POST /api/products/reviews` (signed-in; **verified purchasers
+  only**, server-checked against paid orders containing the product; one per
+  user; stored `pending`).
+- **`api/admin/index.ts`** — moderation (`reviews` permission):
+  approve/hide/feature/unfeature/delete + product rating recompute from
+  approved reviews, all audited.
+- **Frontend** — QuickView reviews tab now shows REAL data + a write form
+  (honest 403 message for non-purchasers); new **Reviews Moderation** admin
+  panel. The fake hardcoded testimonial is gone.
+
+## 8. Support tickets (Section 4.7)
+
+- **`api/messages/index.ts`** — the live-support conversations gain the
+  5-state machine `open → pending → in_progress → resolved → closed` with
+  explicit allowed transitions (409 on violations), `low/normal/high/urgent`
+  priority, `ticketEvents` trail, auto-advance on staff reply
+  (closed→pending, resolved→in_progress) and audit logging. Counts extended.
+
+## 9. Inventory (Section 4.8)
+
+- **Products** — `stockMode: "finite" | "unlimited"` (digital defaults to
+  unlimited) + `lowStockThreshold`. Stock guards and fulfillment decrements
+  respect the mode; unlimited products never block checkout.
+- **`api/admin/index.ts`** — `GET /api/admin/inventory` (stock list, low/out
+  flags, movement history) + `POST /api/admin/inventory/adjust` (add/set with
+  reason → `stock_movements` + audit). New **Inventory & Stock** admin panel.
+
+## 10. CMS homepage builder (Section 4.9)
+
+- **`api/cms/index.ts`** — public `GET /api/cms/homepage` (enabled sections,
+  ordered, sanitized).
+- **`api/admin/index.ts`** — sections CRUD (`cms` permission): create, update,
+  enable/disable, delete, reorder (`homepage_sections` collection; types:
+  hero/banner/featured/faq/testimonial).
+- **Frontend** — `CmsHomepageSections.tsx` renders DB sections on the
+  storefront (nothing renders until configured); new **Homepage Builder**
+  admin panel with composer + reordering.
+
+## 11. Audit log (Section 4.10)
+
+- **`api/_lib/audit.ts` (NEW)** — append-only `audit_logs` with actor, action,
+  target, detail, source. Wired into: order fulfillment + status changes,
+  product create/update/delete, staff create, coupon CRUD, reviews moderation,
+  inventory adjustments, CMS sections, category registry, ticket transitions.
+- **`api/admin/index.ts`** — `GET /api/admin/audit-logs` (action filter) +
+  **Audit Log** admin panel.
+
+## 12. RBAC — module permissions (Section 5)
+
+- **`api/_lib/auth.ts`** — `MODULE_PERMISSIONS` + `DEFAULT_PERMISSIONS` per
+  authority: super_admin `*`; admin → products/inventory/orders/customers/
+  support/coupons/cms/reviews/analytics/audit; manager → products/inventory/
+  orders/coupons; supervisor → customers/support/reviews; **finance (NEW
+  authority tier)** → payments/invoices/refunds/analytics/audit; IT unchanged
+  (gateway-only). New `hasPermission`/`effectivePermissions`/
+  `requirePermission(req,res,perm)`; explicit per-account `permissions` arrays
+  override the default kit. `staff/create` accepts `finance` + permission
+  lists; staff JWTs embed them (server-enforced — UI hiding is not security).
+- New endpoints use `requirePermission`; cross-role access returns 403.
+
+## 13. Security notes
+
+- No secrets added to the client; `RESEND_API_KEY`/`EMAIL_FROM` documented in
+  `.env.example` (server-only).
+- All new inputs validated + length-capped; Mongo queries parameterized;
+  admin endpoints behind JWT + permission checks; regex inputs escaped.
+- Admin order-status changes can NEVER set `paymentStatus` or `completed` —
+  payment truth stays gateway-webhook-only.
+- Function count verified: **exactly 12 Vercel functions** (unchanged).
+
+## 14. Verification (local, real Atlas catalog)
+
+- `tsc --noEmit` clean; `vite build` clean.
+- **`scripts/test_enhancements.mjs`: 91/91 PASS** — registry (8 core
+  categories + aliases + live counts), registry-driven filtering, server cart
+  (client prices ignored), scoped coupons (preview + order creation), signed
+  webhook → paid → keys + invoice + notification, webhook replay idempotency,
+  reviews (403 non-purchaser → pending → approve → public), RBAC 403 matrix
+  (supervisor/finance), ticket state machine (409s), inventory (finite/unlimited
+  + movements), CMS builder CRUD → public feed, audit feed.
+- Regression: `test_journey_nosalt.mjs` **16/16 PASS**;
+  `test_checkout_redesign.mjs` **29/30** (the single documented env-diff:
+  local shim-only Rapid-availability expectation).
+- Browser-verified (desktop, 1440×900): 11 DB-driven category tiles;
+  `/services` (21 items), `/social-media` (honest empty state), `/gift-cards`
+  alias; QuickView real-reviews tab; `/invoice/*` auth gate; Admin → Coupon
+  Codes / Inventory & Stock (tiles + movements) / Reviews Moderation /
+  Homepage Builder / Audit Log — all rendering live data, zero console errors.
+
+## 15. Environment & rollout
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `RESEND_API_KEY` | No | Order confirmation emails; empty = in-app notifications only (honest) |
+| `EMAIL_FROM` | No | Verified sender identity for Resend |
+| `RAPID_SECRET_KEY` / `RAPID_WEBHOOK_SECRET` | For real payments | Already documented — unchanged |
+
+- New Mongo collections (created lazily, no migration needed): `categories`
+  (lazy-seeded registry), `carts`, `invoices`, `fulfillments`,
+  `delivery_events`, `customer_notifications`, `stock_movements`, `reviews`,
+  `audit_logs`, `homepage_sections`, `counters`.
+- Deploy: push to `main` → Vercel auto-deploy. Visit Admin → Coupon Codes /
+  Inventory / Reviews Moderation / Homepage Builder / Audit Log to configure.
+  Resubmit `sitemap.xml` in Search Console after adding products to the new
+  categories.

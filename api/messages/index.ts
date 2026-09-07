@@ -32,6 +32,25 @@ import {
   AuthenticatedRequest,
 } from "../_lib/auth.js";
 import { handleCustomerBot } from "../_lib/customerBot.js";
+import { writeAudit } from "../_lib/audit.js";
+
+// ---------------------------------------------------------------------------
+// SUPPORT TICKET STATE MACHINE (extends the live-support conversations)
+//   open → pending → in_progress → resolved → closed
+// with sensible escape hatches (reopen) — see ALLOWED_TICKET_TRANSITIONS.
+// Every transition is appended to the conversation's `ticketEvents` feed.
+// ---------------------------------------------------------------------------
+const TICKET_STATES = ["open", "pending", "in_progress", "resolved", "closed"] as const;
+type TicketState = (typeof TICKET_STATES)[number];
+
+const ALLOWED_TICKET_TRANSITIONS: Record<TicketState, TicketState[]> = {
+  open: ["pending", "in_progress", "resolved", "closed"],
+  pending: ["in_progress", "resolved", "closed", "open"],
+  in_progress: ["pending", "resolved", "closed"],
+  resolved: ["closed", "in_progress", "open"], // reopen when the customer disagrees
+  closed: ["open"], // reopen
+};
+const TICKET_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 
 type ChatMessage = {
   conversationId: ObjectId;
@@ -44,12 +63,18 @@ type ChatMessage = {
   readAt?: Date | null;
 };
 
+function isTicketState(v: any): v is TicketState {
+  return TICKET_STATES.includes(v as TicketState);
+}
+
 function serialize(conv: any) {
   if (!conv) return null;
   return {
     id: conv._id?.toString(),
     type: conv.type,
     status: conv.status || "open",
+    ticketPriority: conv.ticketPriority || "normal",
+    ticketStateUpdatedAt: conv.ticketStateUpdatedAt || null,
     subject: conv.subject || "",
     customer: conv.customer || null,
     staff: conv.staff || null,
@@ -284,6 +309,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         all: all.length,
         open: all.filter((c: any) => (c.status || "open") === "open").length,
         pending: all.filter((c: any) => c.status === "pending").length,
+        in_progress: all.filter((c: any) => c.status === "in_progress").length,
+        resolved: all.filter((c: any) => c.status === "resolved").length,
         closed: all.filter((c: any) => c.status === "closed").length,
         unread: all.reduce((acc: number, c: any) => acc + (c.unreadForStaff || 0), 0),
         live: all.filter((c: any) => c.type === "live_support").length,
@@ -352,7 +379,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             $set: {
               lastMessage: { body: body.slice(0, 200), senderType: "staff", at: now },
               updatedAt: now,
-              status: conv.status === "closed" ? "pending" : conv.status || "open",
+              // Ticket auto-advance on staff reply: closed → pending (reopened),
+              // resolved → in_progress (customer follow-up), otherwise unchanged.
+              status:
+                conv.status === "closed"
+                  ? "pending"
+                  : conv.status === "resolved"
+                    ? "in_progress"
+                    : conv.status || "open",
             },
             $inc: { unreadForCustomer: 1 },
           }
@@ -363,19 +397,58 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
     }
 
-    // --- status / assignment ---
+    // --- ticket state / assignment (5-state machine + priority) ---
     if (req.method === "PUT" && pathSegments.length === 2) {
       try {
-        const { status, staffName } = req.body || {};
+        const { status, staffName, priority, note } = req.body || {};
         const update: any = { updatedAt: new Date() };
-        if (status && ["open", "pending", "closed"].includes(status)) update.status = status;
+        const current: TicketState = (isTicketState(conv.status) ? conv.status : "open") as TicketState;
+
+        if (status !== undefined) {
+          if (!isTicketState(status)) {
+            return jsonError(res, `status must be one of: ${TICKET_STATES.join(", ")}`, 400);
+          }
+          if (status !== current && !ALLOWED_TICKET_TRANSITIONS[current].includes(status)) {
+            return jsonError(
+              res,
+              `Invalid ticket transition: ${current} → ${status}. Allowed: ${ALLOWED_TICKET_TRANSITIONS[current].join(", ")}.`,
+              409
+            );
+          }
+          if (status !== current) {
+            update.status = status;
+            update.ticketStateUpdatedAt = new Date();
+            await convCol.updateOne({ _id: convId }, {
+              $push: {
+                ticketEvents: {
+                  $each: [{ from: current, to: status, by: admin?.name || admin?.email || "staff", note: String(note || "").slice(0, 300), at: new Date() }],
+                  $slice: -50,
+                },
+              },
+            } as any);
+            await writeAudit(db, {
+              actor: admin,
+              action: "ticket.state_change",
+              targetType: "conversation",
+              targetId: String(convId),
+              detail: `Ticket ${current} → ${status}`,
+              meta: { note: String(note || "") },
+            });
+          }
+        }
+        if (priority !== undefined) {
+          if (!TICKET_PRIORITIES.has(String(priority))) {
+            return jsonError(res, "priority must be one of: low, normal, high, urgent", 400);
+          }
+          update.ticketPriority = String(priority);
+        }
         if (staffName !== undefined) {
           update.staff = staffName
             ? { id: admin?.id || null, email: admin?.email || null, name: staffName }
             : null;
         }
         await convCol.updateOne({ _id: convId }, { $set: update });
-        return jsonOk(res, { success: true, message: "Conversation updated." });
+        return jsonOk(res, { success: true, message: "Ticket updated." });
       } catch (err: any) {
         return jsonError(res, err.message, 500);
       }

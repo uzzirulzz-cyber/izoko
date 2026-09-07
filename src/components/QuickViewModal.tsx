@@ -1,4 +1,14 @@
-import React, { useState } from 'react'
+// QuickViewModal — product quick view with REAL reviews (Section 4.6) and
+// subscription-plan support (Section 4.3 ProductPlan).
+//
+// Reviews: GET /api/products/reviews?productId=… (approved only, server
+// summary). Submitting: POST /api/products/reviews — the SERVER enforces
+// verified-purchase-only; a non-buyer receives an honest 403 message.
+// Plans: products with a `plans` array (1/3/6/12 months) render a plan
+// selector; the chosen plan is added to the cart as a variant so order
+// creation prices it server-side.
+
+import React, { useEffect, useState } from 'react'
 import {
   X,
   Star,
@@ -11,9 +21,30 @@ import {
   Copy,
   CheckCheck,
   ChevronRight,
+  Loader2,
+  MessageSquarePlus,
 } from 'lucide-react'
 import { Product, CurrencyCode, ProductVariant } from '../types'
 import { formatPrice } from '../lib/currency'
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+
+interface ReviewItem {
+  id: string
+  userName: string
+  rating: number
+  title: string
+  body: string
+  featured: boolean
+  verifiedPurchase: boolean
+  createdAt: string
+}
+
+interface ReviewSummary {
+  avg: number
+  count: number
+  distribution: Record<string, number>
+}
 
 interface QuickViewModalProps {
   product: Product | null
@@ -36,18 +67,87 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   isWishlisted,
   onToggleWishlist,
 }) => {
-  if (!isOpen || !product) return null
-
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(
-    product.variants && product.variants.length > 0 ? product.variants[0] : undefined
-  )
+  // ---- Hooks run UNCONDITIONALLY (fixes the latent conditional-hooks crash:
+  // the old early-return sat ABOVE the useState calls, changing hook order
+  // between open/close renders) ----
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | undefined>(undefined)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>(undefined)
   const [activeTab, setActiveTab] = useState<'overview' | 'specs' | 'activation' | 'reviews'>('overview')
-  const [activeImage, setActiveImage] = useState<string>(product.image)
+  const [activeImage, setActiveImage] = useState<string>('')
   const [copiedSku, setCopiedSku] = useState(false)
   const [addedToast, setAddedToast] = useState(false)
 
-  const currentPrice = selectedVariant ? selectedVariant.price : product.price
-  const originalPrice = selectedVariant?.originalPrice || product.originalPrice
+  // Reviews state
+  const [reviews, setReviews] = useState<ReviewItem[]>([])
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewFormOpen, setReviewFormOpen] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewTitle, setReviewTitle] = useState('')
+  const [reviewBody, setReviewBody] = useState('')
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const [reviewMessage, setReviewMessage] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const plans = product?.plans && product.plans.length ? product.plans : undefined
+  const hasVariants = Boolean(product?.variants && product.variants.length)
+
+  // Reset per-product state whenever a new product opens
+  useEffect(() => {
+    if (!isOpen || !product) return
+    setSelectedVariant(product.variants && product.variants.length > 0 ? product.variants[0] : undefined)
+    setSelectedPlanId(product.plans && product.plans.length ? product.plans[0].id : undefined)
+    setActiveImage(product.image)
+    setActiveTab('overview')
+    setAddedToast(false)
+    setReviewMessage(null)
+    setReviewFormOpen(false)
+    setReviewRating(5)
+    setReviewTitle('')
+    setReviewBody('')
+  }, [isOpen, product?._id])
+
+  // Fetch REAL approved reviews when the modal opens or the reviews tab opens
+  useEffect(() => {
+    if (!isOpen || !product) return
+    const ref = product._id || product.id
+    setReviewsLoading(true)
+    let alive = true
+    fetch(`${API_BASE}/api/products/reviews?productId=${encodeURIComponent(String(ref))}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return
+        if (d?.success) {
+          setReviews(d.reviews || [])
+          setReviewSummary(d.summary || null)
+        } else {
+          setReviews([])
+        }
+      })
+      .catch(() => alive && setReviews([]))
+      .finally(() => alive && setReviewsLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [isOpen, product?._id, activeTab === 'reviews'])
+
+  if (!isOpen || !product) return null
+
+  // Selected plan drives the effective variant (server re-prices at order time)
+  const selectedPlan = plans?.find((p) => p.id === selectedPlanId)
+  const planAsVariant: ProductVariant | undefined = selectedPlan
+    ? {
+        id: selectedPlan.id,
+        name: selectedPlan.label,
+        price: selectedPlan.price,
+        originalPrice: selectedPlan.originalPrice,
+        sku: selectedPlan.sku,
+        badge: selectedPlan.badge,
+      }
+    : undefined
+  const effectiveVariant = planAsVariant || selectedVariant
+
+  const currentPrice = effectiveVariant ? effectiveVariant.price : product.price
+  const originalPrice = effectiveVariant?.originalPrice || product.originalPrice
 
   const handleCopySku = () => {
     navigator.clipboard.writeText(product.sku)
@@ -56,9 +156,54 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   }
 
   const handleAdd = () => {
-    onAddToCart(product, selectedVariant)
+    onAddToCart(product, effectiveVariant)
     setAddedToast(true)
     setTimeout(() => setAddedToast(false), 2000)
+  }
+
+  const submitReview = async () => {
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) {
+      setReviewMessage({ ok: false, text: 'Sign in to write a review — only verified purchasers can review.' })
+      return
+    }
+    if (reviewBody.trim().length < 10) {
+      setReviewMessage({ ok: false, text: 'Please write at least 10 characters.' })
+      return
+    }
+    setReviewSubmitting(true)
+    setReviewMessage(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/products/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({
+          productId: product._id || product.id,
+          rating: reviewRating,
+          title: reviewTitle,
+          body: reviewBody,
+        }),
+      })
+      const d = await res.json().catch(() => null)
+      if (res.status === 403) {
+        setReviewMessage({
+          ok: false,
+          text: d?.error || 'Only verified purchasers can review this product.',
+        })
+      } else if (res.ok && d?.success) {
+        setReviewMessage({ ok: true, text: d.message || 'Review submitted — awaiting moderation.' })
+        setReviewFormOpen(false)
+        setReviewBody('')
+        setReviewTitle('')
+      } else {
+        setReviewMessage({ ok: false, text: d?.error || 'Could not submit the review right now.' })
+      }
+    } catch {
+      setReviewMessage({ ok: false, text: 'Network error — please try again.' })
+    } finally {
+      setReviewSubmitting(false)
+    }
   }
 
   const allImages = product.galleryImages && product.galleryImages.length > 0
@@ -168,8 +313,12 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <div className="flex items-center gap-4 text-xs text-slate-400 mb-3.5 font-mono">
                 <div className="flex items-center gap-1.5 text-amber-400">
                   <Star className="w-3.5 h-3.5 fill-current" />
-                  <span className="text-slate-100 font-bold">{product.rating}</span>
-                  <span className="text-slate-500 font-normal">({product.reviewCount} reviews)</span>
+                  <span className="text-slate-100 font-bold">
+                    {reviewSummary && reviewSummary.count > 0 ? reviewSummary.avg : product.rating}
+                  </span>
+                  <span className="text-slate-500 font-normal">
+                    ({reviewSummary && reviewSummary.count > 0 ? reviewSummary.count : product.reviewCount} reviews)
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 text-slate-400">
                   <Globe className="w-3.5 h-3.5" /> Region: <strong className="text-slate-200 font-semibold">{product.region}</strong>
@@ -180,7 +329,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <div className="p-4 rounded-2xl bg-[#060B1E] border border-slate-400/15 mb-4 flex items-center justify-between">
                 <div>
                   <div className="text-[9px] uppercase font-mono text-slate-400 tracking-wider">
-                    Price
+                    {selectedPlan ? `Price — ${selectedPlan.label}` : 'Price'}
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-xl sm:text-2xl font-extrabold font-mono text-white">
@@ -201,14 +350,54 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 </div>
               </div>
 
-              {/* Variant Selector (if available) */}
-              {product.variants && product.variants.length > 0 && (
+              {/* Subscription Plan Selector (ProductPlan — Section 4.3) */}
+              {plans && plans.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                    Select Plan:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {plans.map((p) => {
+                      const isSelected = selectedPlanId === p.id
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPlanId(p.id)}
+                          className={`p-2.5 rounded-xl border text-center transition relative ${
+                            isSelected
+                              ? 'bg-yellow-400/10 border-yellow-400/50 text-yellow-200 shadow-sm'
+                              : 'bg-[#060B1E] border-slate-400/15 text-slate-300 hover:border-slate-400/30'
+                          }`}
+                        >
+                          {p.badge && (
+                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-1.5 py-0.5 text-[8px] font-mono rounded bg-yellow-400 text-slate-950 font-bold whitespace-nowrap">
+                              {p.badge}
+                            </span>
+                          )}
+                          <div className="text-[11px] font-semibold text-slate-100">{p.label}</div>
+                          <div className="font-mono text-yellow-400 font-bold text-xs mt-0.5">
+                            {formatPrice(p.price, currency)}
+                          </div>
+                          {p.originalPrice && p.originalPrice > p.price && (
+                            <div className="font-mono text-[9px] text-slate-500 line-through">
+                              {formatPrice(p.originalPrice, currency)}
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Variant Selector (if available and no plans) */}
+              {!plans && hasVariants && (
                 <div className="mb-4">
                   <label className="block text-[9px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     {product.variantLabel ? `Select ${product.variantLabel}:` : 'Available Packages:'}
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {product.variants.map((v) => {
+                    {product.variants!.map((v) => {
                       const isSelected = selectedVariant?.id === v.id
                       return (
                         <button
@@ -280,7 +469,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Reviews ({product.reviewCount})
+                  Reviews ({reviewSummary && reviewSummary.count > 0 ? reviewSummary.count : product.reviewCount})
                 </button>
               </div>
 
@@ -333,14 +522,109 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 )}
 
                 {activeTab === 'reviews' && (
-                  <div className="space-y-2">
-                    <div className="p-3 rounded-xl bg-[#060B1E] border border-slate-400/15">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-white">Ali R. (Verified Buyer)</span>
-                        <div className="flex text-amber-400"><Star className="w-3 h-3 fill-current" /> 5/5</div>
+                  <div className="space-y-3">
+                    {/* Summary */}
+                    {reviewSummary && reviewSummary.count > 0 && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-[#060B1E] border border-slate-400/15">
+                        <div className="text-2xl font-extrabold font-mono text-white">{reviewSummary.avg}</div>
+                        <div>
+                          <div className="flex text-amber-400 mb-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} className={`w-3 h-3 ${i < Math.round(reviewSummary.avg) ? 'fill-current' : ''}`} />
+                            ))}
+                          </div>
+                          <div className="text-[10px] text-slate-400">{reviewSummary.count} verified review{reviewSummary.count === 1 ? '' : 's'}</div>
+                        </div>
                       </div>
-                      <p className="text-slate-300 text-[11px]">"Received key in seconds. Activated flawlessly. Best digital marketplace in the region."</p>
-                    </div>
+                    )}
+
+                    {/* Review list */}
+                    {reviewsLoading ? (
+                      <div className="flex items-center gap-2 text-slate-400 p-3">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading reviews…
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="p-3 rounded-xl bg-[#060B1E] border border-slate-400/15 text-[11px] text-slate-400">
+                        No approved reviews yet — be the first verified buyer to share your experience.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {reviews.map((r) => (
+                          <div key={r.id} className="p-3 rounded-xl bg-[#060B1E] border border-slate-400/15">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-white text-[11px]">
+                                {r.userName}
+                                {r.featured && (
+                                  <span className="ml-2 px-1.5 py-0.5 text-[8px] rounded bg-yellow-400 text-slate-950 font-bold uppercase">
+                                    Featured
+                                  </span>
+                                )}
+                              </span>
+                              <div className="flex text-amber-400 items-center gap-0.5">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={`w-2.5 h-2.5 ${i < r.rating ? 'fill-current' : ''}`} />
+                                ))}
+                              </div>
+                            </div>
+                            {r.title && <div className="text-[11px] font-semibold text-slate-200 mb-0.5">{r.title}</div>}
+                            <p className="text-slate-300 text-[11px]">"{r.body}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Write review */}
+                    {reviewFormOpen ? (
+                      <div className="p-3 rounded-xl bg-[#060B1E] border border-yellow-400/25 space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <button key={n} onClick={() => setReviewRating(n)} title={`${n} star${n > 1 ? 's' : ''}`}>
+                              <Star className={`w-4 h-4 ${n <= reviewRating ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          value={reviewTitle}
+                          onChange={(e) => setReviewTitle(e.target.value.slice(0, 120))}
+                          placeholder="Title (optional)"
+                          className="w-full px-3 py-2 rounded-lg bg-[#040711] border border-slate-400/20 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-yellow-400/50"
+                        />
+                        <textarea
+                          value={reviewBody}
+                          onChange={(e) => setReviewBody(e.target.value.slice(0, 2000))}
+                          placeholder="Share your experience (min 10 characters)…"
+                          rows={3}
+                          className="w-full px-3 py-2 rounded-lg bg-[#040711] border border-slate-400/20 text-[11px] text-white placeholder:text-slate-500 focus:outline-none focus:border-yellow-400/50 resize-none"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={submitReview}
+                            disabled={reviewSubmitting}
+                            className="px-4 py-2 rounded-lg bg-[#FFC107] text-[#0b1020] text-[11px] font-bold disabled:opacity-50 hover:bg-[#ffd54d] transition"
+                          >
+                            {reviewSubmitting ? 'Submitting…' : 'Submit Review'}
+                          </button>
+                          <button
+                            onClick={() => setReviewFormOpen(false)}
+                            className="px-3 py-2 rounded-lg border border-slate-400/20 text-[11px] text-slate-300 hover:text-white transition"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setReviewFormOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-400/20 text-[11px] text-slate-300 hover:text-yellow-300 hover:border-yellow-400/40 transition"
+                      >
+                        <MessageSquarePlus className="w-3.5 h-3.5" /> Write a review
+                      </button>
+                    )}
+                    {reviewMessage && (
+                      <p className={`text-[11px] ${reviewMessage.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {reviewMessage.text}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -382,7 +666,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <button
                 id="modal-instant-buy-btn"
                 onClick={() => {
-                  onInstantBuy(product, selectedVariant)
+                  onInstantBuy(product, effectiveVariant)
                   onClose()
                 }}
                 className="flex-1 py-3 px-4 rounded-xl btn-gold-gradient text-slate-950 font-bold text-xs sm:text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-1.5"

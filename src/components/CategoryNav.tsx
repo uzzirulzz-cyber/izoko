@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Gift,
   PlaySquare,
@@ -7,8 +7,15 @@ import {
   CreditCard,
   Projector,
   ArrowRight,
+  Share2,
+  Server,
+  TrendingUp,
+  Hexagon,
+  Briefcase,
 } from 'lucide-react'
 import { CATEGORIES_DATA } from '../data/products'
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 interface CategoryNavProps {
   selectedCategory: string
@@ -75,6 +82,52 @@ const CATEGORY_ACCENTS: Record<
     text: 'text-cyan-300',
     chipBg: 'bg-cyan-500/15 text-cyan-300 border-cyan-400/30',
   },
+  // ---- Section 3: new target categories (DB registry keys) ----
+  Services: {
+    icon: Briefcase,
+    from: 'from-sky-500/20',
+    to: 'to-sky-500/5',
+    ring: 'border-sky-400/60',
+    glow: 'bg-sky-500/40',
+    text: 'text-sky-300',
+    chipBg: 'bg-sky-500/15 text-sky-300 border-sky-400/30',
+  },
+  'Social Media': {
+    icon: Share2,
+    from: 'from-pink-500/20',
+    to: 'to-pink-500/5',
+    ring: 'border-pink-400/60',
+    glow: 'bg-pink-500/40',
+    text: 'text-pink-300',
+    chipBg: 'bg-pink-500/15 text-pink-300 border-pink-400/30',
+  },
+  'Web Hosting': {
+    icon: Server,
+    from: 'from-teal-500/20',
+    to: 'to-teal-500/5',
+    ring: 'border-teal-400/60',
+    glow: 'bg-teal-500/40',
+    text: 'text-teal-300',
+    chipBg: 'bg-teal-500/15 text-teal-300 border-teal-400/30',
+  },
+  'Digital Marketing': {
+    icon: TrendingUp,
+    from: 'from-orange-500/20',
+    to: 'to-orange-500/5',
+    ring: 'border-orange-400/60',
+    glow: 'bg-orange-500/40',
+    text: 'text-orange-300',
+    chipBg: 'bg-orange-500/15 text-orange-300 border-orange-400/30',
+  },
+  Web3: {
+    icon: Hexagon,
+    from: 'from-violet-500/20',
+    to: 'to-violet-500/5',
+    ring: 'border-violet-400/60',
+    glow: 'bg-violet-500/40',
+    text: 'text-violet-300',
+    chipBg: 'bg-violet-500/15 text-violet-300 border-violet-400/30',
+  },
 }
 
 interface CategoryNavProps2 {
@@ -82,15 +135,32 @@ interface CategoryNavProps2 {
 }
 
 // Category name → canonical category-page route (real, indexable URLs like
-// /streaming, /giftcards). Each card is a real link to its category page.
+// /streaming, /gift-cards). Each card is a real link to its category page.
 const ROUTE_BY_NAME: Record<string, string> = {
   Streaming: 'streaming',
   Subscriptions: 'subscriptions',
-  'Gift Cards': 'giftcards',
+  'Gift Cards': 'gift-cards',
   Gaming: 'gaming',
   Software: 'software',
   'Smart Projectors': 'smart-projectors',
+  Services: 'services',
+  'Social Media': 'social-media',
+  'Web Hosting': 'web-hosting',
+  'Digital Marketing': 'digital-marketing',
+  Web3: 'web3',
 }
+
+// Static fallback mirrors CATEGORIES_DATA + the registry's new categories
+// (the API at /api/categories remains the source of truth — counts, copy and
+// ordering come from MongoDB; this list only bootstraps the first paint).
+const FALLBACK_CATEGORIES = [
+  ...CATEGORIES_DATA.filter((c) => c.slug !== 'all'),
+  { name: 'Services', slug: 'services' },
+  { name: 'Social Media', slug: 'social-media' },
+  { name: 'Web Hosting', slug: 'web-hosting' },
+  { name: 'Digital Marketing', slug: 'digital-marketing' },
+  { name: 'Web3', slug: 'web3' },
+] as Array<{ name: string; slug: string }>
 
 export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
   selectedCategory,
@@ -98,10 +168,37 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
   onViewAll,
   products = [],
 }) => {
-  const displayCategories = CATEGORIES_DATA.filter((c) => c.slug !== 'all')
+  // DB-driven categories (Section 3): the registry at /api/categories defines
+  // the 8 target categories + the established storefront ones. Static data is
+  // only the fallback when the API is unreachable.
+  const [registry, setRegistry] = useState<Array<{ name: string; slug: string; count?: number }>>(
+    FALLBACK_CATEGORIES
+  )
+  useEffect(() => {
+    let alive = true
+    fetch(`${API_BASE}/api/categories`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive || !d?.success || !Array.isArray(d.categories)) return
+        const cats = d.categories
+          .filter((c: any) => c.slug !== 'all')
+          .map((c: any) => ({ name: c.label || c.name, slug: c.slug, count: c.count }))
+        if (cats.length) setRegistry(cats)
+      })
+      .catch(() => {
+        /* keep fallback */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
 
-  // Products store the category NAME (e.g. "Gift Cards") — filter/count by name
-  const countFor = (name: string) => products.filter((p) => p.category === name).length
+  const displayCategories = registry
+
+  // Products store the category NAME (e.g. "Gift Cards") — filter/count by
+  // name; registry-provided counts (DB-accurate) win when present.
+  const countFor = (name: string, regCount?: number) =>
+    regCount != null ? regCount : products.filter((p) => p.category === name).length
 
   return (
     <section className="w-full py-10 bg-gradient-to-b from-[#050814] via-[#060B1E] to-[#050814] relative overflow-hidden">
@@ -133,14 +230,22 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
           </button>
         </div>
 
-        {/* 6 Category Cards — premium color-coded tiles */}
+        {/* Category Cards — premium color-coded tiles (DB registry driven) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {displayCategories.map((cat) => {
-            const acc = CATEGORY_ACCENTS[cat.name] || CATEGORY_ACCENTS['Streaming']
+            const acc = CATEGORY_ACCENTS[cat.name] || {
+              icon: Layers,
+              from: 'from-slate-500/20',
+              to: 'to-slate-500/5',
+              ring: 'border-slate-400/60',
+              glow: 'bg-slate-500/40',
+              text: 'text-slate-300',
+              chipBg: 'bg-slate-500/15 text-slate-300 border-slate-400/30',
+            }
             const Icon = acc.icon
             const isSelected = selectedCategory === cat.name
-            const count = countFor(cat.name)
-            const catHref = `/${ROUTE_BY_NAME[cat.name] || ''}`
+            const count = countFor(cat.name, (cat as any).count)
+            const catHref = `/${ROUTE_BY_NAME[cat.name] || cat.slug || ''}`
 
             return (
               <div key={cat.slug} className="relative group">

@@ -1,8 +1,14 @@
 // /api/cms/* — Website Builder CMS settings (public GET, admin POST)
 // Routes:
-//   GET  /api/cms          (public site settings — announcement, hero, contact, social)
-//   GET  /api/cms/settings (alias)
-//   POST /api/cms          (admin only — update site settings)
+//   GET  /api/cms              (public site settings — announcement, hero, contact, social)
+//   GET  /api/cms/settings     (alias)
+//   GET  /api/cms/homepage     (public homepage-builder sections: hero/banners/featured/FAQ/testimonials)
+//   POST /api/cms              (admin only — update site settings)
+//
+// Homepage sections live in the `homepage_sections` collection:
+//   { type: "hero"|"banner"|"featured"|"faq"|"testimonial", enabled, order,
+//     title, subtitle, body, image, link, linkLabel, items: [...], updatedAt }
+// Admin CRUD: /api/admin/cms/homepage (see api/admin).
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "../_lib/mongo.js";
 import { handleOptions, jsonOk, jsonError, requireAdmin, AuthenticatedRequest } from "../_lib/auth.js";
@@ -43,6 +49,53 @@ export const CMS_DEFAULTS = {
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
+
+  const seg = new URL(req.url || "", "http://localhost").pathname
+    .split("/")
+    .filter(Boolean)
+    .slice(2);
+
+  // ---- GET /api/cms/homepage — public homepage-builder content ----
+  if (seg[0] === "homepage" && req.method === "GET") {
+    try {
+      const db = await getDb();
+      const docs = await db
+        .collection("homepage_sections")
+        .find({ enabled: { $ne: false } })
+        .sort({ order: 1 })
+        .limit(60)
+        .toArray();
+      const ALLOWED_TYPES = new Set(["hero", "banner", "featured", "faq", "testimonial"]);
+      const sections = docs
+        .filter((d: any) => ALLOWED_TYPES.has(String(d.type)))
+        .map((d: any) => ({
+          id: String(d._id),
+          type: d.type,
+          order: Number(d.order || 0),
+          title: d.title || "",
+          subtitle: d.subtitle || "",
+          body: d.body || "",
+          image: d.image || null,
+          link: d.link || null,
+          linkLabel: d.linkLabel || null,
+          badge: d.badge || null,
+          items: Array.isArray(d.items)
+            ? d.items.map((i: any) => ({
+                title: String(i?.title || "").slice(0, 200),
+                body: String(i?.body || "").slice(0, 1000),
+                author: i?.author ? String(i.author).slice(0, 80) : undefined,
+                rating: Number(i?.rating) || undefined,
+                image: i?.image || undefined,
+                link: i?.link || undefined,
+              }))
+            : [],
+        }));
+      return jsonOk(res, { success: true, sections });
+    } catch (err: any) {
+      // Fail-safe: homepage still renders without DB sections
+      return jsonOk(res, { success: true, sections: [] });
+    }
+  }
 
   // POST — admin only, update site settings
   if (req.method === "POST") {

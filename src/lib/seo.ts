@@ -252,6 +252,48 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
       'Adobe Creative Cloud, CapCut Pro, Freepik, Canva Pro and other creative software subscriptions with instant activation.',
     path: '/creative-software',
   },
+  'gift-cards': {
+    title: 'Gift Cards — Xbox, PlayStation, Steam, Razer Gold, Apple',
+    description:
+      'Instant official gift card codes: Xbox, PlayStation Network, Steam Wallet, Razer Gold, Apple, Google Play and more — delivered to your inbox in minutes.',
+    path: '/gift-cards',
+  },
+  services: {
+    title: 'Digital Services — AI Subscriptions, IPTV & Managed Plans',
+    description:
+      'PlayBeat Digital services: AI subscriptions, IPTV plans, productivity suites and managed digital services with 24/7 human support.',
+    path: '/services',
+  },
+  'social-media': {
+    title: 'Social Media — Growth Services & Account Top-Ups',
+    description:
+      'Social media growth services, page boosts and account top-ups from PlayBeat Digital — expand your reach with verified providers.',
+    path: '/social-media',
+  },
+  'web-hosting': {
+    title: 'Web Hosting — Domains, VPS & SSL',
+    description:
+      'Web hosting, domains, VPS servers and SSL certificates — launch and run your website with PlayBeat Digital infrastructure partners.',
+    path: '/web-hosting',
+  },
+  'digital-marketing': {
+    title: 'Digital Marketing — SEO Tools & Growth Suites',
+    description:
+      'SEO toolkits, marketing suites and growth services for your business — rank higher, sell more, with PlayBeat Digital.',
+    path: '/digital-marketing',
+  },
+  web3: {
+    title: 'Web3 — Crypto Top-Ups, Wallets & Digital Assets',
+    description:
+      'Web3 services, crypto top-ups and digital-asset tooling — the next generation of internet services at PlayBeat Digital.',
+    path: '/web3',
+  },
+  invoice: {
+    title: 'Invoice — PlayBeat Digital',
+    description: '',
+    path: '/invoice',
+    noindex: true,
+  },
   compare: {
     title: 'Projector Comparison — Hardware Specification Matrix',
     description:

@@ -18,6 +18,7 @@ import {
   AlertCircle,
   RefreshCw,
   Truck,
+  Bell,
 } from 'lucide-react'
 import { CurrencyCode, Product } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -27,7 +28,7 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 interface AccountDrawerProps {
   isOpen: boolean
   onClose: () => void
-  activeTab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
+  activeTab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings' | 'notifications'
   onSelectTab: (tab: any) => void
   user: { name: string; email: string }
   currency: CurrencyCode
@@ -474,6 +475,104 @@ const MessagesTab: React.FC<{ user: { name: string; email: string } }> = ({ user
   )
 }
 
+/**
+ * Notifications tab — in-app delivery alerts (Section 4.4 email fallback).
+ * Every verified payment writes a notification server-side; when no email
+ * provider is configured this is the honest delivery channel (we never fake
+ * an email). Marked read automatically on open.
+ */
+const NotificationsTab: React.FC<{ user: { name: string; email: string } | null }> = ({ user }) => {
+  const [items, setItems] = useState<any[] | null>(null)
+  const [error, setError] = useState(false)
+
+  const load = useCallback(() => {
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) {
+      setError(true)
+      setItems([])
+      return
+    }
+    fetch(`${API_BASE}/api/orders/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d) => {
+        setItems(d?.notifications || [])
+        // Mark unread as read (fire-and-forget)
+        if ((d?.unread || 0) > 0) {
+          fetch(`${API_BASE}/api/orders/notifications/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            credentials: 'include',
+            body: JSON.stringify({ all: true }),
+          }).catch(() => undefined)
+        }
+      })
+      .catch(() => {
+        setError(true)
+        setItems([])
+      })
+  }, [])
+
+  useEffect(() => {
+    if (user) load()
+  }, [user, load])
+
+  if (!items && !error) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-slate-400 py-6 justify-center">
+        <RefreshCw className="w-4 h-4 animate-spin" /> Loading alerts…
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+          Payment & Delivery Alerts
+        </h4>
+        <button
+          onClick={load}
+          className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition"
+          title="Refresh"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      {items && items.length === 0 && (
+        <div className="p-4 rounded-2xl bg-[#070D22] border border-slate-400/15 text-xs text-slate-400">
+          No alerts yet — after a payment is verified, the confirmation lands here instantly.
+        </div>
+      )}
+      {items &&
+        items.map((n) => (
+          <div
+            key={n.id}
+            className={`p-4 rounded-2xl border space-y-1.5 ${
+              n.read ? 'bg-[#070D22] border-slate-400/15' : 'bg-[#0A122E] border-yellow-400/30'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-xs text-white flex items-center gap-2">
+                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" />}
+                {n.title}
+              </span>
+              {n.orderNumber && (
+                <span className="text-[9px] font-mono text-slate-400">{n.orderNumber}</span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">{n.body}</p>
+            <div className="text-[10px] text-slate-500 font-mono">
+              {new Date(n.createdAt).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}
+            </div>
+          </div>
+        ))}
+    </div>
+  )
+}
+
 export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   isOpen,
   onClose,
@@ -562,6 +661,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
             { id: 'library', label: 'Digital Library', icon: FolderLock },
             { id: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
             { id: 'orders', label: 'Orders', icon: ShoppingBag },
+            { id: 'notifications', label: 'Alerts', icon: Bell },
             { id: 'messages', label: 'Messages', icon: MessageSquare },
             { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => {
@@ -673,6 +773,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
           )}
 
           {activeTab === 'messages' && <MessagesTab user={user} />}
+          {activeTab === 'notifications' && <NotificationsTab user={user} />}
 
           {(activeTab === 'profile' || activeTab === 'settings') && (
             <div className="space-y-4">

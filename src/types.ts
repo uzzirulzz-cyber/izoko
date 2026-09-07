@@ -9,6 +9,32 @@ export interface ProductVariant {
   badge?: string
 }
 
+// Reusable subscription-plan sub-document (Section 4.3) — generalizes the
+// ai-subscriptions duration model (1/3/6/12 months) for ANY product.
+export interface ProductPlan {
+  id: string
+  label: string // "1 Month", "Annual" …
+  months?: number // normalized duration when applicable
+  price: number
+  originalPrice?: number
+  sku?: string
+  badge?: string
+}
+
+// Customer review (verified purchasers only — server-enforced)
+export interface ProductReview {
+  id: string
+  productId: string
+  userName: string
+  rating: number
+  title?: string
+  body: string
+  status?: 'pending' | 'approved' | 'hidden'
+  featured?: boolean
+  verifiedPurchase?: boolean
+  createdAt?: string | Date
+}
+
 export interface ProjectorSpec {
   nativeResolution: string
   brightnessAnsi: number | string
@@ -62,6 +88,11 @@ export interface Product {
   tags: string[]
   digital: boolean
   stock: number
+  stockMode?: 'finite' | 'unlimited'
+  lowStockThreshold?: number
+  downloadUrl?: string
+  activationNotes?: string
+  plans?: ProductPlan[]
   status?: 'in_stock' | 'out_of_stock' | 'preorder'
   rating: number
   reviewCount: number

@@ -57,8 +57,18 @@ import {
   isItScoped,
   normalizeAuthority,
   hasAuthority,
+  requirePermission,
+  hasPermission,
+  effectivePermissions,
+  DEFAULT_PERMISSIONS,
+  MODULE_PERMISSIONS,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
+import { writeAudit } from "../_lib/audit.js";
+import {
+  couponAdminView,
+  parseCouponPayload,
+} from "../_lib/coupons.js";
 import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME, PUBLIC_SITE_URL } from "../_lib/config.js";
 import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { getRapidConfig, saveRapidConfig, describeGatewayStatus } from "../_lib/gatewayConfig.js";
@@ -776,7 +786,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, `Staff ID ${finalStaffId} is already assigned.`, 409);
       }
       const hashed = await hashPassword(String(password));
-      // Power Authority: admin | manager | supervisor (hierarchical control)
+      // Power Authority: admin | manager | supervisor | finance (hierarchical control)
       const finalAuthority = normalizeAuthority(authority);
       const newStaff = {
         name: String(name).trim(),
@@ -786,15 +796,24 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         staffId: finalStaffId,
         department: department ? String(department).trim() : "Operations",
         authority: finalAuthority,
-        permissions: Array.isArray(permissions)
-          ? permissions
-          : ["orders", "products", "customers", "support"],
+        permissions:
+          Array.isArray(permissions) && permissions.length
+            ? permissions.map(String).filter((p: string) => (MODULE_PERMISSIONS as readonly string[]).includes(p))
+            : [...(DEFAULT_PERMISSIONS[finalAuthority] || DEFAULT_PERMISSIONS.supervisor)],
         provider: "local",
         active: true,
         createdBy: "super_admin",
         createdAt: new Date(),
       };
       const result = await usersCol.insertOne(newStaff);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "staff.create",
+        targetType: "staff",
+        targetId: cleanEmail,
+        detail: `Employee account created (${finalAuthority})`,
+        meta: { staffId: finalStaffId, authority: finalAuthority, permissions: newStaff.permissions },
+      });
       return jsonOk(res, {
         success: true,
         message: `Employee account created. Staff ID: ${finalStaffId}`,
@@ -1206,6 +1225,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       };
 
       const insertResult = await col.insertOne(newProductDoc);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "product.create",
+        targetType: "product",
+        targetId: finalSlug,
+        detail: `Product "${newProductDoc.name}" created (PKR ${newProductDoc.price})`,
+      });
       return jsonOk(res, {
         success: true,
         message: "Product created successfully in MongoDB",
@@ -1285,6 +1311,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         body.updatedAt = new Date();
         const updateResult = await col.findOneAndUpdate(filter, { $set: body }, { returnDocument: "after" });
         if (!updateResult) return jsonError(res, "Product not found to update.", 404);
+        await writeAudit(db, {
+          actor: verifyAdmin(req),
+          action: "product.update",
+          targetType: "product",
+          targetId: id,
+          detail: `Product updated (${Object.keys(body || {}).slice(0, 8).join(", ")})`,
+        });
         return jsonOk(res, {
           success: true,
           message: "Product updated successfully",
@@ -1295,13 +1328,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, err.message, 500);
       }
     }
-
     if (req.method === "DELETE") {
       try {
         const deleteResult = await col.deleteOne(filter);
         if (deleteResult.deletedCount === 0) {
           return jsonError(res, "Product not found to delete.", 404);
         }
+        await writeAudit(db, {
+          actor: verifyAdmin(req),
+          action: "product.delete",
+          targetType: "product",
+          targetId: id,
+          detail: "Product permanently removed from catalog",
+        });
         return jsonOk(res, {
           success: true,
           message: "Product permanently removed from MongoDB catalog.",
@@ -3165,6 +3204,556 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return jsonError(res, "Unknown resolve action.", 400);
     } catch (err: any) {
       return jsonError(res, err.message || "Resolve failed.", 500);
+    }
+  }
+
+  // ===========================================================================
+  // COUPONS — admin CRUD (permission: coupons)
+  // ===========================================================================
+  if (route === "coupons" && req.method === "GET") {
+    if (!requirePermission(req, res, "coupons")) return;
+    try {
+      const docs = await db.collection("coupons").find({}).sort({ createdAt: -1 }).limit(200).toArray();
+      return jsonOk(res, { success: true, coupons: docs.map(couponAdminView) });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "coupons" && req.method === "POST") {
+    if (!requirePermission(req, res, "coupons")) return;
+    try {
+      const parsed = parseCouponPayload(req.body || {});
+      if (!parsed.ok) return jsonError(res, parsed.error, 400);
+      const col = db.collection("coupons");
+      const now = new Date();
+      const existing = await col.findOne({ code: parsed.value.code });
+      if (existing) {
+        // Update path — usedCount is preserved (never reset by an edit)
+        await col.updateOne(
+          { code: parsed.value.code },
+          { $set: { ...parsed.value, updatedAt: now } }
+        );
+        await writeAudit(db, {
+          actor: verifyAdmin(req),
+          action: "coupon.update",
+          targetType: "coupon",
+          targetId: parsed.value.code!,
+          detail: `Coupon ${parsed.value.code} updated (${parsed.value.type} ${parsed.value.value})`,
+        });
+        const fresh = await col.findOne({ code: parsed.value.code });
+        return jsonOk(res, { success: true, message: `Coupon ${parsed.value.code} updated.`, coupon: couponAdminView(fresh) });
+      }
+      await col.insertOne({ ...parsed.value, usedCount: 0, createdAt: now } as any);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "coupon.create",
+        targetType: "coupon",
+        targetId: parsed.value.code!,
+        detail: `Coupon ${parsed.value.code} created (${parsed.value.type} ${parsed.value.value})`,
+      });
+      return jsonOk(res, { success: true, message: `Coupon ${parsed.value.code} created.` }, 201);
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "coupons/delete" && req.method === "POST") {
+    if (!requirePermission(req, res, "coupons")) return;
+    try {
+      const code = String(req.body?.code || "").trim().toUpperCase().slice(0, 40);
+      if (!code) return jsonError(res, "code is required.", 400);
+      const r = await db.collection("coupons").deleteOne({ code });
+      if (!r.deletedCount) return jsonError(res, "Coupon not found.", 404);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "coupon.delete",
+        targetType: "coupon",
+        targetId: code,
+        detail: `Coupon ${code} deleted`,
+      });
+      return jsonOk(res, { success: true, message: `Coupon ${code} deleted.` });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // INVENTORY — stock list + adjustments (permission: inventory)
+  // ===========================================================================
+  if (route === "inventory" && req.method === "GET") {
+    if (!requirePermission(req, res, "inventory")) return;
+    try {
+      const col = db.collection("products");
+      const docs = await col
+        .find({ active: { $ne: false } })
+        .project({ name: 1, slug: 1, sku: 1, category: 1, stock: 1, stockMode: 1, lowStockThreshold: 1, digital: 1, productType: 1, image: 1 })
+        .sort({ name: 1 })
+        .limit(500)
+        .toArray();
+      const items = docs.map((d: any) => {
+        const mode = d.stockMode === "unlimited" ? "unlimited" : d.stockMode === "finite" ? "finite" : (d.productType === "physical" || d.digital === false) ? "finite" : "unlimited";
+        const threshold = typeof d.lowStockThreshold === "number" ? d.lowStockThreshold : 5;
+        const stock = typeof d.stock === "number" ? d.stock : Number(d.stock) || 0;
+        return {
+          id: String(d._id),
+          name: d.name,
+          slug: d.slug,
+          sku: d.sku,
+          category: d.category,
+          image: d.image || null,
+          stockMode: mode,
+          stock: mode === "unlimited" ? null : stock,
+          lowStockThreshold: threshold,
+          lowStock: mode === "finite" && stock <= threshold,
+          outOfStock: mode === "finite" && stock <= 0,
+        };
+      });
+      const movements = await db.collection("stock_movements").find({}).sort({ at: -1 }).limit(50).toArray();
+      return jsonOk(res, {
+        success: true,
+        items,
+        summary: {
+          finite: items.filter((i) => i.stockMode === "finite").length,
+          unlimited: items.filter((i) => i.stockMode === "unlimited").length,
+          lowStock: items.filter((i) => i.lowStock).length,
+          outOfStock: items.filter((i) => i.outOfStock).length,
+        },
+        movements: movements.map((m: any) => ({
+          id: String(m._id), productId: m.productId, productName: m.productName,
+          delta: m.delta, reason: m.reason, actor: m.actor, at: m.at,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "inventory/adjust" && req.method === "POST") {
+    if (!requirePermission(req, res, "inventory")) return;
+    try {
+      const { productId, mode = "add", amount, reason } = req.body || {};
+      const amt = Number(amount);
+      if (!productId || !Number.isFinite(amt)) return jsonError(res, "productId and numeric amount are required.", 400);
+      const col = db.collection("products");
+      const filter: any = ObjectId.isValid(String(productId))
+        ? { _id: new ObjectId(String(productId)) }
+        : { $or: [{ id: String(productId) }, { sku: String(productId) }, { slug: String(productId) }] };
+      const doc = await col.findOne(filter);
+      if (!doc) return jsonError(res, "Product not found.", 404);
+      // Same mode resolution as GET /api/admin/inventory — legacy docs without
+      // an explicit stockMode default by product type (digital → unlimited).
+      const stockMode =
+        doc.stockMode === "unlimited"
+          ? "unlimited"
+          : doc.stockMode === "finite"
+            ? "finite"
+            : doc.productType === "physical" || doc.digital === false
+              ? "finite"
+              : "unlimited";
+      if (stockMode === "unlimited") {
+        return jsonError(res, "This product is on Unlimited stock mode (digital) — switch it to finite before tracking stock.", 409);
+      }
+      const delta = mode === "set" ? amt - (Number(doc.stock) || 0) : amt;
+      if (Number(doc.stock) + delta < 0) return jsonError(res, "Adjustment would drive stock below zero.", 409);
+      const updated = await col.findOneAndUpdate(
+        filter,
+        { $set: { stock: Number(doc.stock) + delta, updatedAt: new Date() } },
+        { returnDocument: "after" }
+      );
+      const actor = verifyAdmin(req);
+      await db.collection("stock_movements").insertOne({
+        productId: String(doc._id),
+        productName: doc.name,
+        delta,
+        resultingStock: Number(updated?.stock ?? 0),
+        reason: String(reason || "manual adjustment").slice(0, 200),
+        actor: actor?.email || "admin",
+        at: new Date(),
+      });
+      await writeAudit(db, {
+        actor,
+        action: "inventory.adjust",
+        targetType: "product",
+        targetId: String(doc._id),
+        detail: `Stock ${delta >= 0 ? "+" : ""}${delta} → ${updated?.stock} (${reason || "manual"})`,
+      });
+      return jsonOk(res, { success: true, stock: updated?.stock, delta });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // REVIEWS — moderation (permission: reviews)
+  // ===========================================================================
+  if (route === "reviews" && req.method === "GET") {
+    if (!requirePermission(req, res, "reviews")) return;
+    try {
+      const urlQ = new URL(req.url || "", "http://localhost").searchParams;
+      const status = urlQ.get("status");
+      const filter: any = {};
+      if (status && ["pending", "approved", "hidden"].includes(status)) filter.status = status;
+      const docs = await db.collection("reviews").find(filter).sort({ createdAt: -1 }).limit(200).toArray();
+      return jsonOk(res, {
+        success: true,
+        reviews: docs.map((r: any) => ({
+          id: String(r._id),
+          productId: r.productId,
+          productSlug: r.productSlug || "",
+          userName: r.userName,
+          userEmail: r.userEmail || null,
+          orderNumber: r.orderNumber,
+          rating: r.rating,
+          title: r.title || "",
+          body: r.body,
+          status: r.status,
+          featured: Boolean(r.featured),
+          createdAt: r.createdAt,
+        })),
+        counts: {
+          pending: docs.filter((r: any) => r.status === "pending").length,
+          approved: docs.filter((r: any) => r.status === "approved").length,
+          hidden: docs.filter((r: any) => r.status === "hidden").length,
+          featured: docs.filter((r: any) => r.featured).length,
+        },
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "reviews/update" && req.method === "POST") {
+    if (!requirePermission(req, res, "reviews")) return;
+    try {
+      const { id, action } = req.body || {};
+      if (!id || !ObjectId.isValid(String(id))) return jsonError(res, "Valid review id is required.", 400);
+      const allowed = new Set(["approve", "hide", "feature", "unfeature", "delete"]);
+      if (!allowed.has(String(action))) return jsonError(res, `action must be one of: ${[...allowed].join(", ")}`, 400);
+      const col = db.collection("reviews");
+      const review = await col.findOne({ _id: new ObjectId(String(id)) });
+      if (!review) return jsonError(res, "Review not found.", 404);
+      const actor = verifyAdmin(req);
+
+      if (action === "delete") {
+        await col.deleteOne({ _id: review._id });
+      } else {
+        const patch: any = { moderatedAt: new Date(), moderatedBy: actor?.email || "admin" };
+        if (action === "approve") patch.status = "approved";
+        if (action === "hide") patch.status = "hidden";
+        if (action === "feature") { patch.featured = true; patch.status = "approved"; }
+        if (action === "unfeature") patch.featured = false;
+        await col.updateOne({ _id: review._id }, { $set: patch });
+      }
+
+      // Recompute the product's public rating aggregates from APPROVED reviews
+      const approved = await col
+        .find({ productId: review.productId, status: "approved" })
+        .toArray();
+      const count = approved.length;
+      const avg = count ? approved.reduce((s: number, r: any) => s + Number(r.rating || 0), 0) / count : 0;
+      try {
+        await db.collection("products").updateOne(
+          { _id: new ObjectId(String(review.productId)) },
+          { $set: { rating: Number(avg.toFixed(2)), reviewCount: count } }
+        );
+      } catch { /* product may have been removed — aggregates are best-effort */ }
+
+      await writeAudit(db, {
+        actor,
+        action: `review.${action}`,
+        targetType: "review",
+        targetId: String(id),
+        detail: `Review by ${review.userName} on product ${review.productSlug || review.productId} → ${action}`,
+      });
+      return jsonOk(res, { success: true, message: `Review ${action}d.`, summary: { avg: Number(avg.toFixed(2)), count } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // CMS HOMEPAGE BUILDER — sections CRUD (permission: cms)
+  // ===========================================================================
+  const SECTION_TYPES = new Set(["hero", "banner", "featured", "faq", "testimonial"]);
+
+  if (route === "cms/homepage" && req.method === "GET") {
+    if (!requirePermission(req, res, "cms")) return;
+    try {
+      const docs = await db.collection("homepage_sections").find({}).sort({ order: 1 }).limit(100).toArray();
+      return jsonOk(res, {
+        success: true,
+        sections: docs.map((d: any) => ({ ...d, id: String(d._id) })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "cms/homepage" && req.method === "POST") {
+    if (!requirePermission(req, res, "cms")) return;
+    try {
+      const body = req.body || {};
+      if (!SECTION_TYPES.has(String(body.type))) {
+        return jsonError(res, `type must be one of: ${[...SECTION_TYPES].join(", ")}`, 400);
+      }
+      const col = db.collection("homepage_sections");
+      const maxOrder = await col.find({}).sort({ order: -1 }).limit(1).next();
+      const doc = {
+        type: String(body.type),
+        enabled: body.enabled !== false,
+        order: Number.isFinite(Number(body.order)) ? Number(body.order) : Number(maxOrder?.order ?? 0) + 1,
+        title: String(body.title || "").slice(0, 200),
+        subtitle: String(body.subtitle || "").slice(0, 400),
+        body: String(body.body || "").slice(0, 2000),
+        image: body.image ? String(body.image).slice(0, 500) : null,
+        link: body.link ? String(body.link).slice(0, 500) : null,
+        linkLabel: body.linkLabel ? String(body.linkLabel).slice(0, 100) : null,
+        badge: body.badge ? String(body.badge).slice(0, 60) : null,
+        items: Array.isArray(body.items)
+          ? body.items.slice(0, 30).map((i: any) => ({
+              title: String(i?.title || "").slice(0, 200),
+              body: String(i?.body || "").slice(0, 1000),
+              author: i?.author ? String(i.author).slice(0, 80) : undefined,
+              rating: Number(i?.rating) || undefined,
+              image: i?.image ? String(i.image).slice(0, 500) : undefined,
+              link: i?.link ? String(i.link).slice(0, 500) : undefined,
+            }))
+          : [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const ins = await col.insertOne(doc);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "cms.section.create",
+        targetType: "homepage_section",
+        targetId: String(ins.insertedId),
+        detail: `Homepage ${doc.type} section "${doc.title || "untitled"}" created`,
+      });
+      return jsonOk(res, { success: true, id: String(ins.insertedId), message: "Section created." }, 201);
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "cms/homepage/update" && req.method === "POST") {
+    if (!requirePermission(req, res, "cms")) return;
+    try {
+      const { id, ...patch } = req.body || {};
+      if (!id || !ObjectId.isValid(String(id))) return jsonError(res, "Valid section id is required.", 400);
+      const clean: any = { updatedAt: new Date() };
+      for (const k of ["title", "subtitle", "body", "linkLabel", "badge"]) {
+        if (patch[k] !== undefined) clean[k] = String(patch[k]).slice(0, 2000);
+      }
+      for (const k of ["image", "link"]) {
+        if (patch[k] !== undefined) clean[k] = patch[k] ? String(patch[k]).slice(0, 500) : null;
+      }
+      if (patch.type !== undefined) {
+        if (!SECTION_TYPES.has(String(patch.type))) return jsonError(res, "Invalid section type.", 400);
+        clean.type = String(patch.type);
+      }
+      if (patch.enabled !== undefined) clean.enabled = Boolean(patch.enabled);
+      if (patch.order !== undefined) clean.order = Number(patch.order) || 0;
+      if (Array.isArray(patch.items)) {
+        clean.items = patch.items.slice(0, 30).map((i: any) => ({
+          title: String(i?.title || "").slice(0, 200),
+          body: String(i?.body || "").slice(0, 1000),
+          author: i?.author ? String(i.author).slice(0, 80) : undefined,
+          rating: Number(i?.rating) || undefined,
+          image: i?.image ? String(i.image).slice(0, 500) : undefined,
+          link: i?.link ? String(i.link).slice(0, 500) : undefined,
+        }));
+      }
+      const r = await db.collection("homepage_sections").findOneAndUpdate(
+        { _id: new ObjectId(String(id)) },
+        { $set: clean },
+        { returnDocument: "after" }
+      );
+      if (!r) return jsonError(res, "Section not found.", 404);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "cms.section.update",
+        targetType: "homepage_section",
+        targetId: String(id),
+        detail: `Homepage section "${r.title || r.type}" updated`,
+      });
+      return jsonOk(res, { success: true, section: { ...r, id: String(r._id) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "cms/homepage/delete" && req.method === "POST") {
+    if (!requirePermission(req, res, "cms")) return;
+    try {
+      const id = String(req.body?.id || "");
+      if (!ObjectId.isValid(id)) return jsonError(res, "Valid section id is required.", 400);
+      const r = await db.collection("homepage_sections").deleteOne({ _id: new ObjectId(id) });
+      if (!r.deletedCount) return jsonError(res, "Section not found.", 404);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "cms.section.delete",
+        targetType: "homepage_section",
+        targetId: id,
+        detail: "Homepage section deleted",
+      });
+      return jsonOk(res, { success: true, message: "Section deleted." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "cms/homepage/reorder" && req.method === "POST") {
+    if (!requirePermission(req, res, "cms")) return;
+    try {
+      const ids: string[] = Array.isArray(req.body?.ids) ? req.body.ids.slice(0, 60) : [];
+      if (!ids.length) return jsonError(res, "ids array is required.", 400);
+      const col = db.collection("homepage_sections");
+      for (let i = 0; i < ids.length; i++) {
+        if (!ObjectId.isValid(String(ids[i]))) continue;
+        await col.updateOne({ _id: new ObjectId(String(ids[i])) }, { $set: { order: i + 1, updatedAt: new Date() } });
+      }
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "cms.section.reorder",
+        targetType: "homepage_section",
+        detail: `Homepage sections reordered (${ids.length})`,
+      });
+      return jsonOk(res, { success: true, message: "Sections reordered." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // AUDIT LOG — read feed (permission: audit)
+  // ===========================================================================
+  if (route === "audit-logs" && req.method === "GET") {
+    if (!requirePermission(req, res, "audit")) return;
+    try {
+      const urlQ = new URL(req.url || "", "http://localhost").searchParams;
+      const action = urlQ.get("action");
+      const limit = Math.min(200, Math.max(1, parseInt(urlQ.get("limit") || "100", 10) || 100));
+      const filter: any = {};
+      if (action) filter.action = { $regex: `^${String(action).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, $options: "i" };
+      const docs = await db.collection("audit_logs").find(filter).sort({ at: -1 }).limit(limit).toArray();
+      return jsonOk(res, {
+        success: true,
+        entries: docs.map((d: any) => ({
+          id: String(d._id),
+          actorEmail: d.actorEmail,
+          actorName: d.actorName,
+          actorRole: d.actorRole,
+          action: d.action,
+          targetType: d.targetType,
+          targetId: d.targetId,
+          detail: d.detail,
+          source: d.source,
+          at: d.at,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // ORDER STATUS — admin fulfillment transitions (permission: orders)
+  // Red lines: paymentStatus is NEVER settable here (only a verified gateway
+  // webhook may mark an order paid/refunded) and "completed" cannot be set
+  // manually (it would fake a paid order — orders/mine treats completed as
+  // paid for non-pending payment states).
+  // ===========================================================================
+  if (route === "orders/status" && req.method === "POST") {
+    if (!requirePermission(req, res, "orders")) return;
+    try {
+      const { orderNumber, status, note } = req.body || {};
+      const ADMIN_ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
+      if (!orderNumber) return jsonError(res, "orderNumber is required.", 400);
+      if (!ADMIN_ORDER_STATUSES.includes(String(status))) {
+        return jsonError(res, `status must be one of: ${ADMIN_ORDER_STATUSES.join(", ")} (payment states are gateway-owned)`, 400);
+      }
+      const ordersCol = db.collection("orders");
+      const order = await ordersCol.findOne({ orderNumber: String(orderNumber) });
+      if (!order) return jsonError(res, "Order not found.", 404);
+      if (["completed", "refunded", "payment_failed"].includes(String(order.status)) && String(status) === "pending") {
+        return jsonError(res, "Payment-terminal orders cannot be reset to pending.", 409);
+      }
+      if (String(order.status) === "completed") {
+        return jsonError(res, "Paid orders are fulfillment-terminal — use refunds via the gateway instead.", 409);
+      }
+      const actor = verifyAdmin(req);
+      await ordersCol.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            status: String(status),
+            statusUpdatedAt: new Date(),
+            statusUpdatedBy: actor?.email || "admin",
+            ...(note ? { statusNote: String(note).slice(0, 300) } : {}),
+          },
+        }
+      );
+      await writeAudit(db, {
+        actor,
+        action: "order.status_change",
+        targetType: "order",
+        targetId: String(orderNumber),
+        detail: `Order ${orderNumber}: ${order.status} → ${status}`,
+        meta: { note: String(note || "") },
+      });
+      return jsonOk(res, { success: true, message: `Order ${orderNumber} → ${status}.` });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // CATEGORY REGISTRY — read/update (permission: products)
+  // ===========================================================================
+  if (route === "categories" && req.method === "GET") {
+    if (!requirePermission(req, res, "products")) return;
+    try {
+      const docs = await db.collection("categories").find({}).sort({ order: 1 }).limit(50).toArray();
+      return jsonOk(res, { success: true, categories: docs.map((d: any) => ({ ...d, id: String(d._id) })) });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  if (route === "categories/update" && req.method === "POST") {
+    if (!requirePermission(req, res, "products")) return;
+    try {
+      const { key, ...patch } = req.body || {};
+      const cleanKey = String(key || "").toLowerCase().trim();
+      if (!cleanKey) return jsonError(res, "key is required.", 400);
+      const allowed: any = {};
+      for (const k of ["label", "description", "image", "accentColor", "glowColor", "badgeText"]) {
+        if (patch[k] !== undefined) allowed[k] = String(patch[k]).slice(0, 300);
+      }
+      if (patch.enabled !== undefined) allowed.enabled = Boolean(patch.enabled);
+      if (patch.order !== undefined) allowed.order = Number(patch.order) || 0;
+      if (Array.isArray(patch.aliases)) allowed.aliases = patch.aliases.slice(0, 12).map((a: any) => String(a).toLowerCase().trim()).filter(Boolean);
+      if (Array.isArray(patch.productCategories)) allowed.productCategories = patch.productCategories.slice(0, 12).map((c: any) => String(c).trim()).filter(Boolean);
+      if (patch.tagRegex !== undefined) allowed.tagRegex = patch.tagRegex ? String(patch.tagRegex).slice(0, 200) : null;
+      if (patch.subRoutes !== undefined) {
+        allowed.subRoutes = Array.isArray(patch.subRoutes)
+          ? patch.subRoutes.slice(0, 8).map((s: any) => ({ slug: String(s?.slug || "").toLowerCase(), label: String(s?.label || "").slice(0, 80) }))
+          : [];
+      }
+      const r = await db.collection("categories").findOneAndUpdate({ key: cleanKey }, { $set: { ...allowed, updatedAt: new Date() } }, { returnDocument: "after" });
+      if (!r) return jsonError(res, "Category key not found.", 404);
+      await writeAudit(db, {
+        actor: verifyAdmin(req),
+        action: "category.update",
+        targetType: "category",
+        targetId: cleanKey,
+        detail: `Category registry entry ${cleanKey} updated (${Object.keys(allowed).join(", ")})`,
+      });
+      return jsonOk(res, { success: true, category: { ...r, id: String(r._id) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
     }
   }
 

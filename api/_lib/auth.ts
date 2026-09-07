@@ -177,9 +177,17 @@ export function signUserToken(user: {
 }
 
 // Sign admin JWT
-export function signAdminToken(admin: { email: string; name: string }): string {
+export function signAdminToken(
+  admin: { email: string; name: string; authority?: string; permissions?: string[] }
+): string {
   return jwt.sign(
-    { email: admin.email, role: "admin", name: admin.name },
+    {
+      email: admin.email,
+      role: "admin",
+      name: admin.name,
+      authority: admin.authority || null,
+      permissions: Array.isArray(admin.permissions) ? admin.permissions : [],
+    },
     SESSION_SECRET,
     { expiresIn: "7d" }
   );
@@ -209,11 +217,12 @@ export function isAdminCredentials(email: string, password: string): boolean {
 // capability is the payment-gateway configuration panel, guarded separately
 // by requireGatewayTech() — see api/admin gateway-* routes.
 // ---------------------------------------------------------------------------
-export type Authority = "supervisor" | "manager" | "admin" | "it";
+export type Authority = "supervisor" | "finance" | "manager" | "admin" | "it";
 
 export const AUTHORITY_RANK: Record<string, number> = {
   it: 0,
   supervisor: 1,
+  finance: 1,
   manager: 2,
   admin: 3,
 };
@@ -222,6 +231,7 @@ export const AUTHORITY_LABELS: Record<string, string> = {
   admin: "Administrator",
   manager: "Manager",
   supervisor: "Supervisor",
+  finance: "Finance — Payments & Invoices",
   it: "IT — Payment Gateway",
   super_admin: "Super Administrator",
 };
@@ -248,8 +258,98 @@ export function isItScoped(admin: any): boolean {
 /** Normalize an incoming authority value. */
 export function normalizeAuthority(value: any): Authority {
   const v = String(value || "").toLowerCase();
-  if (v === "admin" || v === "manager" || v === "supervisor" || v === "it") return v as Authority;
+  if (
+    v === "admin" ||
+    v === "manager" ||
+    v === "supervisor" ||
+    v === "finance" ||
+    v === "it"
+  )
+    return v as Authority;
   return "supervisor";
+}
+
+// ---------------------------------------------------------------------------
+// MODULE PERMISSIONS — granular, per-account access control stacked on top of
+// the authority hierarchy. A staff account may carry an explicit `permissions`
+// array (stored on the users doc + embedded in the JWT); when the array is
+// empty the authority's default kit applies. Super administrators (role
+// "admin") always pass every permission check.
+// ---------------------------------------------------------------------------
+export const MODULE_PERMISSIONS = [
+  "products",
+  "inventory",
+  "orders",
+  "customers",
+  "support",
+  "coupons",
+  "cms",
+  "reviews",
+  "analytics",
+  "payments",
+  "invoices",
+  "refunds",
+  "staff",
+  "audit",
+] as const;
+
+export type ModulePermission = (typeof MODULE_PERMISSIONS)[number];
+
+/** Default permission kits per authority tier (RBAC mapping). */
+export const DEFAULT_PERMISSIONS: Record<string, string[]> = {
+  admin: [
+    "products", "inventory", "orders", "customers", "support",
+    "coupons", "cms", "reviews", "analytics", "audit",
+  ],
+  manager: ["products", "inventory", "orders", "coupons"],
+  supervisor: ["customers", "support", "reviews"],
+  finance: ["payments", "invoices", "refunds", "analytics", "audit"],
+  it: [], // gateway config only (requireGatewayTech — separate door)
+  super_admin: ["*"],
+};
+
+/** All permissions this admin token effectively holds (super admin → ["*"]). */
+export function effectivePermissions(admin: any): string[] {
+  if (!admin) return [];
+  if (admin.role === "admin") return ["*"];
+  const explicit = Array.isArray(admin.permissions) ? admin.permissions.filter(Boolean) : [];
+  if (explicit.length) return explicit.map(String);
+  return DEFAULT_PERMISSIONS[admin.authority] || DEFAULT_PERMISSIONS.supervisor;
+}
+
+/** Does this verified admin hold the given module permission? */
+export function hasPermission(admin: any, perm: string): boolean {
+  if (!admin) return false;
+  if (admin.role === "admin") return true; // super administrator — everything
+  const perms = effectivePermissions(admin);
+  if (perms.includes("*")) return true;
+  return perms.includes(String(perm));
+}
+
+/**
+ * Middleware-style guard for module-scoped admin endpoints. Authenticates the
+ * admin token first (401), then checks the module permission (403).
+ */
+export function requirePermission(
+  req: AuthenticatedRequest,
+  res: VercelResponse,
+  perm: string
+): any | null {
+  const admin = verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ success: false, error: "Admin authentication required" });
+    return null;
+  }
+  if (!hasPermission(admin, perm)) {
+    res.status(403).json({
+      success: false,
+      error: `The "${perm}" permission is required for this action and your account does not have it.`,
+      requiredPermission: perm,
+    });
+    return null;
+  }
+  req.user = admin;
+  return admin;
 }
 
 /**

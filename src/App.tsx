@@ -35,6 +35,8 @@ import { AdSlot } from './components/AdSlot'
 import { DownloadPage } from './components/app/DownloadPage'
 import { AppDownloadSection } from './components/app/AppDownloadSection'
 import { InstallPwaChip } from './components/app/InstallPwaChip'
+import { InvoicePage } from './components/InvoicePage'
+import { CmsHomepageSections } from './components/CmsHomepageSections'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -42,8 +44,14 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   streaming: SEO_PRESETS.streaming,
   subscriptions: SEO_PRESETS.subscriptions,
   giftcards: SEO_PRESETS.giftcards,
+  'gift-cards': SEO_PRESETS['gift-cards'],
   gaming: SEO_PRESETS.gaming,
   software: SEO_PRESETS.software,
+  services: SEO_PRESETS.services,
+  'social-media': SEO_PRESETS['social-media'],
+  'web-hosting': SEO_PRESETS['web-hosting'],
+  'digital-marketing': SEO_PRESETS['digital-marketing'],
+  web3: SEO_PRESETS.web3,
   'smart-projectors': SEO_PRESETS['smart-projectors'],
   'smart-4k-projectors': SEO_PRESETS['smart-4k-projectors'],
   'ai-subscriptions': SEO_PRESETS['ai-subscriptions'],
@@ -58,6 +66,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   'refund-policy': SEO_PRESETS['refund-policy'],
   'shipping-policy': SEO_PRESETS['shipping-policy'],
   contact: SEO_PRESETS.contact,
+  invoice: SEO_PRESETS.invoice,
   admin: SEO_PRESETS.admin,
   'admin-login': SEO_PRESETS['admin-login'],
   checkout: SEO_PRESETS.checkout,
@@ -148,15 +157,24 @@ type Route =
   | 'account'
   | 'product'
   | 'category'
+  | 'invoice'
+  | 'gift-cards'
+  | 'services'
+  | 'social-media'
+  | 'web-hosting'
+  | 'digital-marketing'
+  | 'web3'
   | 'notfound'
 
 const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
 
-// Category routes — each maps a URL slug to a product category name
+// Category routes — each maps a URL slug to a product category name.
+// `gift-cards` is the canonical DB-registry slug (/giftcards stays as an alias).
 const CATEGORY_ROUTES: Record<string, string> = {
   'streaming': 'Streaming',
   'subscriptions': 'Subscriptions',
   'giftcards': 'Gift Cards',
+  'gift-cards': 'Gift Cards',
   'gaming': 'Gaming',
   'software': 'Software',
   'smart-projectors': 'Smart Projectors',
@@ -168,6 +186,15 @@ const CATEGORY_TO_SLUG: Record<string, string> = Object.entries(CATEGORY_ROUTES)
   (acc, [slug, name]) => { acc[name] = slug; return acc },
   {} as Record<string, string>
 )
+// Section 3 target categories live in SUBCATEGORY_ROUTES — make them
+// navigable from the category cards too (real indexable URLs)
+Object.assign(CATEGORY_TO_SLUG, {
+  'Services': 'services',
+  'Social Media': 'social-media',
+  'Web Hosting': 'web-hosting',
+  'Digital Marketing': 'digital-marketing',
+  'Web3': 'web3',
+})
 
 // /category/:slug deep links (legacy + API-style slugs) → category name.
 // Covers both the site route slugs (giftcards) and slugified names (gift-cards).
@@ -179,6 +206,11 @@ const CATEGORY_URL_SLUG_TO_NAME: Record<string, string> = {
   gaming: 'Gaming',
   software: 'Software',
   'smart-projectors': 'Smart Projectors',
+  services: 'all', // registry-matched below via SUBCATEGORY_ROUTES overlay
+  'social-media': 'all',
+  'web-hosting': 'all',
+  'digital-marketing': 'all',
+  web3: 'all',
   all: 'all',
 }
 
@@ -226,6 +258,51 @@ const SUBCATEGORY_ROUTES: Record<
         `${p.name} ${(p.tags || []).join(' ')} ${p.description || ''}`
       ),
   },
+  // ---- Section 3 core decision: the new target categories --------------
+  // DB-registry keys (see api/categories.ts) mirrored client-side so the
+  // catalog renders them instantly; the API remains the source of truth for
+  // counts and copy. Old routes (/ai-subscriptions, /subscriptions) keep
+  // working — /services overlays them as sub-collections.
+  'services': {
+    label: 'Digital Services',
+    match: (p) =>
+      ['Subscriptions', 'IPTV & Services', 'AI & Productivity', 'Bundles'].includes(p.category) ||
+      /iptv|subscription|managed service|ai|chatgpt|perplexity|grammarly/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'social-media': {
+    label: 'Social Media',
+    match: (p) =>
+      p.category === 'Social Media' ||
+      /social media|instagram|tiktok|facebook page|followers|youtube shorts/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'web-hosting': {
+    label: 'Web Hosting',
+    match: (p) =>
+      p.category === 'Web Hosting' ||
+      /hosting|domain|vps|ssl|cpanel|web server/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'digital-marketing': {
+    label: 'Digital Marketing',
+    match: (p) =>
+      p.category === 'Digital Marketing' ||
+      /digital marketing|seo|semrush|ahrefs|marketing/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
+  'web3': {
+    label: 'Web3',
+    match: (p) =>
+      p.category === 'Web3' ||
+      /web3|crypto|usdt|binance|nft|wallet connect/i.test(
+        `${p.name} ${(p.tags || []).join(' ')} ${p.category}`
+      ),
+  },
 }
 const SUBCATEGORY_ROUTE_KEYS = Object.keys(SUBCATEGORY_ROUTES) as Route[]
 
@@ -242,7 +319,9 @@ function parseRoute(): Route {
   if (path === 'account' || path.startsWith('account/')) return 'account'
   if (path === 'checkout') return 'checkout'
   if (path === 'download' || path.startsWith('download/')) return 'download'
-  if (path.startsWith('order/') && path.split('/').length >= 2) return 'order'
+  if (path === 'order' || path.startsWith('order/')) return 'order'
+  // Invoice deep link — /invoice/:orderNumber (owner-only printable invoice)
+  if (path.startsWith('invoice/') && path.split('/').length >= 2) return 'invoice'
   // Product deep links — /product/:slug opens the storefront catalog with that
   // product's quick view (every product has its own unique, indexable slug URL)
   if (path.startsWith('product/') && path.split('/').length >= 2) return 'product'
@@ -267,6 +346,8 @@ function routeToPath(route: Route): string {
   // Order result page keeps its /order/:orderNumber URL — the number is read
   // from the address bar, so never rewrite it
   if (route === 'order') return window.location.pathname || '/order'
+  // Invoice keeps its /invoice/:orderNumber URL
+  if (route === 'invoice') return window.location.pathname || '/invoice'
   // Product URLs keep their /product/:slug address — the slug is read from it
   if (route === 'product') return window.location.pathname || '/product'
   // Category slug URLs keep their /category/:slug address
@@ -347,6 +428,12 @@ export function App() {
       setProductSlugParam(
         p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
       )
+      setCategorySlugParam(
+        p.toLowerCase().startsWith('/category/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+      )
+      setInvoiceNumberParam(
+        p.toLowerCase().startsWith('/invoice/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+      )
     }
     window.addEventListener('popstate', onPop)
     window.addEventListener('hashchange', onPop)
@@ -376,7 +463,9 @@ export function App() {
   }, [route])
 
   // /category/:slug deep links — map the URL slug to the category name and
-  // filter the catalog (works for reloads and shared links)
+  // filter the catalog (works for reloads and shared links). Registry-matched
+  // slugs (services/social-media/web-hosting/digital-marketing/web3) overlay
+  // their subcategory matcher via categorySlugParam in filteredProducts.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const p = window.location.pathname.toLowerCase()
@@ -442,6 +531,19 @@ export function App() {
     if (typeof window === 'undefined') return ''
     const p = window.location.pathname
     return p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+  })
+
+  // /category/:slug deep-link slug + /invoice/:orderNumber param — read from
+  // the address bar the same way (shareable, reload-safe URLs)
+  const [categorySlugParam, setCategorySlugParam] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const p = window.location.pathname
+    return p.toLowerCase().startsWith('/category/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+  })
+  const [invoiceNumberParam, setInvoiceNumberParam] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const p = window.location.pathname
+    return p.toLowerCase().startsWith('/invoice/') ? decodeURIComponent(p.split('/')[2] || '') : ''
   })
   // Where to return when the product quick view closes (deep links default to /)
   const lastStorefrontPathRef = useRef<string>('/')
@@ -860,6 +962,97 @@ export function App() {
     localStorage.setItem('playbeat_cart', JSON.stringify(cart))
   }, [cart])
 
+  // ------------------------------------------------------------------
+  // SERVER CART SYNC (Section 4.1 — MongoDB cart persistence)
+  // The cart survives devices/browsers: on sign-in the local cart is pushed
+  // to the server (local wins); an empty local cart adopts the server cart.
+  // After that, every change is pushed (debounced). Prices shown are always
+  // re-verified server-side at order time — the sync never carries totals.
+  // ------------------------------------------------------------------
+  const adoptingServerCartRef = useRef(false)
+  const signedInUser = user // readability
+
+  // Adopt the server cart when the signed-in user has a saved cart and the
+  // local one is empty (e.g. first visit from another device)
+  useEffect(() => {
+    if (!signedInUser) return
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) return
+    let alive = true
+    fetch(`${API_BASE}/api/orders/cart`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d?.success || !Array.isArray(d.cart?.items)) return
+        // Local cart non-empty → the push effect below overwrites the server
+        if (cart.length > 0) return
+        if (d.cart.items.length === 0) return
+        adoptingServerCartRef.current = true
+        const adopted: CartItem[] = d.cart.items.map((it: any) => ({
+          product: {
+            id: it.id || it.productId,
+            _id: it.productId,
+            sku: it.sku || '',
+            name: it.name,
+            slug: it.slug,
+            category: it.category || 'Digital Products',
+            description: '',
+            price: it.unitPrice,
+            image: it.image || '/playbeat-logo.png',
+            tags: [],
+            digital: it.digital !== false,
+            stock: typeof it.available === 'number' ? it.available : 50,
+            rating: 4.8,
+            reviewCount: 0,
+          } as Product,
+          selectedVariant:
+            it.variantName || it.variantId
+              ? { id: it.variantId || it.variantName, name: it.variantName || it.variantId!, price: it.unitPrice }
+              : undefined,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+        }))
+        setCart(adopted)
+        setTimeout(() => {
+          adoptingServerCartRef.current = false
+        }, 1200)
+      })
+      .catch(() => {
+        /* server cart is an enhancement — offline keeps working */
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedInUser?.email])
+
+  // Push cart changes to the server (debounced; signed-in only)
+  useEffect(() => {
+    if (!signedInUser) return
+    if (adoptingServerCartRef.current) return
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) return
+    const t = setTimeout(() => {
+      fetch(`${API_BASE}/api/orders/cart`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({
+          items: cart.map((ci) => ({
+            productId: ci.product._id || ci.product.id,
+            quantity: ci.quantity,
+            ...(ci.selectedVariant?.id || ci.selectedVariant?.name
+              ? { variantId: ci.selectedVariant?.id, variantName: ci.selectedVariant?.name }
+              : {}),
+          })),
+        }),
+      }).catch(() => {
+        /* push retries on the next cart change — order creation revalidates */
+      })
+    }, 900)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, signedInUser?.email])
+
   // Persist Wishlist
   useEffect(() => {
     localStorage.setItem('playbeat_wishlist', JSON.stringify(wishlist))
@@ -1092,9 +1285,16 @@ export function App() {
   const filteredProducts = useMemo(() => {
     // Curated subcategory collections (e.g. /ai-subscriptions) overlay an
     // additional catalog-wide filter on top of search/category/price filters.
+    // /category/:slug deep links overlay the same matcher when the slug is a
+    // registry-matched collection (services, social-media, web-hosting,
+    // digital-marketing, web3).
     const subMatcher = SUBCATEGORY_ROUTE_KEYS.includes(route)
       ? SUBCATEGORY_ROUTES[route as string]?.match
-      : null
+      : route === 'category' &&
+          categorySlugParam &&
+          SUBCATEGORY_ROUTE_KEYS.includes(categorySlugParam.toLowerCase() as Route)
+        ? SUBCATEGORY_ROUTES[categorySlugParam.toLowerCase()]?.match
+        : null
     return visibleProducts
       .filter((p) => {
         // Curated subcategory filter
@@ -1363,6 +1563,21 @@ export function App() {
       )}
 
       {/* ============================================
+          INVOICE PAGE — /invoice/:orderNumber
+          Owner-only branded invoice with PDF export
+          (browser print → Save as PDF). Payment truth
+          still comes exclusively from the verified webhook.
+          ============================================ */}
+      {route === 'invoice' && (
+        <InvoicePage
+          orderNumber={invoiceNumberParam}
+          user={user}
+          onRequireAuth={() => setIsAuthOpen(true)}
+          onNavigate={handleNavigatePath}
+        />
+      )}
+
+      {/* ============================================
           CHECKOUT PAGE — /checkout (full-page, light UI)
           Two-stage checkout fed by the cart drawer.
           ============================================ */}
@@ -1604,6 +1819,10 @@ export function App() {
                 <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
                   {SUBCATEGORY_ROUTE_KEYS.includes(route)
                     ? SUBCATEGORY_ROUTES[route as string]?.label || 'Curated Collection'
+                    : route === 'category' &&
+                      categorySlugParam &&
+                      SUBCATEGORY_ROUTE_KEYS.includes(categorySlugParam.toLowerCase() as Route)
+                    ? SUBCATEGORY_ROUTES[categorySlugParam.toLowerCase()]?.label || 'Curated Collection'
                     : selectedCategory === 'all'
                     ? 'Complete Catalog — Every Product'
                     : selectedCategory}
@@ -1713,6 +1932,10 @@ export function App() {
                 ))}
               </div>
             )}
+
+            {/* DB-driven homepage builder sections (banners/testimonials/FAQ)
+                — renders nothing until sections are configured in Admin → CMS */}
+            {selectedCategory === 'all' && !searchQuery && <CmsHomepageSections />}
 
             {/* FAQ — grounded in the live policies, with FAQPage JSON-LD */}
             {selectedCategory === 'all' && !searchQuery && (

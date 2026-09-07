@@ -27,6 +27,7 @@ import { handleRapidGatewayWebhook } from "../_lib/rapidWebhook.js";
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { PUBLIC_SITE_URL } from "../_lib/config.js";
 import { getRapidConfig } from "../_lib/gatewayConfig.js";
+import { fulfillPaidOrder } from "../_lib/fulfillment.js";
 import {
   validateCoupon,
   couponPublicView,
@@ -151,8 +152,21 @@ async function handleMethodsAndCoupon(req: VercelRequest, res: VercelResponse): 
     const userOk = requireUser(req as any, res);
     if (!userOk) return true;
     try {
-      const { code, subtotal } = req.body || {};
-      const { coupon, discount } = await validateCoupon(code, Number(subtotal) || 0);
+      const { code, subtotal, items } = req.body || {};
+      // `items` are cart line refs for scoped-coupon PREVIEW only — the
+      // authoritative scope check runs against DB-verified lines at order
+      // creation, so a forged preview cannot change any price.
+      const { coupon, discount } = await validateCoupon(
+        code,
+        Number(subtotal) || 0,
+        Array.isArray(items)
+          ? items.slice(0, 50).map((i: any) => ({
+              productId: i?.productId || i?.id,
+              category: i?.category,
+              sku: i?.sku,
+            }))
+          : undefined
+      );
       jsonOk(res, { success: true, coupon: couponPublicView(coupon, discount), discount });
     } catch (err: any) {
       if (err instanceof CouponValidationError) {
@@ -389,6 +403,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       }
     );
+
+    // ---- Paid: run digital delivery fulfillment (idempotent) ----
+    // Issues keys/download links, logs delivery events, generates the
+    // invoice, writes the in-app notification and attempts the confirmation
+    // email only when a provider is configured. Never blocks the webhook ACK.
+    if (status === "paid") {
+      try {
+        await fulfillPaidOrder(db, { ...order, paidAt: update.paidAt }, {
+          source: "webhook:generic",
+          eventId: String(eventId),
+        });
+      } catch (err: any) {
+        console.error("fulfillment failed (order still marked paid):", err?.message);
+      }
+    }
 
     return jsonOk(res, {
       success: true,

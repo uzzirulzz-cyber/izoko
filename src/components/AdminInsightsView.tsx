@@ -24,6 +24,8 @@ import {
   DollarSign,
   ShoppingCart,
   Boxes,
+  Star,
+  LayoutTemplate,
   Users2,
   Calendar,
   Settings,
@@ -70,6 +72,13 @@ import { CsvImporterModal } from './CsvImporterModal'
 import { ProductEditorModal } from './admin/ProductEditorModal'
 import { MediaLibraryPanel } from './admin/MediaLibraryPanel'
 import { CampaignsPanel } from './admin/CampaignsPanel'
+import {
+  CouponCodesPanel,
+  InventoryPanel,
+  ReviewsModerationPanel,
+  HomepageBuilderPanel,
+  AuditLogPanel,
+} from './admin/OpsPanels'
 import { SupportPanel } from './admin/SupportPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { AndroidAppPanel } from './admin/AndroidAppPanel'
@@ -193,7 +202,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   useEffect(() => {
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
-      'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'campaigns', 'support',
+      'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
+      'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
     ])
     const applyHash = () => {
@@ -866,6 +876,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <Activity className="w-4 h-4 text-emerald-400" />
                   {!sidebarCollapsed && <span>System Health</span>}
                 </button>
+                <button
+                  onClick={() => setActiveNav('audit-log')}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                    activeNav === 'audit-log' ? 'pa-nav-item--active' : 'pa-nav-item'
+                  }`}
+                  style={
+                    activeNav === 'audit-log'
+                      ? ({ '--nav-a': '#67e8f9', '--nav-bg': 'rgba(34,211,238,0.09)', '--nav-edge': 'rgba(34,211,238,0.28)' } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  <ScrollText className="w-4 h-4 text-cyan-400" />
+                  {!sidebarCollapsed && <span>Audit Log</span>}
+                </button>
               </div>
 
               {/* PAYMENT GATEWAY — super admin, Administrator authority, IT authority.
@@ -920,6 +944,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <Globe className="w-4 h-4 text-cyan-400" />
                     {!sidebarCollapsed && <span>Website Builder CMS</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('homepage-builder')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'homepage-builder' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'homepage-builder'
+                        ? ({ '--nav-a': '#c4b5fd', '--nav-bg': 'rgba(139,92,246,0.09)', '--nav-edge': 'rgba(139,92,246,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <LayoutTemplate className="w-4 h-4 text-violet-400" />
+                    {!sidebarCollapsed && <span>Homepage Builder</span>}
                   </button>
 
                   <button
@@ -1023,6 +1062,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         {products.length}
                       </span>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('inventory')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'inventory' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'inventory'
+                        ? ({ '--nav-a': '#5eead4', '--nav-bg': 'rgba(20,184,166,0.09)', '--nav-edge': 'rgba(20,184,166,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Boxes className="w-4 h-4 text-teal-400" />
+                      {!sidebarCollapsed && <span>Inventory & Stock</span>}
+                    </div>
                   </button>
 
                   <button
@@ -1138,6 +1194,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <Tag className="w-4 h-4 text-rose-400" />
                     {!sidebarCollapsed && <span>Discounts & Coupons</span>}
                   </button>
+
+                  <button
+                    onClick={() => setActiveNav('coupon-codes')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'coupon-codes' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'coupon-codes'
+                        ? ({ '--nav-a': '#fda4af', '--nav-bg': 'rgba(244,63,94,0.09)', '--nav-edge': 'rgba(244,63,94,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <Tag className="w-4 h-4 text-rose-300" />
+                    {!sidebarCollapsed && <span>Coupon Codes</span>}
+                  </button>
                 </div>
               </div>
 
@@ -1217,6 +1288,23 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         {supportNewCount}
                       </span>
                     )}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('reviews-mod')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'reviews-mod' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'reviews-mod'
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      {!sidebarCollapsed && <span>Reviews Moderation</span>}
+                    </div>
                   </button>
 
                   <button
@@ -3165,6 +3253,31 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* VIEW 4: ORDERS & FULFILLMENT */}
             {activeNav === 'orders-log' && <OrdersLogPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: COUPON CODES (Section 4.2 — server-validated, scoped codes) */}
+            {/* ========================================================================= */}
+            {activeNav === 'coupon-codes' && <CouponCodesPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: INVENTORY (Section 4.8 — Unlimited mode + movements) */}
+            {/* ========================================================================= */}
+            {activeNav === 'inventory' && <InventoryPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: REVIEWS MODERATION (Section 4.6 — verified purchasers only) */}
+            {/* ========================================================================= */}
+            {activeNav === 'reviews-mod' && <ReviewsModerationPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: HOMEPAGE BUILDER (Section 4.9 — CMS sections) */}
+            {/* ========================================================================= */}
+            {activeNav === 'homepage-builder' && <HomepageBuilderPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: AUDIT LOG (Section 4.10 — append-only admin trail) */}
+            {/* ========================================================================= */}
+            {activeNav === 'audit-log' && <AuditLogPanel />}
 
             {/* VIEW: PAYMENT GATEWAY (Rapid) — config / tests / webhook logs.
                 IT-authority accounts land here exclusively. */}

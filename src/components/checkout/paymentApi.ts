@@ -29,20 +29,21 @@ export async function fetchPaymentMethods(): Promise<PaymentMethodInfo[]> {
 }
 
 /**
- * Validate a coupon SERVER-SIDE against the current subtotal. Returns the
- * applied coupon (with the server-computed discount) or throws with a
- * customer-safe message. The client total is never trusted — order creation
- * re-validates and recomputes the discount authoritatively.
+ * Validate a coupon SERVER-SIDE against the current subtotal. Cart line refs
+ * accompany the request so category/product-scoped coupons can be previewed
+ * correctly — the server re-checks everything against DB-verified items at
+ * order creation, so a forged preview cannot change the price.
  */
 export async function validateCouponServerSide(
   code: string,
-  subtotal: number
+  subtotal: number,
+  items?: Array<{ productId?: string; category?: string; sku?: string }>
 ): Promise<AppliedCoupon> {
   const res = await fetch(`${API_BASE}/api/payments/coupon`, {
     method: 'POST',
     headers: authHeaders(),
     credentials: 'include',
-    body: JSON.stringify({ code: code.trim().toUpperCase(), subtotal }),
+    body: JSON.stringify({ code: code.trim().toUpperCase(), subtotal, items }),
   })
   const data = await res.json().catch(() => null)
   if (!res.ok || !data?.success || !data?.coupon) {

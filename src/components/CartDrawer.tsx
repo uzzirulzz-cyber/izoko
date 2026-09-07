@@ -303,6 +303,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <CouponInput
                   applied={coupon}
                   subtotal={totals.subtotal}
+                  items={cart.map((ci) => ({
+                    productId: String(ci.product._id || ci.product.id),
+                    category: ci.product.category,
+                    sku: ci.product.sku,
+                  }))}
                   formatAmount={(n) => formatPrice(n, currency)}
                   onApplied={(c) => setStoredCoupon(c)}
                   onRemoved={() => setStoredCoupon(null)}

@@ -47,6 +47,7 @@ import { ObjectId } from "mongodb";
 import { getDb } from "./mongo.js";
 import { handleOptions, jsonOk, jsonError } from "./auth.js";
 import { getRapidConfig } from "./gatewayConfig.js";
+import { fulfillPaidOrder } from "./fulfillment.js";
 
 const MAX_TIMESTAMP_SKEW = 300; // seconds — Rapid docs: reject if > 5 minutes
 
@@ -426,6 +427,22 @@ export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelR
       });
     } catch (e) {
       console.error("rapid-webhook: log write failed", e);
+    }
+
+    // ---- Paid: digital delivery fulfillment (idempotent — shared ledger with
+    // the generic webhook, so Rapid retries and dual paths never double-issue
+    // keys, invoices or notifications) ----
+    if (transition.markPaid) {
+      try {
+        await fulfillPaidOrder(db, { ...order, paidAt: now }, {
+          source: "webhook:rapid",
+          eventId,
+        });
+      } catch (err: any) {
+        // The order IS paid; fulfillment retries happen on owner invoice fetch
+        // or the next webhook delivery (ledger insert failed → not fulfilled).
+        console.error("rapid-webhook: fulfillment failed:", err?.message);
+      }
     }
 
     return jsonOk(res, {

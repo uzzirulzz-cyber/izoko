@@ -32,13 +32,25 @@ const PORT = Number(process.env.TEST_PORT) || 8787;
 
 // NOTE: env must be set BEFORE the api modules are imported (they snapshot
 // process.env at module scope), so handlers are imported dynamically below.
-const [{ default: authHandler }, { default: paymentsHandler }, { default: ordersHandler }, { default: productsHandler }] =
-  await Promise.all([
-    import("../api/auth/index.js"),
-    import("../api/payments/index.js"),
-    import("../api/orders/index.js"),
-    import("../api/products/index.js"),
-  ]);
+const [
+  { default: authHandler },
+  { default: paymentsHandler },
+  { default: ordersHandler },
+  { default: productsHandler },
+  { default: adminHandler },
+  { default: cmsHandler },
+  { default: categoriesHandler },
+  { default: messagesHandler },
+] = await Promise.all([
+  import("../api/auth/index.js"),
+  import("../api/payments/index.js"),
+  import("../api/orders/index.js"),
+  import("../api/products/index.js"),
+  import("../api/admin/index.js"),
+  import("../api/cms/index.js"),
+  import("../api/categories.js"),
+  import("../api/messages/index.js"),
+]);
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -68,6 +80,13 @@ app.all("/api/orders", mount(ordersHandler));
 app.all("/api/orders/*", mount(ordersHandler));
 app.all("/api/products", mount(productsHandler));
 app.all("/api/products/*", mount(productsHandler));
+app.all("/api/admin", mount(adminHandler));
+app.all("/api/admin/*", mount(adminHandler));
+app.all("/api/cms", mount(cmsHandler));
+app.all("/api/cms/*", mount(cmsHandler));
+app.all("/api/categories", mount(categoriesHandler));
+app.all("/api/messages", mount(messagesHandler));
+app.all("/api/messages/*", mount(messagesHandler));
 
 // SPA
 app.use(express.static(distDir));

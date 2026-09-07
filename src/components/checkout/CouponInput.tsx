@@ -9,6 +9,8 @@ import { validateCouponServerSide } from './paymentApi'
 interface CouponInputProps {
   applied: AppliedCoupon | null
   subtotal: number
+  /** Cart line refs for scoped-coupon preview (server re-verifies at order). */
+  items?: Array<{ productId?: string; category?: string; sku?: string }>
   /** Formats PKR amounts for the live discount line. */
   formatAmount: (pkr: number) => string
   onApplied: (c: AppliedCoupon) => void
@@ -18,6 +20,7 @@ interface CouponInputProps {
 export const CouponInput: React.FC<CouponInputProps> = ({
   applied,
   subtotal,
+  items,
   formatAmount,
   onApplied,
   onRemoved,
@@ -33,7 +36,7 @@ export const CouponInput: React.FC<CouponInputProps> = ({
     setBusy(true)
     setError('')
     try {
-      const coupon = await validateCouponServerSide(c, subtotal)
+      const coupon = await validateCouponServerSide(c, subtotal, items)
       onApplied(coupon)
       setCode('')
     } catch (err: any) {
