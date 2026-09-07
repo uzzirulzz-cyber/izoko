@@ -18,6 +18,7 @@ import { AdminInsightsView } from './components/AdminInsightsView'
 import { AdminLogin } from './components/AdminLogin'
 import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
+import { AboutPage } from './components/AboutPage'
 import { NotFound } from './components/NotFound'
 import { LiveSupportWidget } from './components/LiveSupportWidget'
 import { OrderResultPage } from './components/OrderResultPage'
@@ -66,6 +67,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   'refund-policy': SEO_PRESETS['refund-policy'],
   'shipping-policy': SEO_PRESETS['shipping-policy'],
   contact: SEO_PRESETS.contact,
+  about: SEO_PRESETS.about,
   invoice: SEO_PRESETS.invoice,
   admin: SEO_PRESETS.admin,
   'admin-login': SEO_PRESETS['admin-login'],
@@ -139,6 +141,7 @@ type Route =
   | 'shipping-policy'
   | 'warranty'
   | 'contact'
+  | 'about'
   | 'streaming'
   | 'subscriptions'
   | 'giftcards'
@@ -166,7 +169,7 @@ type Route =
   | 'web3'
   | 'notfound'
 
-const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
+const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare', 'about']
 
 // Category routes — each maps a URL slug to a product category name.
 // `gift-cards` is the canonical DB-registry slug (/giftcards stays as an alias).
@@ -1498,6 +1501,10 @@ export function App() {
       {route === 'contact' && (
         <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
       )}
+
+      {/* ABOUT & BUSINESS MODEL — compliance page: business model, customer
+          journey, payment gateway use-case, PKR pricing disclosure */}
+      {route === 'about' && <AboutPage currency={selectedCurrency} />}
 
       {/* ============================================
           MOBILE APP DOWNLOAD PAGE — /download

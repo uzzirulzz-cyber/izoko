@@ -336,6 +336,12 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
       'Reach the PlayBeat team: live chat, email, WhatsApp, phone and office address — support within 2-4 hours.',
     path: '/contact',
   },
+  about: {
+    title: 'About PlayBeat Digital — Business Model, Payments & Customer Journey',
+    description:
+      'How PlayBeat Digital (Playbeat Digital Private Limited, Abbottabad, Pakistan) operates: what we sell, the complete customer journey from browsing to delivery, how our payment gateway is used at checkout, and PKR pricing with a currency converter.',
+    path: '/about',
+  },
   download: {
     title: 'Get the PlayBeat Digital App — Android & iOS',
     description:

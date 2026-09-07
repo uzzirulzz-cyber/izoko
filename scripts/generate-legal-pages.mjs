@@ -161,10 +161,11 @@ const PAGES = [
 
 const RELATED = [
   ['/privacy', 'Privacy Policy'],
-  ['/terms', 'Terms of Service'],
+  ['/terms', 'Terms & Conditions'],
   ['/refund-policy', 'Refund Policy'],
   ['/shipping-policy', 'Shipping & Delivery'],
   ['/warranty', 'Warranty'],
+  ['/about', 'About & Business Model'],
 ]
 
 function esc(s) {

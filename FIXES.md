@@ -352,3 +352,67 @@ consolidated routers; shared logic goes in `api/_lib/*`.
   Inventory / Reviews Moderation / Homepage Builder / Audit Log to configure.
   Resubmit `sitemap.xml` in Search Console after adding products to the new
   categories.
+
+---
+
+# Payment-Gateway Compliance Update — policies, business transparency, PKR pricing
+
+Compliance round for the payment gateway merchant review: all required policy
+pages verified live and linked, complete business-model disclosure added, and
+footer/legal surfaces aligned with the reviewer checklist.
+
+## 16. About & Business Model page (`/about`) — NEW
+
+| File | Change |
+|------|--------|
+| `src/components/AboutPage.tsx` | **NEW** — full compliance page: (1) registered entity (Playbeat Digital Private Limited) + exact registered office address; (2) business model — digital products (subscriptions, license keys, gift cards) + hardware, sourcing at wholesale / retail margin, no hidden fees; (3) 9-step complete customer journey (browse → product/plan → cart → coupon → account → gateway payment → confirmation+invoice → instant digital delivery → after-sales); (4) payment gateway intended-use section — gateway used **only** to collect payment for orders on playbeat.digital, hosted-checkout flow, signed-webhook verification, no card storage, refund routing; (5) pricing & currency — billed in PKR, built-in converter (PKR/USD/EUR/GBP/AED/SAR/CAD, indicative rates); (6) operations & compliance grid (invoicing, delivery, data protection, support); (7) all-policy links; (8) contact block. |
+| `src/App.tsx` | `about` route added (`Route` union, `POLICY_ROUTES`, SEO map, render block after `/contact`). |
+| `src/lib/seo.ts` | `about` SEO preset ("About PlayBeat Digital — Business Model, Payments & Customer Journey"). |
+| `vercel.json` | SPA rewrite `/about` → `/index.html`. |
+| `public/sitemap.xml` | Added `/about` + the six new category routes (`/gift-cards`, `/services`, `/social-media`, `/web-hosting`, `/digital-marketing`, `/web3`). |
+
+## 17. Footer — reviewer checklist alignment
+
+| Change |
+|--------|
+| Policy button grid 5 → **7** entries: Warranty, Privacy, **Terms & Conditions** (renamed from "Terms of Service"), Refund, **Shipping Policy (new link)**, **About & Business Model (new)**, Contact. |
+| Quick Links: "About" now points to `/about` ("About & Business Model"); Support stays `/contact`. |
+| Bottom bar: © line now names **Playbeat Digital Private Limited** with the registered office address underneath. |
+| Contact PlayBeat block (email `support@playbeat.digital`, phone `+92 332 1049333`, WhatsApp lines, registered office) already present — verified unchanged. |
+
+## 18. Checkout — gateway use-case disclosure
+
+| File | Change |
+|------|--------|
+| `src/components/CheckoutPage.tsx` | Disclosure added inside the "Payment Gateway" section: gateway used solely for products ordered on playbeat.digital, hosted-page redirect, credentials never stored by PlayBeat, verified payment → confirmation → invoice → automatic key delivery, link to `/about`. |
+
+## 19. Policy pages — verified & cross-linked
+
+- Static crawlable policy pages (served at `/privacy`, `/terms`,
+  `/refund-policy`, `/shipping-policy`, `/warranty` via `vercel.json`
+  rewrites) confirmed **updated (August 2026)**, HTTP 200, with the exact
+  registered address ("House 334, Street 6, Jinnahabad, Abbottabad, Khyber
+  Pakhtunkhwa, Pakistan") in every page footer.
+- `scripts/generate-legal-pages.mjs`: RELATED chips now include
+  "About & Business Model"; "Terms of Service" chip renamed
+  "Terms & Conditions". Pages regenerated and committed.
+- SPA `PolicyPage.tsx`: same title rename + About chip added so both render
+  paths stay in sync.
+
+## 20. PKR pricing & currency converter — verified
+
+- All prices are set and billed in **PKR**; header currency selector
+  (`PKR` default, `USD/EUR/GBP/AED/SAR/CAD` indicative) verified live —
+  switching to USD converts every displayed price and persists the choice;
+  restoring PKR confirmed. Disclaimer text on `/about` covers indicative
+  rates vs. the bank rate at charge time.
+
+## 21. Verification
+
+- `npx tsc --noEmit` clean; `npm run build` clean (bundle `index-DLzYvGw2.js`).
+- Local preview 1440×900 (agent-browser): `/about` hero/business-model/
+  journey/gateway/PKR sections render with zero console errors; footer shows
+  11 policy/about links incl. Shipping Policy + About & Business Model;
+  static `/terms` serves "Terms & Conditions" title; all 8 compliance URLs
+  return 200; currency switch PKR→USD→PKR verified with on-page prices.
+- Screenshots: `download/compliance/01-06`.

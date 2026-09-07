@@ -738,6 +738,23 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 }}
                 onRetry={loadMethods}
               />
+
+              {/* Gateway use-case disclosure — how the payment gateway is used */}
+              <p className="mt-4 text-[11px] leading-relaxed text-slate-500 flex gap-2">
+                <ShieldCheck style={{ width: 14, height: 14 }} className="shrink-0 mt-px text-green-600" />
+                <span>
+                  This payment gateway is used solely to collect payment for products ordered on
+                  playbeat.digital. When you continue, you will be redirected to the gateway's
+                  secure hosted page to complete the payment — your card or wallet credentials are
+                  entered there and are never seen or stored by PlayBeat. After verification of the
+                  payment, your order is confirmed, an invoice is issued, and digital keys are
+                  delivered to your account and email automatically.{' '}
+                  <a href="/about" target="_blank" rel="noopener noreferrer" className="pbx-link">
+                    More about our payments &amp; business model
+                  </a>
+                  .
+                </span>
+              </p>
             </section>
 
             {/* ---------- Trust / security ---------- */}

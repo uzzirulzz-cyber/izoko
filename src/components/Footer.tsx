@@ -16,6 +16,8 @@ import {
   MapPin,
   MessageSquare,
   ExternalLink,
+  Store,
+  Truck,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
 import { fetchAppsConfig, isListable, type StorefrontAppsConfig } from '../lib/appLinks'
@@ -166,8 +168,8 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                   </a>
                 </li>
                 <li>
-                  <a href="/contact" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
-                    About
+                  <a href="/about" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    About &amp; Business Model
                     <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
                   </a>
                 </li>
@@ -395,7 +397,7 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
 
           {/* Enhanced Dynamic Buttons — Policies & Contact (all real indexable URLs) */}
           <div className="pt-2 pb-6 border-t border-slate-400/10">
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
               {
                 [
                   {
@@ -417,7 +419,7 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                   {
                     href: '/terms',
                     icon: <FileText className="w-4 h-4" />,
-                    title: 'Terms of Service',
+                    title: 'Terms & Conditions',
                     subtitle: 'Fair usage & licensing terms',
                     chip: 'bg-sky-500/15 border-sky-400/30 text-sky-300',
                     glow: 'hover:border-sky-400/60 hover:shadow-[0_0_28px_rgba(56,189,248,0.25)]',
@@ -429,6 +431,22 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                     subtitle: 'Fast, transparent resolutions',
                     chip: 'bg-emerald-500/15 border-emerald-400/30 text-emerald-300',
                     glow: 'hover:border-emerald-400/60 hover:shadow-[0_0_28px_rgba(52,211,153,0.25)]',
+                  },
+                  {
+                    href: '/shipping-policy',
+                    icon: <Truck className="w-4 h-4" />,
+                    title: 'Shipping Policy',
+                    subtitle: 'Digital & hardware delivery',
+                    chip: 'bg-orange-500/15 border-orange-400/30 text-orange-300',
+                    glow: 'hover:border-orange-400/60 hover:shadow-[0_0_28px_rgba(251,146,60,0.25)]',
+                  },
+                  {
+                    href: '/about',
+                    icon: <Store className="w-4 h-4" />,
+                    title: 'About & Business Model',
+                    subtitle: 'How we operate & payments work',
+                    chip: 'bg-yellow-500/15 border-yellow-400/30 text-yellow-300',
+                    glow: 'hover:border-yellow-400/60 hover:shadow-[0_0_28px_rgba(255,193,7,0.25)]',
                   },
                   {
                     href: '/contact',
@@ -465,7 +483,10 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
 
           {/* Bottom Bar */}
           <div className="pt-6 border-t border-slate-400/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-500 text-[10px] font-mono">
-            <div>© {new Date().getFullYear()} PlayBeat Digital Commerce. All rights reserved.</div>
+            <div className="text-center sm:text-left leading-relaxed">
+              <div>© {new Date().getFullYear()} Playbeat Digital Private Limited. All rights reserved.</div>
+              <div className="text-slate-600 mt-0.5">{contactAddress}</div>
+            </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>

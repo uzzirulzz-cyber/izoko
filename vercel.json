@@ -68,6 +68,7 @@
     { "source": "/refund-policy", "destination": "/refund-policy.html" },
     { "source": "/shipping-policy", "destination": "/shipping-policy.html" },
     { "source": "/warranty", "destination": "/warranty.html" },
+    { "source": "/about", "destination": "/index.html" },
     { "source": "/contact", "destination": "/index.html" },
     { "source": "/compare", "destination": "/index.html" },
     { "source": "/product/:path*", "destination": "/index.html" },

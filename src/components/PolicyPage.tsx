@@ -16,7 +16,7 @@ const META: Record<PolicyType, { title: string; subtitle: string; icon: React.Re
     updated: 'August 2026',
   },
   terms: {
-    title: 'Terms of Service',
+    title: 'Terms & Conditions',
     subtitle: 'The rules and agreements that govern your use of the PlayBeat marketplace.',
     icon: <FileText className="w-5 h-5 text-yellow-400" />,
     updated: 'August 2026',
@@ -379,9 +379,10 @@ export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
         <div className="mt-8 flex flex-wrap items-center gap-2 text-[11px] font-mono text-slate-400">
           <span className="text-slate-500 mr-1">Related:</span>
           <a href="/privacy" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">Privacy Policy</a>
-          <a href="/terms" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">Terms of Service</a>
+          <a href="/terms" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">Terms &amp; Conditions</a>
           <a href="/refund-policy" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">Refund Policy</a>
           <a href="/shipping-policy" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">Shipping Policy</a>
+          <a href="/about" className="px-3 py-1.5 rounded-lg bg-[#0A122E] border border-yellow-400/30 text-yellow-300 hover:border-yellow-400/60 transition">About &amp; Business Model</a>
           <a href="/contact" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#0A122E] border border-slate-400/15 hover:border-yellow-400/40 hover:text-yellow-300 transition">
             <Mail className="w-3 h-3" /> Contact
           </a>
