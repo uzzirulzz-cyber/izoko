@@ -472,3 +472,32 @@ footer/legal surfaces aligned with the reviewer checklist.
   challenge echo with the real token (and 403 with a wrong token),
   data-deletion status page renders, instagram/start reports honest
   not-configured state until the Instagram keys are added.
+
+## 24. New Meta app credentials — Facebook switched + Instagram activated (one app, both providers)
+
+The owner supplied a brand-new Meta app ("Playbeat Digital", App ID
+`1407461764156743`) whose credentials were validated and wired to BOTH
+Facebook Login and Instagram Login via the Vercel API (full-access token),
+then redeployed. Production now reports all three providers configured.
+
+| Item | Detail |
+|------|--------|
+| Credential validation | Graph API `client_credentials` grant issued an app access token for the ID+secret pair — pair is correct and active |
+| App identity check | `GET /app` → name "Playbeat Digital", namespace `playbeat__`, site link playbeat.digital |
+| Redirect whitelist (Facebook) | OAuth dialog probe rendered the real consent flow with `app_id=1407461764156743` and `cancel_url` echoing `https://playbeat.digital/api/auth/oauth/facebook/callback` — no "URL Blocked" |
+| Redirect whitelist (Instagram) | `instagram.com/oauth/authorize` carries `platform_app_id=1407461764156743` + our callback through its login chain (Instagram validates client post-login; headless probes are bot-blocked by design) |
+| Vercel env updates | `FACEBOOK_CLIENT_ID/SECRET` PATCHed to the new app (production+preview); `INSTAGRAM_CLIENT_ID/SECRET` created with the same app pair |
+| Redeploy | `POST /v13/deployments` (gitSource main@536236e) → `dpl_AbLtEb4GvAapBRNqiK7KFkfM9DZX` READY in ~36 s |
+| Post-deploy state | oauth-config `{"Google":true,"Facebook":true,"Instagram":true}`; facebook/start 307 → Facebook dialog (new app id); instagram/start 307 → Instagram authorize (correct client_id, scope `instagram_business_basic`, signed state); google/start regression intact |
+| Meta compliance regressions | `GET /api/auth/meta/data-deletion` status page 200; `POST meta/data-deletion` bogus signed_request → 400 fail-closed; `POST meta/deauthorize` bogus body → 400 fail-closed; webhook endpoint live (403 fail-closed on wrong/empty verify token) |
+| Live bundle | `index-CRlAqADy.js` contains the Instagram button markers (AuthModal + SocialSignUpSection) |
+
+Notes:
+- The previous Facebook app (`2006269563378595`) is no longer referenced by the
+  site. Existing social accounts are safe: `upsertSocialUser` matches by email
+  on first login under the new app, so returning customers keep their accounts
+  and the new app-scoped Facebook ID is remembered.
+- Meta app must be switched to **Live mode** (App Dashboard → top toggle) for
+  the general public to log in — in Development mode only app roles can.
+- `META_WEBHOOK_VERIFY_TOKEN` was NOT changed — the value delivered earlier
+  still applies. It can be rotated on request (upsert + redeploy).
