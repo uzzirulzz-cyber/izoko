@@ -74,6 +74,7 @@ export function applyProductJsonLd(product: {
   currency?: string
   inStock?: boolean
   sku?: string
+  url?: string
 } | null) {
   const id = 'product-jsonld'
   let el = document.getElementById(id) as HTMLScriptElement | null
@@ -97,7 +98,7 @@ export function applyProductJsonLd(product: {
     brand: { '@type': 'Brand', name: 'PlayBeat Digital' },
     offers: {
       '@type': 'Offer',
-      url: `${SITE}/`,
+      url: product.url ? `${SITE}${product.url}` : `${SITE}/`,
       priceCurrency: product.currency || 'PKR',
       price: String(product.price),
       availability: product.inStock === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',

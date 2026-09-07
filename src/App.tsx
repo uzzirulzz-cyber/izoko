@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Header } from './components/Header'
 import { HeroBanner } from './components/HeroBanner'
 import { CategoryNav } from './components/CategoryNav'
@@ -25,6 +25,7 @@ import { AccountPage } from './components/AccountPage'
 import { CheckoutPage } from './components/CheckoutPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
+import { ensureProductSlug } from './lib/slug'
 import { applyRouteSeo } from './lib/seo'
 import { applyProductJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
@@ -145,6 +146,8 @@ type Route =
   | 'order'
   | 'checkout'
   | 'account'
+  | 'product'
+  | 'category'
   | 'notfound'
 
 const POLICY_ROUTES: Route[] = ['privacy', 'terms', 'refund-policy', 'shipping-policy', 'warranty', 'contact', 'compare']
@@ -165,6 +168,19 @@ const CATEGORY_TO_SLUG: Record<string, string> = Object.entries(CATEGORY_ROUTES)
   (acc, [slug, name]) => { acc[name] = slug; return acc },
   {} as Record<string, string>
 )
+
+// /category/:slug deep links (legacy + API-style slugs) → category name.
+// Covers both the site route slugs (giftcards) and slugified names (gift-cards).
+const CATEGORY_URL_SLUG_TO_NAME: Record<string, string> = {
+  streaming: 'Streaming',
+  subscriptions: 'Subscriptions',
+  'gift-cards': 'Gift Cards',
+  giftcards: 'Gift Cards',
+  gaming: 'Gaming',
+  software: 'Software',
+  'smart-projectors': 'Smart Projectors',
+  all: 'all',
+}
 
 // ---------------------------------------------------------------------------
 // Curated subcategory collections — real, indexable URLs that filter the
@@ -227,12 +243,14 @@ function parseRoute(): Route {
   if (path === 'checkout') return 'checkout'
   if (path === 'download' || path.startsWith('download/')) return 'download'
   if (path.startsWith('order/') && path.split('/').length >= 2) return 'order'
+  // Product deep links — /product/:slug opens the storefront catalog with that
+  // product's quick view (every product has its own unique, indexable slug URL)
+  if (path.startsWith('product/') && path.split('/').length >= 2) return 'product'
+  // /category/:slug renders the storefront filtered to that category
+  if (path.startsWith('category/') && path.split('/').length >= 2) return 'category'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
-  // Legacy deep-link rewrites kept from vercel.json (product/category pages are
-  // rendered by the storefront catalog + quick-view modal)
-  if (path.startsWith('product/') || path.startsWith('category/')) return 'storefront'
   // Legacy hash support: #/admin/login, #/admin
   const hash = window.location.hash.toLowerCase().replace(/^#\/?/, '').trim()
   if (hash.startsWith('admin/login')) return 'admin-login'
@@ -249,6 +267,10 @@ function routeToPath(route: Route): string {
   // Order result page keeps its /order/:orderNumber URL — the number is read
   // from the address bar, so never rewrite it
   if (route === 'order') return window.location.pathname || '/order'
+  // Product URLs keep their /product/:slug address — the slug is read from it
+  if (route === 'product') return window.location.pathname || '/product'
+  // Category slug URLs keep their /category/:slug address
+  if (route === 'category') return window.location.pathname || '/category'
   if (route === 'account') return '/account'
   if (route === 'checkout') return '/checkout'
   if (route === 'download') return '/download'
@@ -322,6 +344,9 @@ export function App() {
       setOrderNumberParam(
         p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
       )
+      setProductSlugParam(
+        p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+      )
     }
     window.addEventListener('popstate', onPop)
     window.addEventListener('hashchange', onPop)
@@ -350,6 +375,17 @@ export function App() {
     }
   }, [route])
 
+  // /category/:slug deep links — map the URL slug to the category name and
+  // filter the catalog (works for reloads and shared links)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const p = window.location.pathname.toLowerCase()
+    if (!p.startsWith('/category/')) return
+    const slug = decodeURIComponent(p.split('/')[2] || '')
+    const cat = CATEGORY_URL_SLUG_TO_NAME[slug]
+    if (cat) setSelectedCategory(cat)
+  }, [route])
+
   // Per-route SEO — every indexed URL gets its own title/description/canonical.
   useEffect(() => {
     const preset = SEO_PRESET_BY_ROUTE[route]
@@ -357,9 +393,11 @@ export function App() {
   }, [route])
 
   // Check if the current route should render the storefront (homepage, a
-  // category page, or a curated subcategory collection page)
+  // category page, a curated subcategory collection page, or a product page)
   const isStorefrontRoute =
     route === 'storefront' ||
+    route === 'product' ||
+    route === 'category' ||
     CATEGORY_ROUTE_KEYS.includes(route) ||
     SUBCATEGORY_ROUTE_KEYS.includes(route)
 
@@ -397,6 +435,16 @@ export function App() {
     const p = window.location.pathname
     return p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
   })
+
+  // Product deep-link slug — /product/:slug. Read from the address bar so the
+  // URL survives reloads and is shareable (every product has a unique slug).
+  const [productSlugParam, setProductSlugParam] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const p = window.location.pathname
+    return p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+  })
+  // Where to return when the product quick view closes (deep links default to /)
+  const lastStorefrontPathRef = useRef<string>('/')
 
   // Website Builder CMS settings — live from MongoDB via /api/cms
   const [cmsSettings, setCmsSettings] = useState<any>(null)
@@ -444,7 +492,9 @@ export function App() {
   }, [])
 
 
-  // Track product_view events when a customer opens a product's quick view
+  // Track product_view events when a customer opens a product's quick view.
+  // Also syncs the address bar to the product's own unique slug URL
+  // (/product/:slug) so every product view has a real, shareable, indexable URL.
   const handleQuickViewWithTracking = (p: Product) => {
     // GA4 ecommerce — view_item (fire-and-forget, consent-gated inside the loader)
     try {
@@ -456,6 +506,18 @@ export function App() {
       })
     } catch {
       /* tracking must never break the UI */
+    }
+    // Address bar → /product/:slug (remember where to come back to)
+    try {
+      const target = `/product/${ensureProductSlug(p)}`
+      if (window.location.pathname !== target) {
+        if (!window.location.pathname.startsWith('/product/')) {
+          lastStorefrontPathRef.current = window.location.pathname || '/'
+        }
+        navigatePath(target)
+      }
+    } catch {
+      /* URL sync must never break the modal */
     }
     try {
       const sessionId = sessionStorage.getItem('playbeat_analytics_session') || 'anon'
@@ -475,6 +537,21 @@ export function App() {
       /* ignore */
     }
     setQuickViewProduct(p)
+  }
+
+  // Close the product quick view and restore the address bar to the storefront
+  // path the customer came from (deep links default back to /)
+  const handleCloseQuickView = () => {
+    setQuickViewProduct(null)
+    try {
+      if (window.location.pathname.startsWith('/product/')) {
+        const back = lastStorefrontPathRef.current || '/'
+        window.history.replaceState({}, '', back)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      }
+    } catch {
+      /* URL restore must never break the modal */
+    }
   }
 
   // Social OAuth callback results (?social_success= / ?social_error=)
@@ -626,11 +703,82 @@ export function App() {
         currency: (quickViewProduct as any).currency,
         inStock: (quickViewProduct as any).stock !== 0,
         sku: quickViewProduct.sku,
+        url: `/product/${ensureProductSlug(quickViewProduct)}`,
       })
     } else {
       applyProductJsonLd(null)
     }
   }, [quickViewProduct])
+
+  // /product/:slug deep link — open the product quick view once the catalog is
+  // available. Falls back to the API when the product is not in the local list
+  // (e.g. DB-only products), and 404s to the NotFound page for unknown slugs.
+  useEffect(() => {
+    if (route !== 'product' || !productSlugParam) return
+    if (quickViewProduct) return
+    const wanted = productSlugParam.toLowerCase()
+    const found = products.find(
+      (p) =>
+        (p.slug || '').toLowerCase() === wanted ||
+        (p.sku || '').toLowerCase() === wanted ||
+        p.id === productSlugParam
+    )
+    if (found) {
+      setQuickViewProduct(found)
+      return
+    }
+    // Not in the loaded catalog — query the API directly (hydration may still
+    // be in flight; the small delay avoids a premature 404)
+    let alive = true
+    const t = setTimeout(() => {
+      if (!alive) return
+      fetch(`${API_BASE}/api/products/${encodeURIComponent(productSlugParam)}`, {
+        credentials: 'include',
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((d) => {
+          if (!alive) return
+          if (d?.success?.product) setQuickViewProduct(d.success.product)
+          else setRoute('notfound') // URL stays as-is; direct set (navigate() would re-parse back to 'product')
+        })
+        .catch(() => {
+          if (alive) setRoute('notfound')
+        })
+    }, 600)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route, productSlugParam, products, quickViewProduct])
+
+  // Leaving the product URL (Back button / close) clears the quick view so the
+  // storefront is not stuck with a modal open
+  useEffect(() => {
+    if (!quickViewProduct) return
+    if (route === 'product') return
+    if (!isStorefrontRoute) return // admin/order/checkout keep their own flows
+    if (window.location.pathname.startsWith('/product/')) return
+    setQuickViewProduct(null)
+  }, [route, isStorefrontRoute, quickViewProduct])
+
+  // Product deep-link SEO — /product/:slug gets its own title, description,
+  // canonical and OG tags derived from the product itself
+  useEffect(() => {
+    if (route !== 'product' || !quickViewProduct) return
+    applyRouteSeo({
+      title: quickViewProduct.name,
+      description:
+        (
+          (quickViewProduct as any).shortDescription ||
+          quickViewProduct.description ||
+          `${quickViewProduct.name} — instant delivery from PlayBeat Digital.`
+        ).slice(0, 155),
+      path: `/product/${ensureProductSlug(quickViewProduct)}`,
+      image: quickViewProduct.image?.startsWith('http') ? undefined : quickViewProduct.image,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route, quickViewProduct])
 
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isWishlistOpen, setIsWishlistOpen] = useState(false)
@@ -1605,7 +1753,7 @@ export function App() {
             product={quickViewProduct}
             currency={selectedCurrency}
             isOpen={!!quickViewProduct}
-            onClose={() => setQuickViewProduct(null)}
+            onClose={handleCloseQuickView}
             onAddToCart={handleAddToCart}
             onInstantBuy={handleInstantBuy}
             isWishlisted={quickViewProduct ? isWishlisted(quickViewProduct.id) : false}

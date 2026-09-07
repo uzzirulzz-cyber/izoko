@@ -81,6 +81,17 @@ interface CategoryNavProps2 {
   products?: { category: string }[]
 }
 
+// Category name → canonical category-page route (real, indexable URLs like
+// /streaming, /giftcards). Each card is a real link to its category page.
+const ROUTE_BY_NAME: Record<string, string> = {
+  Streaming: 'streaming',
+  Subscriptions: 'subscriptions',
+  'Gift Cards': 'giftcards',
+  Gaming: 'gaming',
+  Software: 'software',
+  'Smart Projectors': 'smart-projectors',
+}
+
 export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
   selectedCategory,
   onSelectCategory,
@@ -89,7 +100,8 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
 }) => {
   const displayCategories = CATEGORIES_DATA.filter((c) => c.slug !== 'all')
 
-  const countFor = (slug: string) => products.filter((p) => p.category === slug).length
+  // Products store the category NAME (e.g. "Gift Cards") — filter/count by name
+  const countFor = (name: string) => products.filter((p) => p.category === name).length
 
   return (
     <section className="w-full py-10 bg-gradient-to-b from-[#050814] via-[#060B1E] to-[#050814] relative overflow-hidden">
@@ -126,8 +138,9 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
           {displayCategories.map((cat) => {
             const acc = CATEGORY_ACCENTS[cat.name] || CATEGORY_ACCENTS['Streaming']
             const Icon = acc.icon
-            const isSelected = selectedCategory === cat.slug
-            const count = countFor(cat.slug)
+            const isSelected = selectedCategory === cat.name
+            const count = countFor(cat.name)
+            const catHref = `/${ROUTE_BY_NAME[cat.name] || ''}`
 
             return (
               <div key={cat.slug} className="relative group">
@@ -140,9 +153,13 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
                   }`}
                 ></div>
 
-                <button
+                <a
                   id={`cat-card-${cat.slug.replace(/\s+/g, '-').toLowerCase()}`}
-                  onClick={() => onSelectCategory(isSelected ? 'all' : cat.slug)}
+                  href={catHref}
+                  onClick={(e) => {
+                    e.preventDefault() // SPA navigation — handleSelectCategory pushes the real URL
+                    onSelectCategory(isSelected ? 'all' : cat.name)
+                  }}
                   className={`w-full relative z-10 flex flex-col items-center text-center px-3 pt-5 pb-4 rounded-3xl transition-all duration-300 border ${
                     isSelected
                       ? `bg-gradient-to-b ${acc.from} ${acc.to} border-2 ${acc.ring} -translate-y-1 shadow-[0_10px_32px_rgba(0,0,0,0.45)]`
@@ -175,7 +192,7 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
                   >
                     {count} items
                   </span>
-                </button>
+                </a>
               </div>
             )
           })}

@@ -11,6 +11,11 @@ import {
   ShoppingCart,
   LifeBuoy,
   Download,
+  Mail,
+  Phone,
+  MapPin,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react'
 import { FooterInfoModal } from './FooterInfoModal'
 import { fetchAppsConfig, isListable, type StorefrontAppsConfig } from '../lib/appLinks'
@@ -47,6 +52,25 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
   const whatsapp = cms?.contact?.whatsapp || '923321049333'
   const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
+
+  // ---- Complete contact section values (CMS-driven with the same fallbacks
+  // as /contact so the footer always shows the real channels) ----
+  const contactEmail = cms?.contact?.email || 'support@playbeat.digital'
+  const contactPhone = cms?.contact?.phone || '+92 332 1049333'
+  const contactAddress =
+    cms?.contact?.address ||
+    'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
+  const company = 'Playbeat Digital Private Limited'
+  const waDigits = whatsapp.replace(/[^\d]/g, '')
+  const waLink = `https://wa.me/${waDigits}`
+  const prettyWa = `+${waDigits.replace(/^92/, '92 ')}`
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactAddress)}`
+  const waLines = [
+    { label: 'WhatsApp Line 1 — Orders', num: '923321049333', pretty: '+92 332 1049333' },
+    { label: 'WhatsApp Line 2 — Support', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 3 — Escalations', num: '923341079333', pretty: '+92 334 1079333' },
+  ]
+  const messagingHandle = '@playbeatdigital01'
 
   useEffect(() => {
     let alive = true
@@ -234,8 +258,143 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
             )}
           </div>
 
-          {/* Enhanced Dynamic Buttons — Policies & Contact (all real indexable URLs) */}
+          {/* ============ CONTACT PLAYBEAT — complete contact section ============ */}
           <div className="pt-8 pb-6 border-t border-slate-400/10">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
+              <div>
+                <h3 className="text-sm font-extrabold text-white font-sans tracking-tight flex items-center gap-2">
+                  <Headphones className="w-4 h-4 text-yellow-400" />
+                  Contact PlayBeat
+                </h3>
+                <p className="text-[11px] text-slate-500 font-sans mt-1">
+                  Real humans, real channels — pick whichever suits you best.
+                </p>
+              </div>
+              <a
+                href="/contact"
+                className="group inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-yellow-300 transition"
+              >
+                Full contact page
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </a>
+            </div>
+
+            {/* 4 direct channels */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+              <a
+                href={`mailto:${contactEmail}`}
+                className="group flex items-start gap-3 p-3.5 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 hover:border-yellow-400/50 transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <span className="w-8 h-8 rounded-xl bg-yellow-500/15 border border-yellow-400/30 flex items-center justify-center shrink-0">
+                  <Mail className="w-3.5 h-3.5 text-yellow-400" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold text-white">Email Us</span>
+                  <span className="block text-[10px] text-slate-400 truncate group-hover:text-yellow-300 transition">{contactEmail}</span>
+                </span>
+              </a>
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-start gap-3 p-3.5 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 hover:border-emerald-400/50 transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <span className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-400/30 flex items-center justify-center shrink-0">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold text-white">WhatsApp 24/7</span>
+                  <span className="block text-[10px] text-slate-400 font-mono group-hover:text-emerald-300 transition">{prettyWa}</span>
+                </span>
+              </a>
+              <a
+                href={`tel:${contactPhone.replace(/\s/g, '')}`}
+                className="group flex items-start gap-3 p-3.5 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <span className="w-8 h-8 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center shrink-0">
+                  <Phone className="w-3.5 h-3.5 text-sky-400" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold text-white">Call Support</span>
+                  <span className="block text-[10px] text-slate-400 font-mono group-hover:text-sky-300 transition">{contactPhone}</span>
+                </span>
+              </a>
+              <a
+                href={mapLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-start gap-3 p-3.5 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 hover:border-pink-400/50 transition-all duration-300 hover:-translate-y-0.5"
+              >
+                <span className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-400/30 flex items-center justify-center shrink-0">
+                  <MapPin className="w-3.5 h-3.5 text-pink-400" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-bold text-white">Visit Office</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 group-hover:text-pink-300 transition">
+                    Open in Maps <ExternalLink className="w-2.5 h-2.5" />
+                  </span>
+                </span>
+              </a>
+            </div>
+
+            {/* Registered office · WhatsApp order lines · Quick messaging */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-4 rounded-2xl bg-[#0A122E]/60 border border-slate-400/15">
+                <div className="flex items-center gap-2 mb-2">
+                  <MapPin className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-[11px] font-bold text-white">Registered Office</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">{company}</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">{contactAddress}</p>
+                <a
+                  href={mapLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2.5 text-[10px] font-semibold text-yellow-300 hover:text-yellow-200 transition"
+                >
+                  Get Directions <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#0A122E]/60 border border-slate-400/15">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px] font-bold text-white">WhatsApp Order Lines</span>
+                </div>
+                <div className="space-y-1.5">
+                  {waLines.map((l) => (
+                    <a
+                      key={l.num}
+                      href={`https://wa.me/${l.num}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-[#060B1E] border border-slate-400/15 hover:border-emerald-400/40 transition group"
+                    >
+                      <span className="text-[10px] text-slate-400 truncate">{l.label}</span>
+                      <span className="text-[10px] font-mono font-bold text-emerald-300 group-hover:text-emerald-200 shrink-0">{l.pretty}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#0A122E]/60 border border-slate-400/15">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="text-[11px] font-bold text-white">Quick Messaging</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  WeChat / WhatsApp / Telegram:{' '}
+                  <code className="text-amber-300 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded">{messagingHandle}</code>
+                </p>
+                <p className="text-[10px] text-slate-500 mt-2.5 leading-relaxed">
+                  Fastest replies on WhatsApp — average response under 15 minutes, 24/7.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Enhanced Dynamic Buttons — Policies & Contact (all real indexable URLs) */}
+          <div className="pt-2 pb-6 border-t border-slate-400/10">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {
                 [

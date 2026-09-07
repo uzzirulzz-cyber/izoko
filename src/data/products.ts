@@ -18,7 +18,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Streaming',
-    slug: 'Streaming',
+    slug: 'streaming',
     iconName: 'PlaySquare',
     description: 'Netflix, YouTube Premium, Prime Video, Disney+, HBO Max & 15+ official streaming plans',
     accentColor: 'text-rose-400',
@@ -28,7 +28,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Subscriptions',
-    slug: 'Subscriptions',
+    slug: 'subscriptions',
     iconName: 'Layers',
     description: 'ChatGPT, Perplexity, Office 365, Adobe CC, CapCut, VPNs & premium productivity tools',
     accentColor: 'text-emerald-400',
@@ -38,7 +38,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Gift Cards',
-    slug: 'Gift Cards',
+    slug: 'gift-cards',
     iconName: 'Gift',
     description: 'Xbox, PlayStation, Steam, Razer Gold & Apple gift cards — instant official codes',
     accentColor: 'text-yellow-400',
@@ -48,7 +48,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Gaming',
-    slug: 'Gaming',
+    slug: 'gaming',
     iconName: 'Gamepad2',
     description: 'Xbox Game Pass Ultimate & gaming wallet top-ups',
     accentColor: 'text-indigo-400',
@@ -58,7 +58,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Software',
-    slug: 'Software',
+    slug: 'software',
     iconName: 'CreditCard',
     description: 'Windows 11, Office 2024/2021/2019, Adobe CC, antivirus & genuine retail keys',
     accentColor: 'text-purple-400',
@@ -68,7 +68,7 @@ export const CATEGORIES_DATA: CategoryMeta[] = [
   },
   {
     name: 'Smart Projectors',
-    slug: 'Smart Projectors',
+    slug: 'smart-projectors',
     iconName: 'Projector',
     description: 'Magcubic, HCS350, Hongtop & HY-series smart projectors — full home cinema lineup',
     accentColor: 'text-cyan-400',

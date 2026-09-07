@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Product, CurrencyCode, ProductVariant } from '../types'
 import { formatPrice } from '../lib/currency'
+import { ensureProductSlug } from '../lib/slug'
 
 // Category chip colors (color-coded storefront)
 const CAT_CHIP: Record<string, string> = {
@@ -139,8 +140,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* Details */}
         <div className="flex-1 flex flex-col pt-3 px-1">
+          {/* Product name is a real, crawlable link to its own slug URL
+              (/product/<slug>) — opens the same quick view in the SPA */}
           <h3 className="font-bold text-white text-sm leading-snug line-clamp-2 mb-1.5 group-hover:text-amber-200 transition-colors">
-            {product.name}
+            <a
+              href={`/product/${ensureProductSlug(product)}`}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onQuickView(product)
+              }}
+              className="hover:text-amber-200"
+            >
+              {product.name}
+            </a>
           </h3>
 
           {/* Category chip + rating */}
