@@ -192,7 +192,7 @@ export function GooglePlayBadge({ href, height = 44, className, pendingLabel, ar
       eyebrow={isApk ? 'ANDROID APP' : 'GET IT ON'}
       title={isApk ? 'Download APK' : 'Google Play'}
       titleSize={height * 0.38}
-      plateUnits={isApk ? 134 : 118}
+      plateUnits={isApk ? 144 : 118}
     />
   )
   if (!live) {
