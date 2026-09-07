@@ -61,7 +61,7 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const contactPhone = cms?.contact?.phone || '+92 332 1049333'
   const contactAddress =
     cms?.contact?.address ||
-    'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
+    'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
   const company = 'Playbeat Digital Private Limited'
   const waDigits = whatsapp.replace(/[^\d]/g, '')
   const waLink = `https://wa.me/${waDigits}`

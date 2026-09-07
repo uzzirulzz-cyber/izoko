@@ -40,7 +40,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => 
   const phone = contact?.phone || '+92 332 1049333'
   const address =
     contact?.address ||
-    'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
+    'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
   const hours = contact?.hours || 'Support: 24/7 Automated — Live agents 10AM-10PM PKT'
   const company = 'Playbeat Digital Private Limited'
   const waLines = [

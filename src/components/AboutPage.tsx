@@ -40,7 +40,7 @@ interface AboutPageProps {
 
 const REGISTERED_COMPANY = 'Playbeat Digital Private Limited'
 const REGISTERED_ADDRESS =
-  'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan'
+  'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
 const CONTACT_EMAIL = 'support@playbeat.digital'
 const CONTACT_PHONE = '+92 332 1049333'
 

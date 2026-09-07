@@ -15,7 +15,7 @@ const UPDATED = 'August 2026'
 const CONTACT = {
   email: 'support@playbeat.digital',
   whatsapp: '+92 332 1049333',
-  address: 'House 334, Street 6, Jinnahabad, Abbottabad, Khyber Pakhtunkhwa, Pakistan',
+  address: 'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan',
 }
 
 const PAGES = [
