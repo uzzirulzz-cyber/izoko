@@ -87,6 +87,14 @@ import {
   resolveQrValue,
   MOBILE_APPS_DEFAULTS,
 } from "../_lib/mobileApps.js";
+import {
+  getWhatsAppConfig,
+  saveWhatsAppConfig,
+  sanitizeWhatsAppPatch,
+  maskToken,
+  sendWhatsAppMessage,
+  normalizeRecipient,
+} from "../_lib/whatsapp.js";
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2805,6 +2813,194 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     } catch (err: any) {
       console.error("DELETE /api/admin/documents/:id error:", err);
       return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ===========================================================================
+  // WHATSAPP CLOUD API — configuration, status, templates and sending.
+  // Guard: admin gate (global) for read/send; config save is super-admin only
+  // because the access token is a credential. Token is never returned
+  // unmasked — the panel shows a masked preview only.
+  // ===========================================================================
+
+  // ============ GET /api/admin/whatsapp-config ============
+  if (route === "whatsapp-config" && req.method === "GET") {
+    try {
+      const { config, source } = await getWhatsAppConfig();
+      const db = await getDb();
+      const audits = await db
+        .collection("whatsapp_config_audit")
+        .find({})
+        .sort({ at: -1 })
+        .limit(5)
+        .toArray();
+      const recent = await db
+        .collection("whatsapp_messages")
+        .find({})
+        .sort({ at: -1 })
+        .limit(10)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        config: {
+          phoneNumberId: config.phoneNumberId,
+          wabaId: config.wabaId,
+          graphVersion: config.graphVersion,
+          hasToken: Boolean(config.accessToken),
+          tokenPreview: maskToken(config.accessToken),
+        },
+        source,
+        audits: audits.map((a: any) => ({ at: a.at, actor: a.actor, keys: a.keys })),
+        recent: recent.map((m: any) => ({
+          at: m.at,
+          to: m.to,
+          kind: m.kind,
+          templateName: m.templateName || null,
+          ok: m.ok,
+          error: m.error || null,
+          wamid: m.wamid || null,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load WhatsApp configuration.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/whatsapp-config (super admin) ============
+  // Body: { phoneNumberId?, wabaId?, accessToken?, graphVersion? }
+  // Empty string clears a field; omitted keys stay unchanged.
+  if (route === "whatsapp-config" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      const patch = sanitizeWhatsAppPatch(req.body || {});
+      if (Object.keys(patch).length === 0) {
+        return jsonError(res, "Nothing to update — provide at least one WhatsApp field.", 400);
+      }
+      const { config, source } = await saveWhatsAppConfig(patch, actor);
+      return jsonOk(res, {
+        success: true,
+        message: "WhatsApp configuration saved.",
+        config: {
+          phoneNumberId: config.phoneNumberId,
+          wabaId: config.wabaId,
+          graphVersion: config.graphVersion,
+          hasToken: Boolean(config.accessToken),
+          tokenPreview: maskToken(config.accessToken),
+        },
+        source,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not save the WhatsApp configuration.", 400);
+    }
+  }
+
+  // ============ GET /api/admin/whatsapp-status ============
+  // Live check against the Graph API — phone number identity + quality rating.
+  if (route === "whatsapp-status" && req.method === "GET") {
+    try {
+      const { config } = await getWhatsAppConfig(true);
+      if (!config.phoneNumberId || !config.accessToken) {
+        return jsonError(res, "WhatsApp is not configured — save Phone Number ID and access token first.", 400);
+      }
+      const url = `https://graph.facebook.com/${config.graphVersion || "v25.0"}/${config.phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,code_verification_status`;
+      const apiRes = await fetch(url, { headers: { Authorization: `Bearer ${config.accessToken}` } });
+      const body = await apiRes.json().catch(() => null);
+      if (!apiRes.ok) {
+        const msg = body?.error?.error_data?.details || body?.error?.message || `Graph API HTTP ${apiRes.status}`;
+        return jsonError(res, msg, 502);
+      }
+      return jsonOk(res, { success: true, status: body });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not reach the Graph API.", 502);
+    }
+  }
+
+  // ============ GET /api/admin/whatsapp-templates ============
+  if (route === "whatsapp-templates" && req.method === "GET") {
+    try {
+      const { config } = await getWhatsAppConfig(true);
+      if (!config.wabaId || !config.accessToken) {
+        return jsonError(res, "WhatsApp is not configured — save WABA ID and access token first.", 400);
+      }
+      const url = `https://graph.facebook.com/${config.graphVersion || "v25.0"}/${config.wabaId}/message_templates?limit=50`;
+      const apiRes = await fetch(url, { headers: { Authorization: `Bearer ${config.accessToken}` } });
+      const body = await apiRes.json().catch(() => null);
+      if (!apiRes.ok) {
+        const msg = body?.error?.message || `Graph API HTTP ${apiRes.status}`;
+        return jsonError(res, msg, 502);
+      }
+      const templates = (body?.data || []).map((t: any) => ({
+        name: t.name,
+        status: t.status,
+        category: t.category,
+        language: t.language,
+        components: (t.components || []).map((c: any) => ({
+          type: c.type,
+          text: c.text || null,
+          example: c.example || null,
+        })),
+      }));
+      return jsonOk(res, { success: true, templates });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load templates.", 502);
+    }
+  }
+
+  // ============ POST /api/admin/whatsapp-send ============
+  // Body: { to, kind: "text" | "template", text?, templateName?, languageCode?, params?: string[] }
+  // Every send is logged to the whatsapp_messages collection for the panel feed.
+  if (route === "whatsapp-send" && req.method === "POST") {
+    try {
+      const { config } = await getWhatsAppConfig(true);
+      if (!config.phoneNumberId || !config.accessToken) {
+        return jsonError(res, "WhatsApp is not configured — save Phone Number ID and access token first.", 400);
+      }
+      const body = req.body || {};
+      const to = normalizeRecipient(String(body.to || ""));
+      if (!to || to.length < 8) return jsonError(res, "Provide a valid recipient phone number.", 400);
+
+      const kind = body.kind === "template" ? "template" : "text";
+      let payload: Record<string, any>;
+      if (kind === "text") {
+        const text = String(body.text || "").trim();
+        if (!text) return jsonError(res, "Provide a message body for text sends.", 400);
+        payload = { messaging_product: "whatsapp", to, type: "text", text: { body: text } };
+      } else {
+        const templateName = String(body.templateName || "").trim();
+        if (!templateName) return jsonError(res, "Provide a template name for template sends.", 400);
+        const params = Array.isArray(body.params) ? body.params.map((p: any) => String(p)) : [];
+        const languageCode = String(body.languageCode || "en_US").trim();
+        const component: any = { type: "body", parameters: params.map((text) => ({ type: "text", text })) };
+        payload = {
+          messaging_product: "whatsapp",
+          to,
+          type: "template",
+          template: { name: templateName, language: { code: languageCode }, components: [component] },
+        };
+      }
+
+      const result = await sendWhatsAppMessage(config, payload);
+      const wamid = result.body?.messages?.[0]?.id || null;
+      const errDetail = result.ok ? null : (result.body?.error?.error_data?.details || result.body?.error?.message || `HTTP ${result.status}`);
+      // log (best effort)
+      try {
+        const db = await getDb();
+        await db.collection("whatsapp_messages").insertOne({
+          at: new Date(),
+          to,
+          kind,
+          templateName: kind === "template" ? String(body.templateName) : null,
+          ok: result.ok,
+          wamid,
+          error: errDetail,
+          actor: String((req as any).admin?.email || "admin"),
+        });
+      } catch { /* logging must never block */ }
+      if (!result.ok) return jsonError(res, errDetail || "WhatsApp send failed.", 502);
+      return jsonOk(res, { success: true, messageId: wamid, response: result.body });
+    } catch (err: any) {
+      return jsonError(res, err.message || "WhatsApp send failed.", 502);
     }
   }
 

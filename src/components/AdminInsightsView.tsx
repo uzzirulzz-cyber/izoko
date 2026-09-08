@@ -63,6 +63,7 @@ import {
   Percent,
   Folder,
   CreditCard,
+  MessageCircle,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -93,6 +94,7 @@ import { AnalyticsPanel } from './admin/AnalyticsPanel'
 import { OrdersLogPanel } from './admin/OrdersLogPanel'
 import { GatewayPanel } from './admin/GatewayPanel'
 import { BusinessAnalyticsPanel } from './admin/BusinessAnalyticsPanel'
+import { WhatsAppPanel } from './admin/WhatsAppPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 
 interface AdminInsightsViewProps {
@@ -990,6 +992,22 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <Megaphone className="w-4 h-4 text-amber-400" />
                     {!sidebarCollapsed && <span>Business Analytics</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('whatsapp')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'whatsapp' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'whatsapp'
+                        ? ({ '--nav-a': '#6ee7b7', '--nav-bg': 'rgba(16,185,129,0.09)', '--nav-edge': 'rgba(16,185,129,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="WhatsApp Cloud API — order notifications & customer messaging"
+                  >
+                    <MessageCircle className="w-4 h-4 text-emerald-400" />
+                    {!sidebarCollapsed && <span>WhatsApp Business</span>}
                   </button>
                 </div>
               </div>
@@ -3376,6 +3394,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'business' && (
               <BusinessAnalyticsPanel onToast={triggerToast} />
+            )}
+
+            {/* ========================================================================= */}
+            {/* PANEL: WHATSAPP BUSINESS — Cloud API config + messaging                  */}
+            {/* ========================================================================= */}
+            {activeNav === 'whatsapp' && (
+              <WhatsAppPanel onToast={triggerToast} />
             )}
 
             {/* ========================================================================= */}
