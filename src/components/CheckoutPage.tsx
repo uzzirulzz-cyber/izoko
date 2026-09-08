@@ -42,6 +42,7 @@ import {
   setStoredContact,
   isValidEmail,
   emailError,
+  isValidPhone,
   subscribeCheckoutState,
 } from './checkout/checkoutState'
 import './checkout/checkout.css'
@@ -94,6 +95,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   // ---- customer + legal ----
   const [contact, setContact] = useState(() => getStoredContact())
   const [emailTouched, setEmailTouched] = useState(false)
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [acknowledgeRefund, setAcknowledgeRefund] = useState(false)
   const [legalAttempted, setLegalAttempted] = useState(false)
@@ -123,6 +125,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       setContact((prev) => ({
         name: prev.name || user.name || '',
         email: prev.email || user.email || '',
+        phone: prev.phone || (user as any).phone || '',
       }))
     }
   }, [user])
@@ -209,6 +212,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   // ---- validation gates ----
   const emailErr = emailTouched ? emailError(contact.email) : ''
+  const phoneErr =
+    phoneTouched && contact.phone && !isValidPhone(contact.phone)
+      ? 'Enter a valid WhatsApp number, e.g. 03001234567 or +92 300 1234567'
+      : ''
   const legalOk = agreeTerms && acknowledgeRefund
   const canPay =
     cart.length > 0 &&
@@ -248,6 +255,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       document.getElementById('pbx-co-email')?.focus()
       return
     }
+    // Gate 3b: optional WhatsApp number — only shape-checked when filled
+    setPhoneTouched(true)
+    if (contact.phone && !isValidPhone(contact.phone)) {
+      document.getElementById('pbx-co-phone')?.focus()
+      return
+    }
     // Gate 4: legal
     setLegalAttempted(true)
     if (!legalOk) {
@@ -267,7 +280,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     setCheckoutError('')
 
     // Persist contact for future visits / drawer sync
-    setStoredContact({ name: contact.name, email: contact.email.trim() })
+    setStoredContact({ name: contact.name, email: contact.email.trim(), phone: contact.phone?.trim() || '' })
 
     try {
       const token = localStorage.getItem('playbeat_user_token')
@@ -297,6 +310,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           })),
           customerName: contact.name,
           customerEmail: contact.email.trim(),
+          customerPhone: contact.phone?.trim() || undefined,
           totalAmount: totals.total, // reference only — server recomputes
           currency,
           paymentMethod: isRapid ? 'rapid' : DIRECT_METHOD_LABEL[selectedMethod] || selectedMethod,
@@ -694,11 +708,40 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     </p>
                   )}
                 </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="pbx-co-phone" className="block text-xs font-bold text-slate-700 mb-1.5">
+                    WhatsApp number{' '}
+                    <span className="font-medium text-slate-400">— optional, for order updates</span>
+                  </label>
+                  <input
+                    id="pbx-co-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={contact.phone || ''}
+                    onChange={(e) => {
+                      const next = { ...contact, phone: e.target.value }
+                      setContact(next)
+                      setStoredContact(next)
+                    }}
+                    onBlur={() => setPhoneTouched(true)}
+                    placeholder="0300 1234567"
+                    className="pbx-input"
+                    aria-invalid={!!phoneErr}
+                    aria-describedby={phoneErr ? 'pbx-co-phone-error' : undefined}
+                  />
+                  {phoneErr && (
+                    <p id="pbx-co-phone-error" className="text-xs font-medium text-rose-600 mt-1.5" role="alert">
+                      {phoneErr}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <p className="flex items-start gap-1.5 text-[11px] text-slate-400 mt-3 leading-relaxed">
                 <Info style={{ width: 13, height: 13 }} className="shrink-0 mt-px" />
-                Order updates and license keys are sent to this email — please double-check it.
+                Order updates and license keys are sent to this email — please double-check it. Add a
+                WhatsApp number to also get shipping and delivery updates there.
               </p>
             </section>
 

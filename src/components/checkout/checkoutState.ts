@@ -2,7 +2,7 @@
 // and the /checkout page (and full page reloads):
 //   - applied coupon (server-validated; the stored discount is recomputed
 //     against the live subtotal by the consumer, order creation re-validates)
-//   - customer contact (name + email)
+//   - customer contact (name + email + optional WhatsApp phone)
 // Kept in localStorage with a tiny pub/sub so both surfaces stay in sync.
 
 import { AppliedCoupon } from './types'
@@ -51,6 +51,7 @@ export function setStoredCoupon(coupon: AppliedCoupon | null): void {
 export interface CheckoutContact {
   name: string
   email: string
+  phone?: string
 }
 
 export function getStoredContact(): CheckoutContact {
@@ -59,13 +60,17 @@ export function getStoredContact(): CheckoutContact {
     if (raw) {
       const c = JSON.parse(raw)
       if (c && (typeof c.email === 'string' || typeof c.name === 'string')) {
-        return { name: String(c.name || ''), email: String(c.email || '') }
+        return {
+          name: String(c.name || ''),
+          email: String(c.email || ''),
+          phone: typeof c.phone === 'string' ? c.phone : '',
+        }
       }
     }
   } catch {
     /* ignore */
   }
-  return { name: '', email: '' }
+  return { name: '', email: '', phone: '' }
 }
 
 export function setStoredContact(contact: CheckoutContact): void {
@@ -80,6 +85,14 @@ export function setStoredContact(contact: CheckoutContact): void {
 // ---------------- email validation ----------------
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+/** WhatsApp number shape: optional +, 7–20 of digits/spaces/dashes. */
+const PHONE_RE = /^\+?[\d\s-]{7,20}$/
+
+export function isValidPhone(phone: string): boolean {
+  const v = phone.trim()
+  return v === '' || PHONE_RE.test(v)
+}
 
 export function isValidEmail(email: string): boolean {
   return EMAIL_RE.test(email.trim())

@@ -111,7 +111,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setEmailTouched(true)
       return
     }
-    setStoredContact({ name: user.name || '', email: checkoutEmail.trim() })
+    setStoredContact({ ...getStoredContact(), name: user.name || '', email: checkoutEmail.trim() })
     onProceedToCheckout()
   }
 

@@ -19,6 +19,7 @@ import { ObjectId } from "mongodb";
 import { writeAudit } from "./audit.js";
 import { ensureInvoiceForOrder } from "./invoice.js";
 import { sendEmail, orderPaidEmail, isEmailConfigured } from "./email.js";
+import { sendOrderNotification } from "./whatsapp.js";
 
 function genKey(skuHint: string): string {
   const seg = () => Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -211,6 +212,22 @@ export async function fulfillPaidOrder(
     notificationCreated = true;
   } catch { /* notification failure must not fail the webhook */ }
 
+  // ---- 5b. Automated WhatsApp payment confirmation (admin-configurable).
+  // Best-effort: disabled/unconfigured/no-phone no-op, failures never bubble
+  // into the webhook outcome. The fulfillments ledger makes this run once. ----
+  let whatsappStatus = "skipped";
+  try {
+    const wa = await sendOrderNotification("payment_confirmed", db, freshOrder);
+    whatsappStatus = wa.sent
+      ? wa.ok
+        ? "sent"
+        : `failed:${wa.error || "unknown"}`
+      : `skipped:${wa.skipped || "unknown"}`;
+  } catch (waErr: any) {
+    whatsappStatus = `failed:${waErr?.message || "exception"}`;
+    console.error("fulfillment: whatsapp notification failed:", waErr?.message);
+  }
+
   // ---- 6. Confirmation email (only when a provider is configured) ----
   let emailSent = false;
   let emailStatus = isEmailConfigured() ? "attempted" : "email_not_configured";
@@ -254,6 +271,7 @@ export async function fulfillPaidOrder(
             emailSent,
             emailStatus,
             notificationCreated,
+            whatsappStatus,
             keysEnsured,
           },
         },

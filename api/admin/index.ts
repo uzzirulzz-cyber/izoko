@@ -94,6 +94,11 @@ import {
   maskToken,
   sendWhatsAppMessage,
   normalizeRecipient,
+  getNotifications,
+  sendOrderNotification,
+  defaultNotifications,
+  WHATSAPP_EVENT_KEYS,
+  type WhatsAppEventKey,
 } from "../_lib/whatsapp.js";
 
 function escapeRegExp(s: string): string {
@@ -2838,8 +2843,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         .collection("whatsapp_messages")
         .find({})
         .sort({ at: -1 })
-        .limit(10)
+        .limit(12)
         .toArray();
+      const notifications = await getNotifications(db);
       return jsonOk(res, {
         success: true,
         config: {
@@ -2850,12 +2856,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           tokenPreview: maskToken(config.accessToken),
         },
         source,
+        notifications,
         audits: audits.map((a: any) => ({ at: a.at, actor: a.actor, keys: a.keys })),
         recent: recent.map((m: any) => ({
           at: m.at,
           to: m.to,
           kind: m.kind,
           templateName: m.templateName || null,
+          trigger: m.trigger || null,
+          orderNumber: m.orderNumber || null,
           ok: m.ok,
           error: m.error || null,
           wamid: m.wamid || null,
@@ -2892,6 +2901,57 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       });
     } catch (err: any) {
       return jsonError(res, err.message || "Could not save the WhatsApp configuration.", 400);
+    }
+  }
+
+  // ============ POST /api/admin/whatsapp-notify-test (super admin) ============
+  // Dry-run an order notification against a sample order (or a real one by
+  // orderNumber) WITHOUT enabling the event. Uses force=true so the event
+  // toggle does not need to be on yet. Body: { trigger, to?, orderNumber? }
+  if (route === "whatsapp-notify-test" && req.method === "POST") {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const trigger = String(req.body?.trigger || "");
+      if (!WHATSAPP_EVENT_KEYS.includes(trigger as WhatsAppEventKey)) {
+        return jsonError(res, `trigger must be one of: ${WHATSAPP_EVENT_KEYS.join(", ")}`, 400);
+      }
+      const db = await getDb();
+      let order: any = null;
+      const orderNumber = String(req.body?.orderNumber || "").trim();
+      if (orderNumber) {
+        order = await db.collection("orders").findOne({ orderNumber });
+        if (!order) return jsonError(res, `Order ${orderNumber} not found.`, 404);
+      } else {
+        order = {
+          orderNumber: "PB-000000-TEST",
+          customerName: "Test Customer",
+          customerEmail: "test@playbeat.digital",
+          customerPhone: "",
+          items: [
+            { name: "Netflix Premium 1 Month", quantity: 1, price: 1250 },
+            { name: "Spotify Premium", quantity: 2, price: 600 },
+          ],
+          totalAmount: 2450,
+          currency: "PKR",
+          status: "processing",
+          paymentStatus: "paid",
+          paymentMethod: "Rapid Gateway",
+          createdAt: new Date(),
+        };
+      }
+      const result = await sendOrderNotification(trigger as WhatsAppEventKey, db, order, {
+        force: true,
+        overrideTo: String(req.body?.to || "").trim() || undefined,
+      });
+      if (result.skipped) {
+        return jsonError(res, `Notification skipped: ${result.skipped}.`, 409);
+      }
+      if (result.sent && !result.ok) {
+        return jsonError(res, result.error || "WhatsApp send failed.", 502);
+      }
+      return jsonOk(res, { success: true, result });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Notification test failed.", 500);
     }
   }
 
@@ -3891,15 +3951,29 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           },
         }
       );
+      // ---- Automated WhatsApp status update (shipped / delivered only).
+      // Best-effort — a WhatsApp failure never blocks the admin transition. ----
+      let whatsappResult: any = null;
+      if (status === "shipped" || status === "delivered") {
+        try {
+          whatsappResult = await sendOrderNotification(
+            status === "shipped" ? "order_shipped" : "order_delivered",
+            db,
+            { ...order, status }
+          );
+        } catch (waErr: any) {
+          whatsappResult = { sent: false, error: waErr?.message || "notification failed" };
+        }
+      }
       await writeAudit(db, {
         actor,
         action: "order.status_change",
         targetType: "order",
         targetId: String(orderNumber),
         detail: `Order ${orderNumber}: ${order.status} → ${status}`,
-        meta: { note: String(note || "") },
+        meta: { note: String(note || ""), whatsapp: whatsappResult ? JSON.stringify(whatsappResult).slice(0, 200) : null },
       });
-      return jsonOk(res, { success: true, message: `Order ${orderNumber} → ${status}.` });
+      return jsonOk(res, { success: true, message: `Order ${orderNumber} → ${status}.`, ...(whatsappResult ? { whatsapp: whatsappResult } : {}) });
     } catch (err: any) {
       return jsonError(res, err.message, 500);
     }

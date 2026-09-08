@@ -19,6 +19,7 @@ import {
   recordCouponRedemption,
 } from "../_lib/coupons.js";
 import { ensureInvoiceForOrder } from "../_lib/invoice.js";
+import { sendOrderNotification } from "../_lib/whatsapp.js";
 
 /** Is this DB product stock-tracked (finite) or unlimited (digital default)? */
 function isFiniteStock(doc: any): boolean {
@@ -314,7 +315,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ POST /api/orders (create) ============
   if (!route && req.method === "POST") {
     try {
-      const { items, customerName, customerEmail, totalAmount, currency = "PKR", paymentMethod = "Credit Card", couponCode, clientRequestId } = req.body || {};
+      const { items, customerName, customerEmail, customerPhone, totalAmount, currency = "PKR", paymentMethod = "Credit Card", couponCode, clientRequestId } = req.body || {};
       if (!items || !Array.isArray(items) || items.length === 0) {
         return jsonError(res, "Cart items are required to create an order.", 400);
       }
@@ -363,6 +364,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
       const finalCustomerName = customerName || authedUser.name || "PlayBeat Customer";
       const finalCustomerEmail = customerEmail || authedUser.email || "customer@playbeat.digital";
+      // Optional WhatsApp number — powers automated order notifications
+      // (admin panel → WhatsApp Business → Order notifications). Sanitized to
+      // a conservative phone shape; garbage input is DROPPED, never rejected.
+      const finalCustomerPhone =
+        typeof customerPhone === "string" && /^\+?[\d\s-]{7,20}$/.test(customerPhone.trim())
+          ? customerPhone.trim()
+          : "";
       const orderNumber = `PB-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
       // ---- Server-side price verification (audit §14: never trust the browser) ----
@@ -504,6 +512,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         ...(clientRequestId ? { clientRequestId: String(clientRequestId).slice(0, 64) } : {}),
         customerName: finalCustomerName,
         customerEmail: finalCustomerEmail,
+        ...(finalCustomerPhone ? { customerPhone: finalCustomerPhone } : {}),
         items: processedItems,
         // Server-recomputed total (client totalAmount kept only for reference)
         subtotalAmount: verifiedSubtotal,
@@ -524,6 +533,26 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
       // Coupon bookkeeping after the order is persisted (never blocks)
       if (appliedCoupon) await recordCouponRedemption(appliedCoupon.code);
+
+      // Profile enrichment: keep the first WhatsApp number the customer uses
+      // (best-effort — future orders can notify even without re-entering it)
+      if (finalCustomerPhone && !authedUser.phone) {
+        try {
+          await usersCol.updateOne(
+            { _id: authedUser._id },
+            { $set: { phone: finalCustomerPhone, phoneUpdatedAt: new Date() } }
+          );
+        } catch { /* non-blocking */ }
+      }
+
+      // ---- Automated WhatsApp order confirmation (admin-configurable).
+      // Best-effort by design: disabled/unconfigured/no-phone all no-op and
+      // a failure here NEVER fails the checkout. ----
+      try {
+        await sendOrderNotification("order_placed", db, orderDoc);
+      } catch (waErr: any) {
+        console.error("order_placed whatsapp notification failed:", waErr?.message);
+      }
 
       // Pending Rapid orders: never echo keys or act like payment happened.
       const responseBody = isRapidPayment
