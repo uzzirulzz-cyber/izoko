@@ -214,6 +214,13 @@ function render(page) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="google-site-verification" content="-USsgNvQV8Ip4Qjj00D5uJra7RFqmKvrFS4RhvKyqRw" />
   <title>${page.title} | PlayBeat Digital</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5TYLQD0J2N"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5TYLQD0J2N');
+  </script>
   <meta name="description" content="${page.description}" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="${url}" />
