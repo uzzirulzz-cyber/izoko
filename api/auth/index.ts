@@ -675,11 +675,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const tokenJson: any = await tokenRes.json();
       const accessToken = tokenJson.access_token || tokenJson.data?.access_token || tokenJson.data?.token;
       if (!accessToken) {
+        // Graph errors nest the message inside an object: {error:{message,…}}
+        // — extract it so users never see a useless "[object Object]".
         throw new Error(
           tokenJson.error_description ||
             tokenJson.error?.description ||
+            tokenJson.error?.message ||
             tokenJson.error_message ||
-            tokenJson.error ||
+            (typeof tokenJson.error === "string" ? tokenJson.error : "") ||
             "Token exchange failed"
         );
       }
