@@ -777,7 +777,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // signed_request carrying the app-scoped user id, deletes the matching local
   // account and returns { url, confirmation_code } per Meta's spec. Financial
   // order records are retained where legally required — the status page says so.
-  if (route === "meta/data-deletion" && req.method === "POST") {
+  // NOTE: "meta/delete" is accepted as an alias of "meta/data-deletion" — the
+  // owner registered the shorter path in the Meta console; both must work.
+  if ((route === "meta/data-deletion" || route === "meta/delete") && req.method === "POST") {
     const secrets = metaAppSecrets();
     if (!secrets.length) {
       return jsonError(res, "Data deletion endpoint not configured.", 503);
@@ -819,7 +821,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
   // GET: deletion status page — the URL returned above must lead the user to
   // a page showing their confirmation code and the deletion status.
-  if (route === "meta/data-deletion" && req.method === "GET") {
+  if ((route === "meta/data-deletion" || route === "meta/delete") && req.method === "GET") {
     const code = (url.searchParams.get("code") || "").trim();
     let record: any = null;
     if (code && /^[a-f0-9]{24}$/.test(code)) {
