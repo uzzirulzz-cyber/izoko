@@ -212,6 +212,7 @@ function render(page) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="google-site-verification" content="-USsgNvQV8Ip4Qjj00D5uJra7RFqmKvrFS4RhvKyqRw" />
   <title>${page.title} | PlayBeat Digital</title>
   <meta name="description" content="${page.description}" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
