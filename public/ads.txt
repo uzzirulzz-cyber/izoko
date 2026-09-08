@@ -2,4 +2,4 @@
 # Managed automatically at build time (scripts/generate-ads-txt.mjs).
 # Set ADSENSE_CLIENT_ID in Vercel (or the admin Business Analytics panel,
 # then redeploy) to update the record below.
-# (no AdSense publisher id configured yet — no records declared)
+google.com, pub-9777611286139666, DIRECT, f08c47fec0942fa0
