@@ -91,6 +91,7 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
   const [saving, setSaving] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [draft, setDraft] = useState<AppsConfig | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   // push test
   const [pushTitle, setPushTitle] = useState('PlayBeat Digital')
@@ -99,6 +100,7 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError('')
     try {
       const res = await fetch(`${API_BASE}/api/admin/app/storefront-config`, {
         headers: { Authorization: `Bearer ${getAdminToken()}` },
@@ -107,9 +109,15 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
       if (res.ok && data?.success) {
         setState(data)
         setDraft(data.config)
+      } else if (res.status === 401) {
+        setLoadError('Admin session expired — reload this page and sign in again.')
+      } else if (res.status === 403) {
+        setLoadError('This panel needs the super admin (owner) account — you are signed in as staff.')
+      } else {
+        setLoadError(`Config load failed (HTTP ${res.status}).${data?.error ? ' ' + data.error : ''}`)
       }
     } catch {
-      /* keep previous */
+      setLoadError('Network error while loading config — check your connection and Refresh.')
     } finally {
       setLoading(false)
     }
@@ -160,7 +168,13 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
         onToast('Mobile app config reset to defaults — storefront updates within 30s')
         load()
       } else {
-        onToast(data?.error || data?.message || 'Could not reset mobile app config')
+        const hint =
+          res.status === 401
+            ? ' — admin session expired, reload the page and sign in again'
+            : res.status === 403
+              ? ' — super admin (owner) account required'
+              : ''
+        onToast((data?.error || data?.message || 'Could not reset mobile app config') + hint)
       }
     } catch {
       onToast('Network error while resetting mobile app config')
@@ -217,7 +231,14 @@ export function MobileAppsPanel({ isSuperAdmin, onToast }: MobileAppsPanelProps)
   if (!state || !draft) {
     return (
       <div className="rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 p-8 text-center">
-        <p className="text-[11px] text-zinc-400 font-mono">Config unavailable — try Refresh.</p>
+        <p className="text-[11px] text-zinc-400 font-mono">{loadError || 'Config unavailable — try Refresh.'}</p>
+        <button
+          onClick={load}
+          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#060B1E] border border-slate-400/15 text-[10px] font-mono text-zinc-300 hover:border-fuchsia-400/40 transition"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
     )
   }
