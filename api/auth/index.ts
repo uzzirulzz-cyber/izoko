@@ -139,11 +139,15 @@ async function captureMetaRawBody(
 }
 
 // Every configured provider app secret — webhook deliveries and signed_request
-// callbacks may be issued by the Facebook app OR the Instagram app.
+// callbacks may be issued by the Facebook app, the Instagram app, or the
+// WhatsApp Business app (WHATSAPP_APP_SECRET, e.g. the PlaybeatLive app whose
+// Cloud API webhooks sign with its own secret).
 function metaAppSecrets(): string[] {
-  return [process.env.FACEBOOK_CLIENT_SECRET, process.env.INSTAGRAM_CLIENT_SECRET].filter(
-    Boolean
-  ) as string[];
+  return [
+    process.env.FACEBOOK_CLIENT_SECRET,
+    process.env.INSTAGRAM_CLIENT_SECRET,
+    process.env.WHATSAPP_APP_SECRET,
+  ].filter(Boolean) as string[];
 }
 
 // X-Hub-Signature-256: "sha256=" + hex(HMAC-SHA256(appSecret, rawBody)).
