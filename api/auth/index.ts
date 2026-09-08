@@ -81,17 +81,21 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       parseProfile: (j) => ({ id: j?.id, name: j?.name, email: j?.email, username: j?.email }),
     },
     instagram: {
-      // Instagram API with Instagram Login (graph.instagram.com). Instagram
-      // never shares an email — upsertSocialUser builds a stable provider-
-      // scoped identity in that case, so the flow still creates one account
-      // per Instagram user.
-      authUrl: "https://www.instagram.com/oauth/authorize",
-      tokenUrl: "https://api.instagram.com/oauth/access_token",
+      // Instagram API with FACEBOOK Login variant. The owner's Meta app
+      // (1407461764156743) migrated to this platform: the legacy
+      // api.instagram.com token endpoint now rejects it with
+      // "Invalid platform app", while the Facebook dialog + Graph token
+      // exchange and graph.instagram.com profile read are live (verified).
+      // Instagram never shares an email — upsertSocialUser builds a stable
+      // provider-scoped identity in that case, so the flow still creates
+      // one account per Instagram user.
+      authUrl: "https://www.facebook.com/v21.0/dialog/oauth",
+      tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
       profileUrl: "https://graph.instagram.com/v21.0/me?fields=user_id,username",
       scope: "instagram_business_basic",
       clientId: process.env.INSTAGRAM_CLIENT_ID,
       clientSecret: process.env.INSTAGRAM_CLIENT_SECRET,
-      parseProfile: (j) => ({ id: j?.id || j?.user_id, name: j?.username, username: j?.username }),
+      parseProfile: (j) => ({ id: j?.user_id || j?.id, name: j?.username, username: j?.username }),
     },
   };
 }
