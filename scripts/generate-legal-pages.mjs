@@ -221,6 +221,10 @@ function render(page) {
     gtag('js', new Date());
     gtag('config', 'G-5TYLQD0J2N');
   </script>
+  <!-- Google AdSense (publisher ca-pub-9777611286139666) -->
+  <meta name="google-adsense-account" content="ca-pub-9777611286139666" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9777611286139666"
+    crossorigin="anonymous"></script>
   <meta name="description" content="${page.description}" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="${url}" />

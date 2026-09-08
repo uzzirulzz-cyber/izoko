@@ -127,12 +127,28 @@ export function initGoogleTracking(): Promise<PublicTrackingConfig | null> {
     }
 
     // ---- AdSense (loader + site verification meta). -----------------------
+    // index.html ships the hardcoded standard AdSense snippet; the guards
+    // below make this dynamic path a no-op in that case (never load the
+    // library twice) while still bootstrapping everything when the hardcoded
+    // tags are absent or carry a stale client id.
     if (cfg.adsense) {
-      const meta = document.createElement('meta')
-      meta.name = 'google-adsense-account'
-      meta.content = cfg.adsense
-      document.head.appendChild(meta)
-      injectScript('pb-adsense-src', `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(cfg.adsense)}`)
+      if (!document.querySelector('meta[name="google-adsense-account"]')) {
+        const meta = document.createElement('meta')
+        meta.name = 'google-adsense-account'
+        meta.content = cfg.adsense
+        document.head.appendChild(meta)
+      }
+      const clientId = encodeURIComponent(cfg.adsense)
+      const existing = document.querySelector<HTMLScriptElement>('script[src*="adsbygoogle.js"]')
+      if (existing && existing.src.includes(clientId)) {
+        // hardcoded loader already present with the same client id — done
+      } else if (existing) {
+        // stale client id in the hardcoded tag — swap it for the configured one
+        existing.remove()
+        injectScript('pb-adsense-src', `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`)
+      } else {
+        injectScript('pb-adsense-src', `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`)
+      }
     }
 
     return cfg
