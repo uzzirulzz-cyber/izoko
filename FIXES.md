@@ -501,3 +501,44 @@ Notes:
   the general public to log in — in Development mode only app roles can.
 - `META_WEBHOOK_VERIFY_TOKEN` was NOT changed — the value delivered earlier
   still applies. It can be rotated on request (upsert + redeploy).
+
+## 25. Meta console URL-variant robustness — alias endpoints for owner-registered paths
+
+The owner registered these values in Meta App Settings → Basic; two were
+non-canonical, so the backend now accepts both spellings (owner-side values
+kept working without another config round-trip):
+
+| Owner-registered in Meta console | Status | Action taken |
+|------|--------|--------------|
+| App domains: `https://playbeat.digital/` | ❌ Meta requires the BARE domain — exchange still fails 191 | **Owner must change to `playbeat.digital`** (no https://, no slash) — not fixable server-side |
+| Privacy policy URL: `https://playbeat.digital/privacypolicyterms` | was 404 | `vercel.json` rewrite `/privacypolicyterms` → `/privacy.html` (now 200) |
+| Data deletion callback: `…/api/auth/meta/delete` | was 404 | `api/auth/index.ts` accepts `meta/delete` as alias of `meta/data-deletion` (GET status 200, POST still fail-closed 400 on bad signature) |
+| Canonical URLs (unchanged, recommended for review) | ✅ | privacy `/privacy` · data deletion `/api/auth/meta/data-deletion` · deauthorize `/api/auth/meta/deauthorize` |
+
+- Committed de0bb21 (tsc + build clean), pushed, deploy `dpl_AtEUbQv2h2NnUYWMqaYBqEw9XVby` READY
+- Post-deploy probes: `/api/auth/meta/delete` GET 200 + POST bogus-sig 400;
+  canonical data-deletion 200; `/privacypolicyterms` 200; oauth-config all
+  true; facebook/instagram start routes still 307
+
+## 26. Provider split — Facebook back on the verified app, Instagram stays on the new app
+
+Exchange probes after the owner fixed App Domains (`playbeat.digital`, saved)
+still returned 191 for the new app `1407461764156743` while the no-redirect
+control passed (error 100) — the 191 was the redirect whitelist of the
+**Facebook Login product**, which Instagram-template apps cannot host
+("Instagram API with Instagram Login" apps support Instagram Login only).
+
+| Provider | App | Evidence |
+|----------|-----|----------|
+| Facebook | **old app `2006269563378595`** (Vercel env PATCHed back) | dialog renders login form (browser-verified), exchange probe passes redirect validation (error 100 on fake code = code-level), secret validated |
+| Instagram | new app `1407461764156743` | start route 307 correct; exchange auth accepted (no-redirect control reached field validation); final confirmation = real-device login test |
+| Google | unchanged | **still blocked on the owner's `GOCSPX-…` client secret** |
+
+- Vercel env PATCH (FACEBOOK_CLIENT_ID/SECRET → old app) + API redeploy
+  `dpl_AKYByiqKY8G8vDTVwo6y5dsCnqhv` READY; post-deploy: oauth-config all
+  true, facebook/start → client_id 2006269563378595, instagram/start →
+  client_id 1407461764156743, old-app exchange probe error 100 (not 191)
+- If the owner later adds Facebook Login as a product to a Business-type app,
+  pointing Facebook at the new app is a 1-minute env PATCH away.
+- Owner reminders: old app must be in **Live mode** for public logins; Google
+  client secret still outstanding.
