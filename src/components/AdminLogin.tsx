@@ -261,7 +261,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                   spellCheck={false}
                   autoFocus
                   required
-                  placeholder="admin@playbeat.digital"
+                  placeholder="bixby@playbeat.live"
                   className="w-full bg-[#060B1E] border border-slate-400/20 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans"
                 />
               </div>
