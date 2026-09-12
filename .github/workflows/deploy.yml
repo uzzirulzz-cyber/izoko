@@ -1,0 +1,42 @@
+name: Deploy to Vercel (production)
+
+# Auto-deploys every push to main by asking the Vercel API to build the
+# latest main from GitHub. This replaces the (disappeared) GitHub webhook
+# integration with an explicit, API-token-driven path.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel production deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          RESP=$(curl -s -X POST "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"izoko","gitSource":{"type":"github","org":"uzzirulzz-cyber","repo":"izoko","ref":"main"},"target":"production"}')
+          DEPLOY_ID=$(echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); d=d.get('deployment') or d; print(d.get('id') or d.get('uid') or '')")
+          if [ -z "${DEPLOY_ID}" ]; then
+            echo "::error::Failed to trigger deployment: ${RESP}"
+            exit 1
+          fi
+          echo "Triggered deployment: ${DEPLOY_ID}"
+          # Wait for the deployment to finish (max ~10 min)
+          for i in $(seq 1 60); do
+            sleep 10
+            STATE=$(curl -s "https://api.vercel.com/v13/deployments/${DEPLOY_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('readyState') or d.get('state',''))" 2>/dev/null || echo "")
+            echo "[$i] ${STATE}"
+            case "${STATE}" in
+              READY) echo "Deployment READY"; exit 0 ;;
+              ERROR|CANCELED) echo "::error::Deployment ${STATE}"; exit 1 ;;
+            esac
+          done
+          echo "::error::Timed out waiting for deployment"
+          exit 1
