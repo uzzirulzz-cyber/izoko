@@ -1156,8 +1156,13 @@ export function App() {
     showToast(`Catalog updated with ${newProducts.length} imported products`)
   }
 
-  // Add to Cart Handler
+  // Add to Cart Handler — REQUIRES signed-in user (no guest cart)
   const handleAddToCart = (product: Product, variant?: ProductVariant) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      showToast('Please sign in or create an account to add items to your cart')
+      return
+    }
     setCart((prev) => {
       const variantKey = variant ? variant.id : 'default'
       const existingIndex = prev.findIndex(
@@ -1192,8 +1197,13 @@ export function App() {
     }
   }
 
-  // Instant Direct Checkout (buy now)
+  // Instant Direct Checkout (buy now) — REQUIRES signed-in user
   const handleInstantBuy = (product: Product, variant?: ProductVariant) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      showToast('Please sign in or create an account to buy now')
+      return
+    }
     handleAddToCart(product, variant)
     setIsCartOpen(true)
   }
@@ -1237,8 +1247,13 @@ export function App() {
     setCart([])
   }
 
-  // Wishlist Toggle
+  // Wishlist Toggle — REQUIRES signed-in user
   const handleToggleWishlist = (product: Product) => {
+    if (!user) {
+      setIsAuthOpen(true)
+      showToast('Please sign in or create an account to save items to your wishlist')
+      return
+    }
     setWishlist((prev) => {
       const exists = prev.some((p) => p.id === product.id)
       if (exists) {
@@ -1402,12 +1417,10 @@ export function App() {
     setIsCartOpen(true)
   }
 
-  // Proceed-to-checkout requires auth — CartDrawer will also enforce
+  // Proceed-to-checkout requires auth — delegates to handleAddToCart which
+  // now enforces sign-in before adding anything to the cart.
   const handleAddToCartAuth = (product: Product, variant?: ProductVariant) => {
     handleAddToCart(product, variant)
-    if (!user) {
-      showToast('Added to cart — sign in to checkout')
-    }
   }
 
   // Path navigation used by the bot, account dashboard and payment result
