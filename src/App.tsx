@@ -447,10 +447,12 @@ export function App() {
   }, [])
 
   // Keep URL in sync with route state (replace, not push, to avoid double history entries)
+  // IMPORTANT: preserve query strings (e.g. ?social_success=Facebook from OAuth callbacks)
   useEffect(() => {
     const expectedPath = routeToPath(route)
     if (window.location.pathname !== expectedPath) {
-      window.history.replaceState({}, '', expectedPath)
+      const query = window.location.search // preserve ?social_success= etc.
+      window.history.replaceState({}, '', expectedPath + query)
     }
   }, [route])
 
@@ -672,7 +674,7 @@ export function App() {
         .then((d) => {
           if (d?.success && d?.user) {
             const u = { name: d.user.name, email: d.user.email }
-            localStorage.setItem('playbeat_user_token', d.token || '')
+            if (d.token) localStorage.setItem('playbeat_user_token', d.token)
             localStorage.setItem('playbeat_user', JSON.stringify(u))
             setUser(u)
             showToast(`Welcome to PlayBeat, ${d.user.name}! Signed up via ${ok}.`)
@@ -681,10 +683,10 @@ export function App() {
           }
         })
         .catch(() => showToast(`Signed up via ${ok}.`))
-      window.history.replaceState({}, '', '/storefront')
+      window.history.replaceState({}, '', '/')
     } else if (err) {
       showToast(`Social sign-in notice: ${err}`)
-      window.history.replaceState({}, '', '/storefront')
+      window.history.replaceState({}, '', '/')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -611,7 +611,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         );
       }
       return res.status(302).redirect(
-        `/storefront?social_error=${encodeURIComponent(
+        `/?social_error=${encodeURIComponent(
           `${getProviderLabel(provider)} sign-in is being activated — its OAuth keys are not configured yet. Please use email registration meanwhile.`
         )}`
       );
@@ -639,11 +639,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const code = url.searchParams.get("code");
     const qErr = url.searchParams.get("error_description") || url.searchParams.get("error");
     const base = PUBLIC_SITE_URL.replace(/\/$/, "");
-    if (qErr) return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(qErr)}`);
+    if (qErr) return res.status(302).redirect(`${base}/?social_error=${encodeURIComponent(qErr)}`);
     if (!cfg || !cfg.clientId || !cfg.clientSecret) {
-      return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent("Provider not configured")}`);
+      return res.status(302).redirect(`${base}/?social_error=${encodeURIComponent("Provider not configured")}`);
     }
-    if (!code) return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent("Missing OAuth code")}`);
+    if (!code) return res.status(302).redirect(`${base}/?social_error=${encodeURIComponent("Missing OAuth code")}`);
 
     // CSRF check: the state we set in the start-step cookie must match the state
     // the provider echoed back (defends against forged authorization callbacks).
@@ -655,7 +655,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return res.status(302).redirect(`playbeat://oauth/callback?error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`);
       }
       return res.status(302).redirect(
-        `${base}/storefront?social_error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`
+        `${base}/?social_error=${encodeURIComponent("Sign-in session expired or invalid (state mismatch). Please try again.")}`
       );
     }
     clearCookie(res, "oauth_state");
@@ -720,12 +720,12 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         );
       }
       setCookie(res, "token", token, { maxAge: 30 * 24 * 60 * 60 });
-      return res.status(302).redirect(`${base}/storefront?social_success=${encodeURIComponent(getProviderLabel(provider))}`);
+      return res.status(302).redirect(`${base}/?social_success=${encodeURIComponent(getProviderLabel(provider))}`);
     } catch (err: any) {
       if (typeof stateQuery === "string" && stateQuery.endsWith(".m")) {
         return res.status(302).redirect(`playbeat://oauth/callback?error=${encodeURIComponent(err.message || "Sign-in failed")}`);
       }
-      return res.status(302).redirect(`${base}/storefront?social_error=${encodeURIComponent(err.message || "Sign-in failed")}`);
+      return res.status(302).redirect(`${base}/?social_error=${encodeURIComponent(err.message || "Sign-in failed")}`);
     }
   }
 
