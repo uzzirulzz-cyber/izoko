@@ -1,36 +1,33 @@
-// Rapid Gateway server-side payment client (Pay-In API).
+// Rapid Gateway server-side payment client (OAuth2 + Pay-In API).
 //
-// Vendor docs (rapidgateway.pk developer guide — JazzCash/easypaisa integration):
-//   POST {RAPID_API_BASE}/v1/payments
+// Two-step flow per Rapid Gateway developer docs:
+//   Step 1: POST https://secure.rapid-gateway.com/oauth2/token
 //     Headers:
-//       Authorization: Bearer <RAPID_SECRET_KEY>   (secret key — NEVER in browser)
+//       Authorization: Basic base64(merchantId:clientSecret)
+//       Content-Type: application/x-www-form-urlencoded
+//     Body: grant_type=client_credentials
+//     Response: { access_token, token_type: "Bearer", expires_in: 299 }
+//
+//   Step 2: POST https://secure.rapid-gateway.com/rapid/process-transaction
+//     Headers:
+//       Authorization: Bearer <access_token from step 1>
 //       Content-Type: application/json
-//       Idempotency-Key: <stable per-order key>    (safe redelivery/retry)
+//       Idempotency-Key: <stable per-order key>
 //     Body:
-//       amount        — major units (PKR), e.g. 4250
-//       currency      — "PKR"
-//       methods       — e.g. ["easypaisa","jazzcash","card"]
-//       customer      — { phone?: "+92..." } (E.164)
-//       return_url    — where the hosted checkout redirects the customer
-//       webhook_url   — signed webhook target (server-to-server truth)
-//     Response:
-//       { id, checkout_url } → redirect the customer to checkout_url
+//       merchantId, basketId, amount, currency, returnUrl, webhookUrl
+//     Response: { checkout_url } → redirect customer there
 //
-// Fulfillment rule (audit §14): the return redirect is NEVER trusted — the
-// order is marked paid exclusively by the verified webhook at
-// /webhooks/rapid-gateway (see api/_lib/rapidWebhook.ts).
-//
-// Credentials resolution order (runtime, per request):
-//   1. gateway_config Mongo collection (admin-panel managed, encrypted) — see
-//      api/_lib/gatewayConfig.ts
-//   2. environment variables (bootstrap fallback)
-// Fail-closed: if neither is present the client refuses to charge.
+// Fulfillment rule: the return redirect is NEVER trusted — the order is
+// marked paid exclusively by the verified webhook.
 
 import { getRapidConfig } from "./gatewayConfig.js";
 
+const RAPID_MERCHANT_ID = process.env.RAPID_MERCHANT_ID || "";
+const RAPID_SECRET_KEY = process.env.RAPID_SECRET_KEY || "";
+
 export interface RapidPaymentRequest {
   orderNumber: string;
-  amount: number; // major units
+  amount: number;
   currency?: string;
   customerPhone?: string;
   customerName?: string;
@@ -47,58 +44,138 @@ export interface RapidPaymentResult {
   error?: string;
 }
 
+// Cached OAuth2 token (expires in ~299s, we refresh at 250s)
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
 /**
- * Create a hosted-checkout payment intent on Rapid Gateway.
- * Idempotent per orderNumber: Rapid's Idempotency-Key guarantees that retrying
- * a timeout never double-charges the customer.
+ * Step 1: Get an OAuth2 access token from Rapid Gateway.
+ * Uses client_credentials grant with Basic auth (merchantId:clientSecret).
+ */
+async function getRapidAccessToken(): Promise<string | null> {
+  // Return cached token if still valid
+  if (cachedToken && Date.now() < cachedToken.expiresAt) {
+    return cachedToken.token;
+  }
+
+  const cfg = await getRapidConfig();
+  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
+  const clientSecret = cfg.secretKey || RAPID_SECRET_KEY;
+
+  if (!merchantId || !clientSecret) {
+    console.error("Rapid OAuth: missing merchantId or clientSecret");
+    return null;
+  }
+
+  const basicAuth = Buffer.from(`${merchantId}:${clientSecret}`).toString("base64");
+  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
+
+  try {
+    const res = await fetch(`${apiBase}/oauth2/token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.access_token) {
+      console.error("Rapid OAuth token error:", res.status, data);
+      return null;
+    }
+
+    // Cache token — expires in 299s, refresh at 250s to be safe
+    const expiresIn = Number(data.expires_in) || 299;
+    cachedToken = {
+      token: data.access_token,
+      expiresAt: Date.now() + (expiresIn - 49) * 1000,
+    };
+
+    return data.access_token;
+  } catch (err: any) {
+    console.error("Rapid OAuth fetch error:", err?.message);
+    return null;
+  }
+}
+
+/**
+ * Step 2: Create a hosted-checkout payment on Rapid Gateway.
+ * Uses the OAuth2 access token from step 1.
+ * Idempotent per orderNumber.
  */
 export async function createRapidPayment(
   req: RapidPaymentRequest
 ): Promise<RapidPaymentResult> {
   const cfg = await getRapidConfig();
-  if (!cfg.secretKey) {
+  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
+
+  if (!cfg.secretKey && !RAPID_SECRET_KEY) {
     return { ok: false, error: "Rapid Gateway is not configured (no secret key — set it in Admin → Payment Gateway)." };
   }
+
+  // Step 1: Get OAuth2 access token
+  const accessToken = await getRapidAccessToken();
+  if (!accessToken) {
+    return { ok: false, error: "Could not authenticate with Rapid Gateway. Please try again." };
+  }
+
+  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
+  const amount = Math.round(Number(req.amount) * 100) / 100;
+
+  // Build the transaction body per Rapid Gateway docs
   const body: Record<string, unknown> = {
-    amount: Math.round(Number(req.amount) * 100) / 100, // major units, 2dp
+    merchantId: merchantId,
+    basketId: req.orderNumber,
+    amount: amount,
     currency: (req.currency || "PKR").toUpperCase(),
-    methods: cfg.methods,
-    merchantTransactionId: req.orderNumber,
-    return_url: req.returnUrl,
-    webhook_url: req.webhookUrl || cfg.webhookUrl,
+    returnUrl: req.returnUrl,
+    webhookUrl: req.webhookUrl || cfg.webhookUrl,
   };
-  const customer: Record<string, unknown> = {};
-  if (req.customerPhone) customer.phone = req.customerPhone; // E.164 per docs
-  if (req.customerName) customer.name = req.customerName;
-  if (req.customerEmail) customer.email = req.customerEmail;
-  if (Object.keys(customer).length) body.customer = customer;
+
+  // Add customer info if available
+  if (req.customerName) body.customerName = req.customerName;
+  if (req.customerEmail) body.customerEmail = req.customerEmail;
+  if (req.customerPhone) body.customerPhone = req.customerPhone;
 
   try {
-    const res = await fetch(`${cfg.apiBase}/v1/payments`, {
+    const res = await fetch(`${apiBase}/rapid/process-transaction`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${cfg.secretKey}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        // Idempotent per order — retries cannot create a second charge.
         "Idempotency-Key": `playbeat-order-${req.orderNumber}`,
       },
       body: JSON.stringify(body),
     });
+
     const data = await res.json().catch(() => null);
+
     if (!res.ok) {
       return {
         ok: false,
         error:
-          (data && (data.message || data.error)) ||
+          (data && (data.message || data.error || data.error_description)) ||
           `Rapid Gateway rejected the payment request (${res.status}).`,
         raw: data,
       };
     }
-    const paymentId = String(data?.id || "");
-    const checkoutUrl = String(data?.checkout_url || data?.checkoutUrl || "");
+
+    // Response may contain checkout_url, redirect_url, or checkoutUrl
+    const checkoutUrl =
+      String(data?.checkout_url || data?.redirect_url || data?.checkoutUrl || data?.redirectUrl || "");
+    const paymentId =
+      String(data?.id || data?.paymentId || data?.transactionId || data?.basketId || "");
+
     if (!checkoutUrl) {
+      // Some responses return the URL in a Location header or different field
+      const locationHeader = res.headers.get("location") || res.headers.get("Location");
+      if (locationHeader) {
+        return { ok: true, paymentId, checkoutUrl: locationHeader, raw: data };
+      }
       return { ok: false, error: "Rapid Gateway did not return a checkout URL.", raw: data };
     }
+
     return { ok: true, paymentId, checkoutUrl, raw: data };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Could not reach Rapid Gateway." };

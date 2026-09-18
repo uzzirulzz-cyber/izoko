@@ -103,7 +103,7 @@ function envDefaults() {
     secretKey: process.env.RAPID_SECRET_KEY || "",
     webhookSalt: process.env.RAPID_WEBHOOK_SECRET || "",
     webhookSaltPrev: process.env.RAPID_WEBHOOK_SECRET_PREVIOUS || "",
-    apiBase: (process.env.RAPID_API_BASE || "https://api.rapidgateway.pk").replace(/\/+$/, ""),
+    apiBase: (process.env.RAPID_API_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, ""),
     methods: (process.env.RAPID_METHODS || "easypaisa,jazzcash,card")
       .split(",")
       .map((m) => m.trim())
