@@ -3747,7 +3747,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                   <div className="rounded-2xl bg-[#0B0F19] border border-amber-500/20 p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Super Admin</div>
-                    <div className="text-sm font-bold text-amber-400 truncate">bixby@playbeat.live</div>
+                    <div className="text-sm font-bold text-amber-400 truncate">admin@playbeat.digital</div>
                   </div>
                 </div>
 

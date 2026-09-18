@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,maximum-scale=1.0">
+<meta name="theme-color" content="#0B1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>PlayBeat Admin</title>
+<link rel="manifest" href="/admin-app/manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#050814;--card:#0B1220;--card2:#0F1729;--border:rgba(255,255,255,.08);--amber:#FFC107;--emerald:#10B981;--rose:#F43F5E;--sky:#0EA5E9;--purple:#A855F7;--text:#E2E8F0;--dim:#94A3B8;--faint:#64748B}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.mono{font-family:'JetBrains Mono',monospace}
+.hidden{display:none!important}
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at top,rgba(255,193,7,.08),transparent 60%)}
+.lc{width:100%;max-width:400px;background:var(--card);border:1px solid rgba(255,193,7,.3);border-radius:24px;padding:32px 24px;box-shadow:0 25px 60px -15px rgba(0,0,0,.9)}
+.lb{margin:-32px -24px 24px;padding:12px;background:linear-gradient(90deg,rgba(245,158,11,.2),rgba(255,193,7,.15),rgba(245,158,11,.2));border-bottom:1px solid rgba(255,193,7,.3);text-align:center;border-radius:24px 24px 0 0}
+.lb span{font-size:10px;letter-spacing:2px;color:#FCD34D;font-weight:700;text-transform:uppercase}
+.ll{text-align:center;margin-bottom:24px}.ll img{height:48px}.ll h1{font-size:20px;font-weight:800;margin-top:12px}.ll p{font-size:12px;color:var(--dim);margin-top:4px}
+.ls{font-size:10px;color:var(--faint);text-align:center;margin:8px 0 16px;font-family:'JetBrains Mono',monospace}
+.ig{margin-bottom:16px}.il{display:block;font-size:10px;letter-spacing:1px;color:var(--dim);margin-bottom:6px;font-family:'JetBrains Mono',monospace;text-transform:uppercase}
+.if{width:100%;background:#060B1E;border:1px solid var(--border);border-radius:12px;padding:14px 16px 14px 44px;color:#fff;font-size:14px;outline:none;transition:border-color .2s}
+.if:focus{border-color:var(--amber)}
+.iw{position:relative}.ii{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--faint)}
+.btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#F59E0B,#FFC107);color:#050814;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:disabled{opacity:.5}
+.err{margin-bottom:16px;padding:12px;border-radius:12px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:#FDA4AF;font-size:12px}
+.sp{width:16px;height:16px;border:2px solid #050814;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dh{position:sticky;top:0;z-index:50;background:rgba(11,18,32,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:16px;display:flex;align-items:center;justify-content:space-between}
+.dt{font-size:18px;font-weight:800}.ds{font-size:11px;color:var(--faint);font-family:'JetBrains Mono',monospace}
+.lo{width:36px;height:36px;border-radius:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.2);display:flex;align-items:center;justify-content:center;color:#F87171;cursor:pointer}
+.ct{padding:16px;padding-bottom:80px}
+.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+.kc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.kc.a{border-color:rgba(255,193,7,.2);background:linear-gradient(135deg,rgba(255,193,7,.05),transparent)}
+.kc.e{border-color:rgba(16,185,129,.2);background:linear-gradient(135deg,rgba(16,185,129,.05),transparent)}
+.kc.s{border-color:rgba(14,165,233,.2);background:linear-gradient(135deg,rgba(14,165,233,.05),transparent)}
+.kc.p{border-color:rgba(168,85,247,.2);background:linear-gradient(135deg,rgba(168,85,247,.05),transparent)}
+.kl{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+.kv{font-size:24px;font-weight:800;margin-top:4px}.kv.a{color:var(--amber)}.kv.e{color:var(--emerald)}.kv.s{color:var(--sky)}.kv.p{color:var(--purple)}
+.ks{font-size:10px;color:var(--faint);margin-top:4px;font-family:'JetBrains Mono',monospace}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px}
+.st{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sd{width:6px;height:18px;border-radius:3px;background:var(--amber)}
+.nt{display:flex;gap:6px;overflow-x:auto;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card)}
+.nb{padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;color:var(--dim);border:1px solid transparent;white-space:nowrap;cursor:pointer}
+.nb.ac{background:var(--amber);color:#050814}
+.li{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--border);margin-bottom:8px}
+.ll2{flex:1;min-width:0}.lt2{font-size:13px;font-weight:600}.ls2{font-size:11px;color:var(--faint);margin-top:2px}
+.lr{text-align:right}.la{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.bg{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;border:1px solid}
+.bgn{background:rgba(16,185,129,.1);color:var(--emerald);border-color:rgba(16,185,129,.2)}
+.bga{background:rgba(255,193,7,.1);color:var(--amber);border-color:rgba(255,193,7,.2)}
+.bgr{background:rgba(244,63,94,.1);color:#F87171;border-color:rgba(244,63,94,.2)}
+.bgs{background:rgba(14,165,233,.1);color:var(--sky);border-color:rgba(14,165,233,.2)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:12px 20px;border-radius:12px;background:var(--card);border:1px solid var(--amber);color:#fff;font-size:12px;z-index:100;box-shadow:0 10px 30px rgba(0,0,0,.6);max-width:90%}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.sr:last-child{border-bottom:none}
+.sl{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--emerald)}
+.sv{font-size:11px;font-weight:600;color:var(--emerald);font-family:'JetBrains Mono',monospace}
+.es{text-align:center;padding:40px 20px;color:var(--faint);font-size:12px}
+.ld{text-align:center;padding:40px;color:var(--faint)}
+.ld .sp{border-color:var(--amber);border-top-color:transparent;margin:0 auto;width:24px;height:24px}
+</style>
+</head>
+<body>
+<div id="ls" class="login">
+<div class="lc">
+<div class="lb"><span>🔒 Restricted Administrative Zone</span></div>
+<div class="ll"><img src="/playbeat-logo.png" alt="PlayBeat" onerror="this.style.display='none'"><h1>Admin Console</h1><p>Super admin & staff access only</p></div>
+<div class="ls">🔐 Credentials are never saved on this device</div>
+<div id="le" class="err hidden"></div>
+<form id="lf" autocomplete="off" autocapitalize="off" spellcheck="false">
+<input type="text" name="hp1" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
+<input type="password" name="hp2" autocomplete="new-password" tabindex="-1" aria-hidden="true" class="hidden">
+<div class="ig"><label class="il">Admin Email or Staff ID</label><div class="iw"><svg class="ii" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 8h16M8 4v16"/></svg><input type="text" id="em" class="if" placeholder="admin@playbeat.digital" required autocomplete="off"></div></div>
+<div class="ig"><label class="il">Password</label><div class="iw"><svg class="ii" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg><input type="password" id="pw" class="if" placeholder="••••••••" required autocomplete="new-password"></div></div>
+<button type="submit" id="lb" class="btn"><span id="bt">Authenticate & Enter</span></button>
+</form>
+<div style="text-align:center;margin-top:16px;font-size:10px;color:var(--faint);font-family:'JetBrains Mono',monospace">JWT Secured • Same credentials as web admin</div>
+</div>
+</div>
+<div id="db" class="hidden">
+<div class="dh"><div><div class="dt" id="an">PlayBeat Admin</div><div class="ds">● Live • Connected</div></div><button class="lo" onclick="logout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></button></div>
+<div class="nt"><div class="nb ac" data-t="d" onclick="tab('d')">Dashboard</div><div class="nb" data-t="o" onclick="tab('o')">Orders</div><div class="nb" data-t="p" onclick="tab('p')">Products</div><div class="nb" data-t="u" onclick="tab('u')">Users</div><div class="nb" data-t="s" onclick="tab('s')">Staff</div><div class="nb" data-t="y" onclick="tab('y')">System</div></div>
+<div class="ct">
+<div id="t-d"><div class="kg"><div class="kc a"><div class="kl">Revenue</div><div class="kv a mono" id="kr">—</div><div class="ks" id="ko">—</div></div><div class="kc e"><div class="kl">Products</div><div class="kv e mono" id="kp">—</div><div class="ks" id="ka">—</div></div><div class="kc s"><div class="kl">Recent Orders</div><div class="kv s mono" id="kro">—</div><div class="ks">last 7 days</div></div><div class="kc p"><div class="kl">Low Stock</div><div class="kv p mono" id="kls">—</div><div class="ks">needs attention</div></div></div><div class="sc"><div class="st"><span class="sd"></span> Recent Orders</div><div id="rol"></div></div><div class="sc"><div class="st"><span class="sd"></span> Top Products</div><div id="tpl"></div></div></div>
+<div id="t-o" class="hidden"><div class="sc"><div class="st"><span class="sd"></span> All Orders</div><div id="aol"></div></div></div>
+<div id="t-p" class="hidden"><div class="sc"><div class="st"><span class="sd"></span> Product Catalog</div><div id="pl"></div></div></div>
+<div id="t-u" class="hidden"><div class="sc"><div class="st"><span class="sd"></span> All Users</div><div id="ul"></div></div></div>
+<div id="t-s" class="hidden"><div class="sc"><div class="st"><span class="sd"></span> Staff Members</div><div id="sl"></div></div></div>
+<div id="t-y" class="hidden"><div class="sc"><div class="st"><span class="sd"></span> System Health</div><div id="sys"></div></div></div>
+</div></div>
+<div id="tt" class="toast hidden"></div>
+<script>
+const B=location.origin;let T=null,I={};
+function chk(){const s=localStorage.getItem('pba_t');if(s){T=s;I=JSON.parse(localStorage.getItem('pba_i')||'{}');return ver()}return false}
+async function ver(){try{const r=await fetch(B+'/api/auth/admin/me',{headers:{Authorization:'Bearer '+T}});if(r.ok){show();return true}}catch{}T=null;localStorage.removeItem('pba_t');localStorage.removeItem('pba_i');return false}
+document.getElementById('lf').addEventListener('submit',async e=>{e.preventDefault();const em=document.getElementById('em').value.trim(),pw=document.getElementById('pw').value,le=document.getElementById('le'),b=document.getElementById('lb'),bt=document.getElementById('bt');
+le.classList.add('hidden');b.disabled=true;bt.innerHTML='<span class="sp"></span>';
+try{const r=await fetch(B+'/api/auth/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({email:em,password:pw})});
+const d=await r.json();document.getElementById('pw').value='';
+if(!r.ok||!d.success){le.textContent=d.error||'Invalid credentials';le.classList.remove('hidden');b.disabled=false;bt.textContent='Authenticate & Enter';return}
+T=d.token;I=d.admin||{email:em,name:'Admin'};localStorage.setItem('pba_t',T);localStorage.setItem('pba_i',JSON.stringify(I));show()}catch{le.textContent='Network error';le.classList.remove('hidden');b.disabled=false;bt.textContent='Authenticate & Enter'}});
+function show(){document.getElementById('ls').classList.add('hidden');document.getElementById('db').classList.remove('hidden');document.getElementById('an').textContent=I?.name||'PlayBeat Admin';loadD()}
+function logout(){fetch(B+'/api/auth/admin/logout',{method:'POST',credentials:'include'}).catch(()=>{});localStorage.removeItem('pba_t');localStorage.removeItem('pba_i');T=null;I={};document.getElementById('db').classList.add('hidden');document.getElementById('ls').classList.remove('hidden');document.getElementById('em').value='';toast('Signed out')}
+function tab(t){document.querySelectorAll('.nb').forEach(x=>x.classList.remove('ac'));document.querySelector('.nb[data-t="'+t+'"]').classList.add('ac');['d','o','p','u','s','y'].forEach(x=>document.getElementById('t-'+x).classList.add('hidden'));document.getElementById('t-'+t).classList.remove('hidden');
+if(t==='d')loadD();else if(t==='o')loadO();else if(t==='p')loadP();else if(t==='u')loadU();else if(t==='s')loadS();else if(t==='y')loadY()}
+async function ag(p){const r=await fetch(B+p,{headers:{Authorization:'Bearer '+T},credentials:'include'});if(r.status===401){logout();return null}return r.json()}
+async function loadD(){const[s,o,t]=await Promise.all([ag('/api/admin/stats'),ag('/api/admin/orders?limit=5'),ag('/api/admin/top-products')]);
+if(s?.success){const v=s.stats;document.getElementById('kr').textContent='Rs '+Number(v.totalRevenue||0).toLocaleString();document.getElementById('ko').textContent=(v.totalOrders||0)+' total';document.getElementById('kp').textContent=v.totalProducts||0;document.getElementById('ka').textContent=(v.activeProducts||0)+' active';document.getElementById('kro').textContent=v.recentOrders||0;document.getElementById('kls').textContent=v.lowStock||0}
+if(o?.success){const l=document.getElementById('rol');l.innerHTML=o.orders.length?o.orders.map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.orderNumber+'</div><div class="ls2">'+x.customerName+' • '+x.itemCount+' item(s)</div></div><div class="lr"><div class="la">Rs '+Number(x.totalAmount).toLocaleString()+'</div><span class="bg '+(x.status==='completed'?'bgn':'bga')+'">'+x.status+'</span></div></div>').join(''):'<div class="es">No orders yet</div>'}
+if(t?.success){const l=document.getElementById('tpl');l.innerHTML=t.topProducts.length?t.topProducts.slice(0,5).map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.name+'</div><div class="ls2">'+x.totalSold+' sold • '+x.orderCount+' orders</div></div><div class="lr"><div class="la">Rs '+Number(x.totalRevenue).toLocaleString()+'</div><span class="bg bga">#'+x.rank+'</span></div></div>').join(''):'<div class="es">No sales data</div>'}}
+async function loadO(){const d=await ag('/api/admin/orders?limit=50');const l=document.getElementById('aol');if(!d?.success||!d.orders.length){l.innerHTML='<div class="es">No orders</div>';return}l.innerHTML=d.orders.map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.orderNumber+'</div><div class="ls2">'+x.customerName+' • '+x.customerEmail+'</div><div class="ls2">'+x.itemCount+' item(s) • '+x.paymentMethod+'</div></div><div class="lr"><div class="la">Rs '+Number(x.totalAmount).toLocaleString()+'</div><span class="bg '+(x.status==='completed'?'bgn':x.status==='pending'?'bga':'bgs')+'">'+x.status+'</span></div></div>').join('')}
+async function loadP(){const d=await ag('/api/products?limit=50');const l=document.getElementById('pl');if(!d?.success||!d.products.length){l.innerHTML='<div class="es">No products</div>';return}l.innerHTML=d.products.slice(0,30).map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.name+'</div><div class="ls2">'+x.sku+' • '+x.category+' • Stock: '+x.stock+'</div></div><div class="lr"><div class="la">Rs '+Number(x.price).toLocaleString()+'</div><span class="bg '+(x.active!==false?'bgn':'bgr')+'">'+(x.active!==false?'Active':'Hidden')+'</span></div></div>').join('')}
+async function loadU(){const d=await ag('/api/admin/users');const l=document.getElementById('ul');if(!d?.success||!d.users.length){l.innerHTML='<div class="es">No users</div>';return}l.innerHTML=d.users.map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.name+'</div><div class="ls2">'+x.email+' • '+(x.provider||'local')+'</div></div><div class="lr"><span class="bg '+(x.role==='staff'?'bga':x.role==='admin'?'bgr':'bgs')+'">'+(x.role||'user')+'</span></div></div>').join('')}
+async function loadS(){const d=await ag('/api/admin/staff');const l=document.getElementById('sl');if(!d?.success||!d.staff.length){l.innerHTML='<div class="es">No staff</div>';return}l.innerHTML=d.staff.map(x=>'<div class="li"><div class="ll2"><div class="lt2">'+x.name+'</div><div class="ls2">'+x.email+' • ID: '+(x.staffId||'—')+'</div></div><div class="lr"><span class="bg bga">'+x.role+'</span></div></div>').join('')}
+async function loadY(){const d=await ag('/api/admin/stats');const l=document.getElementById('sys');if(!d?.success){l.innerHTML='<div class="es">Failed</div>';return}const s=d.stats;l.innerHTML='<div class="sr"><div class="sl"><span class="sdot"></span> Web Server</div><div class="sv">Operational</div></div><div class="sr"><div class="sl"><span class="sdot"></span> Database ('+(s.database||'playbeat')+')</div><div class="sv">Connected</div></div><div class="sr"><div class="sl"><span class="sdot"></span> Health</div><div class="sv">'+(s.systemHealth||'100%')+'</div></div><div class="sr"><div class="sl"><span class="sdot"></span> Products</div><div class="sv mono">'+(s.totalProducts||0)+'</div></div><div class="sr"><div class="sl"><span class="sdot"></span> Orders</div><div class="sv mono">'+(s.totalOrders||0)+'</div></div>'}
+function toast(m){const t=document.getElementById('tt');t.textContent=m;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2500)}
+chk();
+</script>
+</body>
+</html>

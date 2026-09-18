@@ -1,0 +1,14 @@
+{
+  "name": "PlayBeat Admin",
+  "short_name": "PB Admin",
+  "description": "PlayBeat Digital Admin Dashboard",
+  "start_url": "/admin-app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050814",
+  "theme_color": "#0B1220",
+  "icons": [
+    { "src": "/playbeat-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/playbeat-logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
