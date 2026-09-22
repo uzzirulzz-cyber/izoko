@@ -218,11 +218,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "0.0.0.0",
         returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(order.orderNumber)}`,
       });
-      if (!result.ok || !result.sessionId) {
+      if (!result.ok || !result.checkoutUrl) {
         console.error("rapid/create failed:", result.error);
+        // Customer-safe message — the order is safe as PENDING and can be
+        // retried; technical detail stays in the server log above.
         return jsonError(
           res,
-          result.error || "The payment gateway is not responding right now. Your order was saved and you have NOT been charged — please retry in a moment.",
+          "The payment gateway is not responding right now. Your order was saved and you have NOT been charged — please retry in a moment or pick another payment method.",
           502
         );
       }
@@ -232,8 +234,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         {
           $set: {
             paymentProvider: "rapid",
-            rapidPaymentId: result.sessionId || "",
-            rapidSessionId: result.sessionId,
+            rapidPaymentId: result.paymentId || "",
+            checkoutUrl: result.checkoutUrl,
             paymentStatus: "pending",
             status: order.status === "payment_failed" ? "pending" : order.status,
             paymentMethod: "Rapid Gateway",
@@ -245,9 +247,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return jsonOk(res, {
         success: true,
         orderNumber: order.orderNumber,
-        sessionId: result.sessionId,
-        clientSecret: result.clientSecret,
-        publishableKey: result.publishableKey,
         checkoutUrl: result.checkoutUrl,
       });
     } catch (err: any) {
