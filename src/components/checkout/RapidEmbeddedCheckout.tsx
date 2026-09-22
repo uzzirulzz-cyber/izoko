@@ -37,9 +37,13 @@ export default function RapidEmbeddedCheckout({
   onExit: () => void
 }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null)
-  const initedRef = useRef(false)
+  const sentRef = useRef(false)
   const [phase, setPhase] = useState<Phase>('booting')
   const [errMsg, setErrMsg] = useState('')
+  const phaseRef = useRef<Phase>('booting')
+  phaseRef.current = phase
+  // The widget reports its natural height via rp:resize (observed 232 → 539+).
+  const [frameHeight, setFrameHeight] = useState(260)
 
   useEffect(() => {
     let expected = FALLBACK_ORIGIN
@@ -49,26 +53,39 @@ export default function RapidEmbeddedCheckout({
       /* keep fallback */
     }
 
+    const sendInit = () => {
+      if (sentRef.current) return
+      sentRef.current = true
+      frameRef.current?.contentWindow?.postMessage(
+        { type: 'rp:init', clientSecret },
+        expected
+      )
+    }
+
     const bootTimer = window.setTimeout(() => {
-      if (!initedRef.current) {
-        setPhase('error')
-        setErrMsg(
-          'The payment gateway did not load in time. Your order is saved — please retry in a moment or pick another payment method.'
-        )
-      }
-    }, 25000)
+      sendInit() // fallback — also covers rp:ready never arriving
+      if (!sentRef.current) return
+      window.setTimeout(() => {
+        if (phaseRef.current === 'booting') {
+          setPhase('error')
+          setErrMsg(
+            'The payment gateway did not load in time. Your order is saved — please retry in a moment or pick another payment method.'
+          )
+        }
+      }, 12000)
+    }, 1500)
 
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== expected) return
       const d: any = e.data || {}
-      if (d.type === 'rp:ready' && frameRef.current?.contentWindow) {
-        initedRef.current = true
-        window.clearTimeout(bootTimer)
-        frameRef.current.contentWindow.postMessage(
-          { type: 'rp:init', clientSecret },
-          expected
-        )
-        setPhase('active')
+      if (d.type === 'rp:resize' && Number(d.height) > 0) {
+        setFrameHeight(Math.min(760, Math.max(240, Math.round(Number(d.height)) + 8)))
+        // First resize = the payment form mounted inside the widget.
+        setPhase((p) => (p === 'booting' ? 'active' : p))
+        return
+      }
+      if (d.type === 'rp:ready') {
+        sendInit()
         return
       }
       if (d.type === 'rp:pending') {
@@ -137,7 +154,8 @@ export default function RapidEmbeddedCheckout({
               ref={frameRef}
               src={embeddedUrl}
               title="Rapid Gateway secure checkout"
-              className="h-[620px] w-full"
+              className="w-full transition-[height] duration-300"
+              style={{ height: frameHeight }}
               allow="payment *; clipboard-write"
               referrerPolicy="no-referrer-when-downgrade"
             />
