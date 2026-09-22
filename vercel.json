@@ -250,6 +250,10 @@
       "destination": "/privacy.html"
     },
     {
+      "source": "/policy",
+      "destination": "/privacy.html"
+    },
+    {
       "source": "/privacypolicyterms",
       "destination": "/privacy.html"
     },
