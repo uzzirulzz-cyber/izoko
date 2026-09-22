@@ -54,7 +54,7 @@ interface HeaderProps {
 const NAV_CATEGORIES = [
   { name: 'Streaming', path: '/streaming', icon: PlaySquare },
   { name: 'Subscriptions', path: '/subscriptions', icon: Repeat },
-  { name: 'Gift Cards', path: '/giftcards', icon: Gift },
+  { name: 'Gift Cards', path: '/gift-cards', icon: Gift },
   { name: 'Gaming', path: '/gaming', icon: Gamepad2 },
   { name: 'Software', path: '/software', icon: CreditCard },
   { name: 'Smart Projectors', path: '/smart-projectors', icon: FolderOpen },

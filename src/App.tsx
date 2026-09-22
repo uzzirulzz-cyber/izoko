@@ -72,6 +72,8 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   admin: SEO_PRESETS.admin,
   'admin-login': SEO_PRESETS['admin-login'],
   checkout: SEO_PRESETS.checkout,
+  account: SEO_PRESETS.account,
+  order: SEO_PRESETS.order,
   notfound: SEO_PRESETS.notfound,
 }
 import { Search, ArrowUpDown, CheckCircle, ArrowRight, Sparkles } from 'lucide-react'
@@ -845,9 +847,16 @@ export function App() {
       fetch(`${API_BASE}/api/products/${encodeURIComponent(productSlugParam)}`, {
         credentials: 'include',
       })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((r) => r.json().catch(() => null))
         .then((d) => {
           if (!alive) return
+          // Slug-history permanent redirect (audit §26): the product was
+          // renamed — send the visitor (and crawlers that render JS) to the
+          // canonical /product/:slug URL via a real client-side 301 replace.
+          if (d?.redirectTo) {
+            window.location.replace(d.redirectTo)
+            return
+          }
           if (d?.success?.product) setQuickViewProduct(d.success.product)
           else setRoute('notfound') // URL stays as-is; direct set (navigate() would re-parse back to 'product')
         })
@@ -873,19 +882,28 @@ export function App() {
   }, [route, isStorefrontRoute, quickViewProduct])
 
   // Product deep-link SEO — /product/:slug gets its own title, description,
-  // canonical and OG tags derived from the product itself
+  // canonical and OG tags derived from the product itself. Admin-managed SEO
+  // fields (seo.title / seo.description / seo.index / seo.canonicalUrl /
+  // ogTitle / ogDescription / ogImage) override the generated defaults.
   useEffect(() => {
     if (route !== 'product' || !quickViewProduct) return
+    const p = quickViewProduct as any
+    const seo = p.seo || {}
+    const slugPath = `/product/${ensureProductSlug(quickViewProduct)}`
+    const ogImage = seo.ogImage || (p.image?.startsWith('http') ? undefined : p.image)
     applyRouteSeo({
-      title: quickViewProduct.name,
-      description:
-        (
-          (quickViewProduct as any).shortDescription ||
-          quickViewProduct.description ||
-          `${quickViewProduct.name} — instant delivery from PlayBeat Digital.`
-        ).slice(0, 155),
-      path: `/product/${ensureProductSlug(quickViewProduct)}`,
-      image: quickViewProduct.image?.startsWith('http') ? undefined : quickViewProduct.image,
+      title: seo.title || p.name,
+      description: (
+        seo.description ||
+        p.shortDescription ||
+        p.description ||
+        `${p.name} — instant delivery from PlayBeat Digital.`
+      ).slice(0, 155),
+      path: slugPath,
+      image: ogImage,
+      ogType: 'product',
+      noindex: seo.index === false,
+      canonicalUrl: seo.canonicalUrl,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, quickViewProduct])

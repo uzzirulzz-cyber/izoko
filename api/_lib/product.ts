@@ -102,6 +102,10 @@ export function formatProduct(doc: any) {
     deliveryInfo: rest.deliveryInfo || (digital ? "Instant 15-Second Key Delivery" : "Express Dispatched with Tracking"),
     region: rest.region || "Global",
     features: Array.isArray(rest.features) ? rest.features : [],
+    // Admin-managed SEO fields (audit §25/§26) — surfaced to the storefront so
+    // /product/:slug pages can use the admin title/description/canonical/OG.
+    seo: rest.seo && typeof rest.seo === "object" ? rest.seo : undefined,
+    slugHistory: Array.isArray(rest.slugHistory) ? rest.slugHistory : [],
     createdAt: rest.createdAt || new Date(),
     updatedAt: rest.updatedAt || new Date(),
   };

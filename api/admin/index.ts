@@ -86,6 +86,7 @@ import {
 } from "../_lib/trackingConfig.js";
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
+import { sitemapStats } from "../_lib/sitemap.js";
 import { getAppRelease, setAppRelease, semverGte, APP_RELEASE_FALLBACK } from "../_lib/appRelease.js";
 import {
   getMobileAppsConfig,
@@ -257,6 +258,153 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       });
     } catch (err: any) {
       return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ GET /api/admin/seo (URL indexing dashboard) ============
+  // Live SEO/indexability overview computed from the real catalog — no
+  // fabricated "indexed by Google" claims: actual search indexing status can
+  // only come from authorized Google tooling (audit §43).
+  if (route === "seo" && req.method === "GET") {
+    try {
+      const productsCol = db.collection("products");
+      const docs = await productsCol
+        .find({})
+        .project({
+          name: 1, title: 1, slug: 1, sku: 1, active: 1, consolidatedParentId: 1,
+          description: 1, shortDescription: 1, image: 1, seo: 1, slugHistory: 1, updatedAt: 1,
+        })
+        .toArray();
+
+      const active = docs.filter((d: any) => d.active !== false);
+      const slugs = active.map((d: any) => String(d.slug || "").trim() || slugify(d.name || d.title || d.sku || ""));
+      const seoTitles = active.map((d: any) => String(d.seo?.title || "").trim().toLowerCase()).filter(Boolean);
+
+      const slugCounts = new Map<string, number>();
+      for (const s of slugs) slugCounts.set(s, (slugCounts.get(s) || 0) + 1);
+      const duplicateSlugs = [...slugCounts.entries()].filter(([, n]) => n > 1).map(([s]) => s);
+
+      const titleCounts = new Map<string, number>();
+      for (const t of seoTitles) titleCounts.set(t, (titleCounts.get(t) || 0) + 1);
+      const duplicateTitles = [...titleCounts.entries()].filter(([, n]) => n > 1).map(([s]) => s);
+
+      const stats = await sitemapStats(db);
+      const noindexCount = active.filter((d: any) => d.seo?.index === false).length;
+      const missingDescription = active.filter(
+        (d: any) => !String(d.shortDescription || d.description || "").trim()
+      ).length;
+      const missingImage = active.filter((d: any) => !String(d.image || "").trim()).length;
+      const withSlugHistory = docs.filter(
+        (d: any) => Array.isArray(d.slugHistory) && d.slugHistory.length > 0
+      ).length;
+
+      return jsonOk(res, {
+        success: true,
+        seo: {
+          publicUrls: stats.pages + stats.categories + stats.products,
+          sitemap: stats,
+          products: {
+            total: docs.length,
+            active: active.length,
+            inSitemap: stats.products,
+            noindex: noindexCount,
+            missingDescription,
+            missingImage,
+            missingSlug: active.length - slugs.filter(Boolean).length,
+            duplicateSlugs,
+            duplicateSeoTitles: duplicateTitles,
+            withSlugHistory,
+          },
+          notes: [
+            "Sitemap is generated live from MongoDB on every request — always current.",
+            "Actual Google indexing status is only visible in Google Search Console; this dashboard reports URL/crawlability health.",
+          ],
+        },
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "SEO overview failed", 500);
+    }
+  }
+
+  // ============ POST /api/admin/seo (audit / broken links / regenerate) ====
+  if (route === "seo" && req.method === "POST") {
+    try {
+      const action = String((req.body || {}).action || "").toLowerCase();
+
+      if (action === "audit") {
+        // Indexability audit over every product (real records only)
+        const docs = await db.collection("products").find({}).toArray();
+        const issues: Array<{ product: string; sku: string; issue: string; severity: string }> = [];
+        const active = docs.filter((d: any) => d.active !== false);
+        for (const d of active) {
+          const label = d.name || d.title || d.sku || String(d._id);
+          if (!String(d.slug || "").trim()) {
+            issues.push({ product: label, sku: d.sku || "", issue: "Missing URL slug — falls back to slugified name", severity: "warning" });
+          }
+          if (!String(d.shortDescription || d.description || "").trim()) {
+            issues.push({ product: label, sku: d.sku || "", issue: "No description — meta description will be generic", severity: "warning" });
+          }
+          if (!String(d.image || "").trim()) {
+            issues.push({ product: label, sku: d.sku || "", issue: "No product image — OG image will use the default", severity: "warning" });
+          }
+          if (d.seo?.index === false) {
+            issues.push({ product: label, sku: d.sku || "", issue: "Manually set to noindex by an admin", severity: "info" });
+          }
+          if (d.seo?.canonicalUrl && !/^https:\/\/playbeat\.digital/.test(String(d.seo.canonicalUrl))) {
+            issues.push({ product: label, sku: d.sku || "", issue: "Canonical override does not point at playbeat.digital", severity: "error" });
+          }
+        }
+        return jsonOk(res, { success: true, action, checked: active.length, issues: issues.slice(0, 300), issueCount: issues.length });
+      }
+
+      if (action === "broken-links") {
+        // Resolve every product slug/sku + slugHistory entry against the DB —
+        // an SPA route can only 404 when the record behind it is missing.
+        const docs = await db
+          .collection("products")
+          .find({})
+          .project({ slug: 1, sku: 1, name: 1, active: 1, slugHistory: 1 })
+          .toArray();
+        const liveSlugs = new Set<string>();
+        for (const d of docs) {
+          if (d.active === false) continue;
+          if (d.slug) liveSlugs.add(String(d.slug).toLowerCase());
+        }
+        const broken: Array<{ url: string; problem: string }> = [];
+        for (const d of docs) {
+          if (d.active !== false) continue;
+          if (d.slug) broken.push({ url: `/product/${d.slug}`, problem: "Product disabled — URL 404s (intentional, excluded from sitemap)" });
+        }
+        const slugSeen = new Map<string, number>();
+        for (const s of liveSlugs) slugSeen.set(s, (slugSeen.get(s) || 0) + 1);
+        for (const [s, n] of slugSeen) {
+          if (n > 1) broken.push({ url: `/product/${s}`, problem: `Duplicate slug across ${n} active products — ambiguous page` });
+        }
+        return jsonOk(res, {
+          success: true,
+          action,
+          checked: docs.length,
+          broken,
+          brokenCount: broken.length,
+          slugHistoryEntries: docs.reduce((sum: number, d: any) => sum + (Array.isArray(d.slugHistory) ? d.slugHistory.length : 0), 0),
+        });
+      }
+
+      if (action === "regenerate") {
+        // Sitemaps are built live per request; there is no cache to purge.
+        // Record the timestamp so the dashboard can show the last verification.
+        const stats = await sitemapStats(db);
+        await db.collection("seoSettings").updateOne(
+          { key: "sitemap" },
+          { $set: { key: "sitemap", lastRegeneratedAt: new Date(), urls: stats.pages + stats.categories + stats.products } },
+          { upsert: true }
+        );
+        return jsonOk(res, { success: true, action, sitemap: stats, regeneratedAt: new Date().toISOString() });
+      }
+
+      return jsonError(res, "Unknown action — use audit | broken-links | regenerate.", 400);
+    } catch (err: any) {
+      return jsonError(res, err.message || "SEO action failed", 500);
     }
   }
 
@@ -1240,6 +1388,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         deliveryInfo: body.deliveryInfo || "Instant 15-Second Key Delivery",
         region: body.region || "Global",
         features: Array.isArray(body.features) ? body.features : [],
+        slugHistory: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -1329,6 +1478,39 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         delete body.id;
         if (body.name && !body.slug) body.slug = slugify(body.name);
         body.updatedAt = new Date();
+
+        // ---- SEO field sanitization (audit §25) — admins may set custom
+        // title/description/canonical/indexing/OG per product ----
+        if (body.seo && typeof body.seo === "object" && !Array.isArray(body.seo)) {
+          const s = body.seo;
+          body.seo = {
+            title: s.title != null ? String(s.title).slice(0, 120) : undefined,
+            description: s.description != null ? String(s.description).slice(0, 300) : undefined,
+            canonicalUrl: s.canonicalUrl != null ? String(s.canonicalUrl).trim() : undefined,
+            index: s.index === false ? false : true,
+            ogTitle: s.ogTitle != null ? String(s.ogTitle).slice(0, 120) : undefined,
+            ogDescription: s.ogDescription != null ? String(s.ogDescription).slice(0, 300) : undefined,
+            ogImage: s.ogImage != null ? String(s.ogImage).slice(0, 500) : undefined,
+          };
+          for (const k of Object.keys(body.seo)) if ((body.seo as any)[k] === undefined) delete (body.seo as any)[k];
+        } else if (body.seo !== undefined) {
+          delete body.seo;
+        }
+        if (body.slug != null && String(body.slug).trim()) body.slug = slugify(String(body.slug));
+        else if (body.slug !== undefined) delete body.slug; // empty string would nuke the URL
+
+        // ---- Slug history (audit §26): renaming a product preserves the old
+        // slug so /product/<old-slug> permanently redirects to the new URL ----
+        const existingDoc = await col.findOne(filter, { projection: { slug: 1, slugHistory: 1 } });
+        const newSlug = body.slug != null ? String(body.slug) : null;
+        if (existingDoc?.slug && newSlug && newSlug !== existingDoc.slug) {
+          const hist = new Set([
+            ...(Array.isArray(existingDoc.slugHistory) ? existingDoc.slugHistory : []),
+            String(existingDoc.slug),
+          ]);
+          body.slugHistory = [...hist];
+        }
+
         const updateResult = await col.findOneAndUpdate(filter, { $set: body }, { returnDocument: "after" });
         if (!updateResult) return jsonError(res, "Product not found to update.", 404);
         await writeAudit(db, {

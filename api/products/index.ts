@@ -16,6 +16,7 @@ import {
   requireUser,
   AuthenticatedRequest,
 } from "../_lib/auth.js";
+import { handleSitemapRequest } from "../_lib/sitemap.js";
 
 const REVIEW_STATUSES = new Set(["pending", "approved", "hidden"]);
 
@@ -206,13 +207,37 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
     // ============ GET /api/products/:slug ============
     if (slug) {
+      // ---- Dynamic XML sitemaps (served through this function so the project
+      // stays within Vercel's 12-function cap — see api/_lib/sitemap.ts) ----
+      if (slug.startsWith("sitemap")) {
+        const handled = await handleSitemapRequest(res, slug, db);
+        if (handled) return;
+      }
+
       let productDoc: any = await col.findOne({ slug });
       if (!productDoc) productDoc = await col.findOne({ sku: slug });
       if (!productDoc && ObjectId.isValid(slug)) {
         productDoc = await col.findOne({ _id: new ObjectId(slug) });
       }
       if (!productDoc) productDoc = await col.findOne({ id: slug });
-      if (!productDoc) return jsonError(res, "Product not found", 404);
+
+      // ---- Slug-history 301: /product/<old-slug> → canonical product URL ----
+      // When a product is renamed, the previous slug is preserved in
+      // slugHistory (maintained by PUT /api/admin/products/:id). Requests to
+      // the old URL resolve to the live product and the caller is told to
+      // redirect permanently, protecting rankings and backlinks (audit §26).
+      if (!productDoc) {
+        const relocated = await col.findOne({ slugHistory: slug }, { projection: { slug: 1 } });
+        if (relocated?.slug) {
+          return res.status(301).json({
+            success: false,
+            error: "Product moved — permanent redirect",
+            redirectTo: `/product/${relocated.slug}`,
+            canonical: `https://playbeat.digital/product/${relocated.slug}`,
+          });
+        }
+        return jsonError(res, "Product not found", 404);
+      }
       return jsonOk(res, { success: true, product: formatProduct(productDoc) });
     }
 

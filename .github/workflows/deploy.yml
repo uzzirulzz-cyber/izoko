@@ -40,3 +40,18 @@ jobs:
           done
           echo "::error::Timed out waiting for deployment"
           exit 1
+
+  seo-validation:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run automated SEO tests against production
+        run: node scripts/seo-test.mjs https://playbeat.digital

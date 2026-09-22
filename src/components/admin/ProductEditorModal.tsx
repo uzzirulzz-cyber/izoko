@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   X, ImagePlus, Trash2, Star, UploadCloud, Link2, Save, Loader2,
   Package, DollarSign, Layers, Info, ImageIcon, ArrowUpCircle, Plus,
+  Search, Globe, Eye,
 } from 'lucide-react'
-import { Product } from '../../types'
+import { Product, ProductSeo } from '../../types'
 
 interface ProductEditorModalProps {
   product: Product | null // null = create mode
@@ -87,7 +88,7 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
   const [featuresInput, setFeaturesInput] = useState((product?.features || []).join('\n'))
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'images' | 'advanced'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'images' | 'advanced' | 'seo'>('details')
 
   const mainFileRef = useRef<HTMLInputElement>(null)
   const galleryFileRef = useRef<HTMLInputElement>(null)
@@ -114,6 +115,9 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
 
   const set = <K extends keyof Product>(key: K, value: Product[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
+
+  const setSeo = <K extends keyof ProductSeo>(key: K, value: ProductSeo[K]) =>
+    setForm((prev) => ({ ...prev, seo: { ...(prev.seo || {}), [key]: value } }))
 
   // ---------- IMAGE HELPERS ----------
   const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -230,6 +234,21 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
       updatedAt: new Date(),
     }
 
+    // SEO fields — only persist the ones actually filled in; empty fields fall
+    // back to auto-generated defaults on the storefront (audit §25)
+    const seoIn = form.seo || {}
+    const seoOut: ProductSeo = {
+      title: seoIn.title?.trim() || undefined,
+      description: seoIn.description?.trim() || undefined,
+      canonicalUrl: seoIn.canonicalUrl?.trim() || undefined,
+      index: seoIn.index === false ? false : true,
+      ogTitle: seoIn.ogTitle?.trim() || undefined,
+      ogDescription: seoIn.ogDescription?.trim() || undefined,
+      ogImage: seoIn.ogImage?.trim() || undefined,
+    }
+    const hasSeo = Object.entries(seoOut).some(([k, v]) => v !== undefined && !(k === 'index' && v === true))
+    savedProduct.seo = hasSeo ? seoOut : undefined
+
     try {
       const result = await onSave(savedProduct, isNew)
       if (result && result.ok === false) {
@@ -284,6 +303,9 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
           </button>
           <button className={tabBtnCls('advanced')} onClick={() => setActiveTab('advanced')}>
             <Layers className="w-3.5 h-3.5" /> Advanced
+          </button>
+          <button className={tabBtnCls('seo')} onClick={() => setActiveTab('seo')}>
+            <Search className="w-3.5 h-3.5" /> SEO
           </button>
         </div>
 
@@ -776,6 +798,161 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
                   reachable. If the database is offline, changes stay active in the storefront cache
                   and can be re-synced later via CSV / DB Importer.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* ============ SEO TAB ============ */}
+          {activeTab === 'seo' && (
+            <div className="space-y-4">
+              {/* Google preview snippet */}
+              <div className="rounded-xl bg-white p-4 shadow">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-6 h-6 rounded-full bg-[#0F131D] flex items-center justify-center text-[10px] font-black text-amber-300">P</div>
+                  <div className="leading-tight">
+                    <div className="text-[12px] text-[#202124] font-medium">PlayBeat Digital</div>
+                    <div className="text-[11px] text-[#4d5156]">https://playbeat.digital/product/{form.slug || slugify(form.name) || '…'}</div>
+                  </div>
+                </div>
+                <div className="text-[17px] leading-snug text-[#1a0dab] truncate">
+                  {(form.seo?.title?.trim() || form.name || 'Product name') + ' | PlayBeat Digital'}
+                </div>
+                <div className="text-[12px] leading-relaxed text-[#4d5156] line-clamp-2">
+                  {form.seo?.description?.trim() ||
+                    form.shortDescription ||
+                    form.description?.slice(0, 160) ||
+                    'Product description preview — add a meta description below for full control.'}
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>
+                  SEO Title — {form.seo?.title?.length || 0}/60
+                </label>
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={form.seo?.title || ''}
+                  onChange={(e) => setSeo('title', e.target.value)}
+                  placeholder={`Defaults to: ${form.name || 'Product Name'} | PlayBeat Digital`}
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className={labelCls}>
+                  Meta Description — {form.seo?.description?.length || 0}/160
+                </label>
+                <textarea
+                  maxLength={300}
+                  rows={3}
+                  value={form.seo?.description || ''}
+                  onChange={(e) => setSeo('description', e.target.value)}
+                  placeholder="Defaults to the short/product description. Keep it 120–160 characters."
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
+
+              {/* Indexing + canonical */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSeo('index', form.seo?.index === false)}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    form.seo?.index === false
+                      ? 'bg-rose-500/10 border-rose-500/40'
+                      : 'bg-emerald-500/10 border-emerald-500/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-cyan-400" /> Indexing
+                    </span>
+                    <span className={`text-[10px] font-mono font-bold ${form.seo?.index === false ? 'text-rose-300' : 'text-emerald-300'}`}>
+                      {form.seo?.index === false ? 'NOINDEX' : 'INDEX'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-1">
+                    {form.seo?.index === false
+                      ? 'Hidden from search engines (still reachable by link).'
+                      : 'Included in sitemap.xml when the product is active.'}
+                  </p>
+                </button>
+                <div>
+                  <label className={labelCls}>Canonical URL Override (advanced)</label>
+                  <input
+                    type="url"
+                    value={form.seo?.canonicalUrl || ''}
+                    onChange={(e) => setSeo('canonicalUrl', e.target.value)}
+                    placeholder="https://playbeat.digital/product/…"
+                    className={`${inputCls} font-mono`}
+                  />
+                </div>
+              </div>
+
+              {/* Open Graph */}
+              <div className="rounded-xl bg-[#07090E] border border-white/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-white font-mono uppercase tracking-wider">
+                  <Eye className="w-3.5 h-3.5 text-purple-400" /> Social Sharing (Open Graph)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>OG Title</label>
+                    <input
+                      type="text"
+                      value={form.seo?.ogTitle || ''}
+                      onChange={(e) => setSeo('ogTitle', e.target.value)}
+                      placeholder="Defaults to the SEO title"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>OG Image URL</label>
+                    <input
+                      type="text"
+                      value={form.seo?.ogImage || ''}
+                      onChange={(e) => setSeo('ogImage', e.target.value)}
+                      placeholder="Defaults to the main product image"
+                      className={`${inputCls} font-mono`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>OG Description</label>
+                  <textarea
+                    rows={2}
+                    maxLength={300}
+                    value={form.seo?.ogDescription || ''}
+                    onChange={(e) => setSeo('ogDescription', e.target.value)}
+                    placeholder="Defaults to the meta description"
+                    className={`${inputCls} resize-none`}
+                  />
+                </div>
+              </div>
+
+              {/* Slug info (managed on the Advanced tab) — history is automatic */}
+              <div className="rounded-xl bg-[#07090E] border border-white/5 p-4">
+                <div className="text-xs font-bold text-white font-mono uppercase tracking-wider mb-2">URL Slug</div>
+                <div className="text-xs text-zinc-300 font-mono break-all">
+                  /product/{form.slug || slugify(form.name) || 'auto-generated-from-name'}
+                </div>
+                {Array.isArray(form.slugHistory) && form.slugHistory.length > 0 ? (
+                  <div className="mt-2">
+                    <div className="text-[10px] text-zinc-500 mb-1">
+                      Previous slugs — old links permanently redirect here:
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {form.slugHistory.map((s) => (
+                        <span key={s} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-zinc-400">
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-zinc-500 mt-1.5">
+                    Rename the slug on the Advanced tab — the old URL is remembered and 301-redirects automatically.
+                  </p>
+                )}
               </div>
             </div>
           )}

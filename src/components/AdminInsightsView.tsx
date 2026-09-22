@@ -96,6 +96,7 @@ import { GatewayPanel } from './admin/GatewayPanel'
 import { BusinessAnalyticsPanel } from './admin/BusinessAnalyticsPanel'
 import { WhatsAppPanel } from './admin/WhatsAppPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
+import { SeoPanel } from './admin/SeoPanel'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -965,6 +966,22 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <LayoutTemplate className="w-4 h-4 text-violet-400" />
                     {!sidebarCollapsed && <span>Homepage Builder</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('seo')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'seo' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'seo'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(14,165,233,0.09)', '--nav-edge': 'rgba(14,165,233,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="Sitemap, indexing, canonical URLs, broken links"
+                  >
+                    <Search className="w-4 h-4 text-sky-400" />
+                    {!sidebarCollapsed && <span>SEO &amp; Indexing</span>}
                   </button>
 
                   <button
@@ -3326,6 +3343,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* PANEL: HOMEPAGE BUILDER (Section 4.9 — CMS sections) */}
             {/* ========================================================================= */}
             {activeNav === 'homepage-builder' && <HomepageBuilderPanel onToast={triggerToast} />}
+            {activeNav === 'seo' && <SeoPanel onToast={triggerToast} />}
 
             {/* ========================================================================= */}
             {/* PANEL: AUDIT LOG (Section 4.10 — append-only admin trail) */}

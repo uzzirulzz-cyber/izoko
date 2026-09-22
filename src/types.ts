@@ -65,6 +65,18 @@ export type ProductCategory =
   | 'Bundles'
   | string
 
+// Admin-managed per-product SEO overrides (audit §25) — all optional; when a
+// field is empty the storefront generates a sensible default automatically.
+export interface ProductSeo {
+  title?: string // custom <title> (brand suffix added automatically)
+  description?: string // custom meta description
+  canonicalUrl?: string // absolute https://playbeat.digital/... override — advanced
+  index?: boolean // false = noindex, nofollow (default: index when active)
+  ogTitle?: string
+  ogDescription?: string
+  ogImage?: string
+}
+
 export interface Product {
   _id?: string
   id: string
@@ -110,6 +122,8 @@ export interface Product {
   deliveryInfo?: string
   region?: 'Global' | 'USA' | 'Europe' | 'Asia' | 'Pakistan' | string
   features?: string[]
+  seo?: ProductSeo
+  slugHistory?: string[] // previous slugs — old URLs 301 to the current one
   createdAt?: string | Date
   updatedAt?: string | Date
 }

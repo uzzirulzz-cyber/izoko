@@ -5,6 +5,32 @@
   "outputDirectory": "dist",
   "redirects": [
     {
+      "source": "/storefront",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/storefront/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/giftcards",
+      "destination": "/gift-cards",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://playbeat.digital/:path*",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www.playbeat.digital"
+        }
+      ]
+    },
+    {
       "source": "/legal/privacy",
       "destination": "/privacy",
       "permanent": true
@@ -61,6 +87,22 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/products/sitemap.xml"
+    },
+    {
+      "source": "/sitemap-products.xml",
+      "destination": "/api/products/sitemap-products.xml"
+    },
+    {
+      "source": "/sitemap-categories.xml",
+      "destination": "/api/products/sitemap-categories.xml"
+    },
+    {
+      "source": "/sitemap-pages.xml",
+      "destination": "/api/products/sitemap-pages.xml"
+    },
     {
       "source": "/api/auth/:path*",
       "destination": "/api/auth"
@@ -170,23 +212,11 @@
       "destination": "/index.html"
     },
     {
-      "source": "/storefront",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/storefront/:path*",
-      "destination": "/index.html"
-    },
-    {
       "source": "/streaming",
       "destination": "/index.html"
     },
     {
       "source": "/subscriptions",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/giftcards",
       "destination": "/index.html"
     },
     {
@@ -379,6 +409,60 @@
         {
           "key": "Cache-Control",
           "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/account",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/account/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/checkout",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/order/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/invoice/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
         }
       ]
     },

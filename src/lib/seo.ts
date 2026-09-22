@@ -16,6 +16,9 @@ export interface RouteSeo {
   path: string
   image?: string
   noindex?: boolean
+  ogType?: 'website' | 'product' | 'article'
+  /** Absolute canonical override — admin-controlled, advanced use only. */
+  canonicalUrl?: string
 }
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
@@ -28,14 +31,14 @@ function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
   el.setAttribute('content', content)
 }
 
-function upsertCanonical(path: string) {
+function upsertCanonical(path: string, canonicalUrl?: string) {
   let el = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
   if (!el) {
     el = document.createElement('link')
     el.rel = 'canonical'
     document.head.appendChild(el)
   }
-  el.href = `${SITE}${path}`
+  el.href = canonicalUrl && /^https:\/\//.test(canonicalUrl) ? canonicalUrl : `${SITE}${path}`
 }
 
 // BreadcrumbList structured data — written on every non-home indexed route so
@@ -153,13 +156,13 @@ export function applyRouteSeo(seo: RouteSeo) {
   )
 
   // Canonical always reflects the route's own path (admin presets carry
-  // /admin paths; the 404 preset carries /404)
-  upsertCanonical(seo.path)
+  // /admin paths; the 404 preset carries /404) — or the admin-set override
+  upsertCanonical(seo.path, seo.canonicalUrl)
 
   upsertMeta('property', 'og:title', title)
   upsertMeta('property', 'og:description', desc)
   upsertMeta('property', 'og:url', `${SITE}${seo.path}`)
-  upsertMeta('property', 'og:type', 'website')
+  upsertMeta('property', 'og:type', seo.ogType || 'website')
   upsertMeta('property', 'og:image', image)
 
   upsertMeta('name', 'twitter:card', 'summary_large_image')
@@ -202,7 +205,7 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
     title: 'Gift Cards — Xbox, PlayStation, Steam, Razer Gold, Apple',
     description:
       'Instant official gift card codes: Xbox, PlayStation Network, Steam Wallet, Razer Gold, Apple, Google Play and more — delivered to your inbox in minutes.',
-    path: '/giftcards',
+    path: '/gift-cards',
   },
   gaming: {
     title: 'Gaming — Xbox Game Pass, Game Keys & Wallet Top-Ups',
@@ -252,6 +255,8 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
       'Adobe Creative Cloud, CapCut Pro, Freepik, Canva Pro and other creative software subscriptions with instant activation.',
     path: '/creative-software',
   },
+  // /giftcards is a permanent redirect to the canonical /gift-cards URL
+  // (duplicate-content audit §37 — one canonical per collection)
   'gift-cards': {
     title: 'Gift Cards — Xbox, PlayStation, Steam, Razer Gold, Apple',
     description:
@@ -355,6 +360,20 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
     title: 'Secure Checkout — PlayBeat Digital',
     description: '',
     path: '/checkout',
+    noindex: true,
+  },
+  // Account area is session-scoped private space — never indexed (audit §5).
+  // Same for the order-status and invoice deep links.
+  account: {
+    title: 'My Account — PlayBeat Digital',
+    description: '',
+    path: '/account',
+    noindex: true,
+  },
+  order: {
+    title: 'Order Status — PlayBeat Digital',
+    description: '',
+    path: '/order',
     noindex: true,
   },
   notfound: {
