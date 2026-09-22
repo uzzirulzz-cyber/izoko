@@ -49,6 +49,7 @@ export interface RapidPaymentRequest {
   webhookUrl?: string;
   customerIp?: string;
   bankCode?: number;
+  environment?: string;
 }
 
 export interface RapidPaymentResult {
@@ -172,7 +173,8 @@ export async function createRapidPayment(
     accountNumber,
     customerIp: String(req.customerIp || "0.0.0.0").slice(0, 45),
     orderDescription,
-    bankCode: Number(req.bankCode) > 0 ? Number(req.bankCode) : 1, // positive code required; 1 = default channel on hosted checkout
+    bankCode: Number(req.bankCode) > 0 ? Number(req.bankCode) : 1, // positive code required; 1 = JazzCash, 13 = Easypaisa (per hosted-checkout app)
+    ...(req.environment ? { environment: String(req.environment) } : {}), // diagnostics: probe TEST vs LIVE route tables
     webhookUrl: req.webhookUrl || cfg.webhookUrl,
   };
 

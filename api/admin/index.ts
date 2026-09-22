@@ -3358,6 +3358,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         // active without a redeploy. Defaults to 1.
         const bankCodeIn = Number((req.body || {}).bankCode);
         const bankCode = Number.isFinite(bankCodeIn) && bankCodeIn > 0 ? Math.floor(bankCodeIn) : 1;
+        const environment = String((req.body || {}).environment || "").trim();
         const orderNumber = `PB-GWTEST-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
         const ordersCol = db.collection("orders");
         await ordersCol.insertOne({
@@ -3396,6 +3397,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             (req.headers["x-real-ip"] as string) ||
             "0.0.0.0",
           bankCode,
+          ...(environment ? { environment } : {}),
           returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(orderNumber)}`,
         });
         await ordersCol.updateOne(
@@ -3426,9 +3428,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           orderNumber,
           amount,
           bankCode,
+          ...(environment ? { environment } : {}),
           checkoutUrl: result.checkoutUrl || null,
           ok: Boolean(result.ok),
           error: result.error || null,
+          raw: result.raw ? JSON.stringify(result.raw).slice(0, 600) : null,
         });
       }
 
