@@ -1,42 +1,47 @@
-// Rapid Gateway server-side payment client (OAuth2 + Pay-In API).
+// Rapid Gateway server-side payment client (OAuth2 + Embedded Checkout sessions).
 //
-// Two-step flow per Rapid Gateway developer docs (contract verified live
-// against secure.rapid-gateway.com — see worklog Task 55):
-//   Step 1: POST https://secure.rapid-gateway.com/oauth2/token
-//     Headers:
-//       Authorization: Basic base64(merchantId:clientSecret)
-//       Content-Type: application/x-www-form-urlencoded
-//     Body: grant_type=client_credentials
-//     Response: { access_token, token_type: "Bearer", expires_in: ~299 }
+// Flow (contract verified live against secure.rapid-gateway.com — worklog
+// Tasks 55/56):
+//   Step 1: POST {apiBase}/oauth2/token
+//           Authorization: Basic base64(merchantId:clientSecret)
+//           Content-Type: application/x-www-form-urlencoded
+//           body: grant_type=client_credentials
+//           → { access_token, token_type:"Bearer", expires_in: ~299 }
 //
-//   Step 2: POST https://secure.rapid-gateway.com/api/v1/payments/process
-//     (same JSON API generation as /api/v1/payments/refunds — the legacy
-//      /rapid/process-transaction path is DEAD: it 415s on application/json
-//      and was never the correct contract)
-//     Headers:
-//       Authorization: Bearer <access_token from step 1>
-//       Content-Type: application/json
-//     Body (validated field-by-field against the live gateway):
-//       merchantId      number   (required)
-//       basketId        string   (required — our order number)
-//       amount          number   (required)
-//       currencyCode    string   (required — "PKR")
-//       callbackUrl     string   (required — customer-facing return URL)
-//       accountNumber   string   (required — 6-24 digits; customer phone
-//                                 digits or order-number digits fallback)
-//       customerIp      string   (required)
-//       orderDescription string  (required)
-//       bankCode        number   (required — positive code; 1 = default)
-//       webhookUrl      string   (optional — unknown fields are tolerated)
-//     Response: hosted-checkout reference/URL → redirect customer there.
+//   Step 2: POST {apiBase}/v1/checkout-sessions
+//           Authorization: Bearer <token>, X-Environment: LIVE
+//           body: { merchantId, amount, currency, basketId,
+//                   customerEmail?, customerMobile? }
+//           → { code:"201", additionalData:{ data:{ sessionId, clientSecret,
+//               publishableKey, status:"CREATED", environment, amount,
+//               currency, basketId, expiresAt } } }
+//           clientSecret format: "<sessionId>_secret_<secret>" — the embedded
+//           widget recovers the session id from it (split on "_secret_").
 //
-// Fulfillment rule: the return redirect is NEVER trusted — the order is
-// marked paid exclusively by the verified webhook.
+//   Step 3: FRONTEND mounts {apiBase}/embedded?boot in an iframe and
+//           postMessages {type:"rp:init", clientSecret} once the widget
+//           announces {type:"rp:ready"}. The widget renders the payment UI
+//           (card / account / wallet / Raast tabs), finalizes itself via
+//           POST /v1/checkout-sessions/{id}/finalize and reports
+//           rp:pending → rp:success | rp:error back to the parent window.
+//
+//   Step 4: Truth stays server-side — the order is marked paid ONLY by the
+//           verified webhook (POST /api/rapid/webhook or
+//           /webhooks/rapid-gateway, HMAC X-RapidGateway-Signature).
+//
+// Dead paths kept for the record (do NOT use):
+//   - POST /rapid/process-transaction → HTTP 415 for application/json
+//   - POST /api/v1/payments/process   → 422 ROUTE_NOT_CONFIGURED for this
+//     merchant (routes are provisioned for the checkout-session model only)
 
 import { getRapidConfig } from "./gatewayConfig.js";
 
 const RAPID_MERCHANT_ID = process.env.RAPID_MERCHANT_ID || "";
 const RAPID_SECRET_KEY = process.env.RAPID_SECRET_KEY || "";
+const RAPID_API_BASE = (process.env.RAPID_API_BASE || "https://secure.rapid-gateway.com").replace(
+  /\/+$/,
+  ""
+);
 
 export interface RapidPaymentRequest {
   orderNumber: string;
@@ -55,60 +60,56 @@ export interface RapidPaymentRequest {
 export interface RapidPaymentResult {
   ok: boolean;
   paymentId?: string;
-  checkoutUrl?: string;
+  sessionId?: string;
+  clientSecret?: string;
+  publishableKey?: string;
+  embeddedUrl?: string; // merchant frontend mounts this in an iframe
+  expiresAt?: number;
   raw?: any;
   error?: string;
 }
 
-// Cached OAuth2 token (expires in ~299s, we refresh at 250s)
+// Cached OAuth2 token (expires in ~299s, refresh at 250s to be safe)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+async function fetchAccessToken(merchantId: string, clientSecret: string, apiBase: string) {
+  const basicAuth = Buffer.from(`${merchantId}:${clientSecret}`).toString("base64");
+  const res = await fetch(`${apiBase}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basicAuth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  const data: any = await res.json().catch(() => null);
+  if (!res.ok || !data?.access_token) {
+    console.error("Rapid OAuth token error:", res.status, data);
+    return null;
+  }
+  const expiresIn = Number(data.expires_in) || 299;
+  cachedToken = { token: String(data.access_token), expiresAt: Date.now() + (expiresIn - 49) * 1000 };
+  return String(data.access_token);
+}
+
 /**
- * Step 1: Get an OAuth2 access token from Rapid Gateway.
- * Uses client_credentials grant with Basic auth (merchantId:clientSecret).
+ * Step 1: Get an OAuth2 access token. Credentials resolve DB-first (admin
+ * panel managed, AES-GCM at rest) with env vars as the bootstrap fallback —
+ * a panel-side secret rotation takes effect without a redeploy.
  */
 async function getRapidAccessToken(): Promise<string | null> {
-  // Return cached token if still valid
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.token;
   }
-
   const cfg = await getRapidConfig();
-  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
+  const merchantId = String((cfg as any)?.merchantId || RAPID_MERCHANT_ID || "").trim();
   const clientSecret = cfg.secretKey || RAPID_SECRET_KEY;
-
   if (!merchantId || !clientSecret) {
     console.error("Rapid OAuth: missing merchantId or clientSecret");
     return null;
   }
-
-  const basicAuth = Buffer.from(`${merchantId}:${clientSecret}`).toString("base64");
-  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
-
   try {
-    const res = await fetch(`${apiBase}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basicAuth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    });
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.access_token) {
-      console.error("Rapid OAuth token error:", res.status, data);
-      return null;
-    }
-
-    // Cache token — expires in 299s, refresh at 250s to be safe
-    const expiresIn = Number(data.expires_in) || 299;
-    cachedToken = {
-      token: data.access_token,
-      expiresAt: Date.now() + (expiresIn - 49) * 1000,
-    };
-
-    return data.access_token;
+    return await fetchAccessToken(merchantId, clientSecret, cfg.apiBase || RAPID_API_BASE);
   } catch (err: any) {
     console.error("Rapid OAuth fetch error:", err?.message);
     return null;
@@ -116,20 +117,16 @@ async function getRapidAccessToken(): Promise<string | null> {
 }
 
 /**
- * Step 2: Create a hosted-checkout payment on Rapid Gateway.
- * Uses the OAuth2 access token from step 1.
- *
- * Endpoint: POST {apiBase}/api/v1/payments/process (JSON contract, verified
- * live 2026-09 — see file header). accountNumber must be 6-24 DIGITS: we use
- * the customer's phone digits when we have them, otherwise digits recovered
- * from the order number (always ≥ 9 digits in our numbering scheme).
+ * Step 2: Create an Embedded Checkout session. The customer pays inside the
+ * iframe mounted by the frontend (see RapidEmbeddedCheckout.tsx); this call
+ * carries no customer-entered data and the amount is server-computed.
  */
 export async function createRapidPayment(
   req: RapidPaymentRequest
 ): Promise<RapidPaymentResult> {
   const cfg = await getRapidConfig();
-  const merchantIdRaw = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
-  const merchantId = Number(String(merchantIdRaw).replace(/\D/g, ""));
+  const merchantIdRaw = String((cfg as any)?.merchantId || RAPID_MERCHANT_ID || "").trim();
+  const merchantId = Number(merchantIdRaw.replace(/\D/g, ""));
 
   if (!cfg.secretKey && !RAPID_SECRET_KEY) {
     return { ok: false, error: "Rapid Gateway is not configured (no secret key — set it in Admin → Payment Gateway)." };
@@ -138,52 +135,30 @@ export async function createRapidPayment(
     return { ok: false, error: "Rapid Gateway is not configured (merchant ID missing or invalid)." };
   }
 
-  // Step 1: Get OAuth2 access token
   const accessToken = await getRapidAccessToken();
   if (!accessToken) {
     return { ok: false, error: "Could not authenticate with Rapid Gateway. Please try again." };
   }
 
-  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
+  const apiBase = (cfg.apiBase || RAPID_API_BASE).replace(/\/+$/, "");
   const amount = Math.round(Number(req.amount) * 100) / 100;
-  const currency = (req.currency || "PKR").toUpperCase();
 
-  // accountNumber: 6-24 digits, required by the gateway. Prefer the customer's
-  // real phone digits; fall back to digits from the order number (padded if
-  // ever short) so the request always satisfies the gateway's validator.
-  const phoneDigits = String(req.customerPhone || "").replace(/\D/g, "");
-  const orderDigits = String(req.orderNumber || "").replace(/\D/g, "");
-  let accountNumber = phoneDigits.length >= 6 ? phoneDigits.slice(0, 24) : "";
-  if (accountNumber.length < 6) {
-    accountNumber = (orderDigits + "00").slice(0, 24);
-  }
-  if (accountNumber.length < 6 || accountNumber.length > 24) {
-    accountNumber = (accountNumber + "0000000000").slice(0, 12);
-  }
-
-  const orderDescription = `PlayBeat Digital order ${req.orderNumber}`.slice(0, 120);
-
-  // Build the transaction body per the verified Rapid Gateway contract.
   const body: Record<string, unknown> = {
     merchantId,
+    amount,
+    currency: (req.currency || "PKR").toUpperCase(),
     basketId: req.orderNumber,
-    amount: amount,
-    currencyCode: currency,
-    callbackUrl: req.returnUrl,
-    accountNumber,
-    customerIp: String(req.customerIp || "0.0.0.0").slice(0, 45),
-    orderDescription,
-    bankCode: Number(req.bankCode) > 0 ? Number(req.bankCode) : 1, // positive code required; 1 = JazzCash, 13 = Easypaisa (per hosted-checkout app)
-    ...(req.environment ? { environment: String(req.environment) } : {}), // diagnostics: probe TEST vs LIVE route tables
-    webhookUrl: req.webhookUrl || cfg.webhookUrl,
   };
+  if (req.customerEmail) body.customerEmail = String(req.customerEmail).slice(0, 120);
+  if (req.customerPhone) body.customerMobile = String(req.customerPhone).slice(0, 20);
 
   try {
-    const res = await fetch(`${apiBase}/api/v1/payments/process`, {
+    const res = await fetch(`${apiBase}/v1/checkout-sessions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
+        "X-Environment": "LIVE",
       },
       body: JSON.stringify(body),
     });
@@ -191,10 +166,7 @@ export async function createRapidPayment(
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      // New-style errors: { error: "VALIDATION_FAILED"|..., message: "..." }.
-      // Old-style Spring errors: { error: "Unsupported Media Type" }.
-      // Surface the message whenever it adds information beyond the code.
-      const code = String(data?.error || "");
+      const code = String(data?.error || data?.code || "");
       const message = String(data?.message || data?.error_description || "");
       const detail =
         message && message.toLowerCase() !== code.toLowerCase()
@@ -203,34 +175,52 @@ export async function createRapidPayment(
       return { ok: false, error: detail, raw: data };
     }
 
-    // Response may contain the checkout URL under several field names —
-    // scan shallowly (and one level deep) for anything URL-shaped.
-    const pickUrl = (obj: any): string => {
-      if (!obj || typeof obj !== "object") return "";
-      const candidates = [
-        obj.checkoutUrl, obj.checkout_url, obj.redirectUrl, obj.redirect_url,
-        obj.paymentUrl, obj.payment_url, obj.checkoutPageUrl, obj.hostedCheckoutUrl,
-        obj.payUrl, obj.url, obj.link,
-        Array.isArray(obj.data) ? "" : pickUrl(obj.data),
-      ];
-      for (const c of candidates) {
-        const s = String(c || "");
-        if (/^https:\/\//i.test(s)) return s;
-      }
-      return "";
-    };
-    const checkoutUrl = pickUrl(data) || res.headers.get("location") || "";
-    const paymentId = String(
-      data?.id || data?.paymentId || data?.transactionId || data?.transactionRef ||
-      data?.reference || data?.basketId || ""
-    );
+    // Success shape: { code:"201", additionalData:{ data:{ sessionId, clientSecret, ... } } }
+    const sessionData = data?.additionalData?.data || data?.data || data || {};
+    const sessionId = String(sessionData.sessionId || "");
+    const clientSecret = String(sessionData.clientSecret || "");
+    const publishableKey = String(sessionData.publishableKey || "");
+    const expiresAt = Number(sessionData.expiresAt) || undefined;
 
-    if (!checkoutUrl) {
-      return { ok: false, error: "Rapid Gateway did not return a checkout URL.", raw: data };
+    if (!sessionId || !clientSecret) {
+      return { ok: false, error: "Rapid Gateway did not return a checkout session.", raw: data };
     }
 
-    return { ok: true, paymentId, checkoutUrl, raw: data };
+    return {
+      ok: true,
+      paymentId: sessionId,
+      sessionId,
+      clientSecret,
+      publishableKey,
+      embeddedUrl: `${apiBase}/embedded?boot`,
+      expiresAt,
+      raw: data,
+    };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Could not reach Rapid Gateway." };
+  }
+}
+
+/**
+ * Server-side session status check (GET /v1/checkout-sessions/{id}) — for
+ * support diagnostics only; payment truth always comes from the webhook.
+ */
+export async function getCheckoutSession(
+  sessionId: string
+): Promise<{ status: string; raw?: any; error?: string }> {
+  const cfg = await getRapidConfig();
+  const accessToken = await getRapidAccessToken();
+  if (!accessToken) return { status: "UNKNOWN", error: "not authenticated" };
+  const apiBase = (cfg.apiBase || RAPID_API_BASE).replace(/\/+$/, "");
+  try {
+    const res = await fetch(
+      `${apiBase}/v1/checkout-sessions/${encodeURIComponent(sessionId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await res.json().catch(() => null);
+    const sessionData = data?.additionalData?.data || data?.data || data || {};
+    return { status: String(sessionData.status || data?.status || "UNKNOWN"), raw: data };
+  } catch (err: any) {
+    return { status: "UNKNOWN", error: err?.message || "request failed" };
   }
 }

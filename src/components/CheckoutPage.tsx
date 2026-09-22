@@ -28,6 +28,7 @@ import { formatPrice } from '../lib/currency'
 import { PaymentMethodSelector } from './checkout/PaymentMethodSelector'
 import { SecurityBadges } from './checkout/SecurityBadges'
 import { CouponInput } from './checkout/CouponInput'
+import RapidEmbeddedCheckout from './checkout/RapidEmbeddedCheckout'
 import { OrderSummary } from './checkout/OrderSummary'
 import { CheckoutCTA } from './checkout/CheckoutCTA'
 import { OrderSuccess } from './checkout/OrderSuccess'
@@ -108,6 +109,13 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [checkoutError, setCheckoutError] = useState('')
   const [methodError, setMethodError] = useState(false)
   const [placed, setPlaced] = useState<PlacedOrder | null>(null)
+  // Active Rapid embedded-checkout session — when set, the widget takes over
+  // the screen (order already saved as PENDING; cart already cleared).
+  const [rapidPay, setRapidPay] = useState<{
+    orderNumber: string
+    clientSecret: string
+    embeddedUrl: string
+  } | null>(null)
   const clientRequestId = useRef<string>(
     `chk-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
   )
@@ -359,7 +367,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           body: JSON.stringify({ orderNumber }),
         })
         const payData = await payRes.json().catch(() => null)
-        if (!payRes.ok || !payData?.success || !payData?.checkoutUrl) {
+        if (!payRes.ok || !payData?.success || !payData?.clientSecret) {
           setCheckoutError(
             payData?.error ||
               `Order ${orderNumber} was saved as PENDING but the payment session could not start. You can retry from My Orders — you will not be charged twice.`
@@ -374,9 +382,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         }
         onClearCart()
         setStoredCoupon(null)
-        // Hand off to the gateway's hosted checkout — payment truth comes
-        // back via the verified webhook and the /order/:num result page.
-        window.location.href = payData.checkoutUrl
+        setSubmitting(false)
+        // Mount the gateway's embedded checkout — the customer pays in the
+        // widget; the order is confirmed ONLY by the verified webhook.
+        setRapidPay({
+          orderNumber,
+          clientSecret: String(payData.clientSecret),
+          embeddedUrl: String(payData.embeddedUrl || 'https://secure.rapid-gateway.com/embedded?boot'),
+        })
         return
       }
 
@@ -514,6 +527,20 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       )}
     </div>
   )
+
+  // ---------- rapid embedded payment (order saved; widget takes over) ----------
+  if (rapidPay) {
+    return (
+      <RapidEmbeddedCheckout
+        embeddedUrl={rapidPay.embeddedUrl}
+        clientSecret={rapidPay.clientSecret}
+        onPaid={() => {
+          window.location.href = `/order/${encodeURIComponent(rapidPay.orderNumber)}`
+        }}
+        onExit={() => setRapidPay(null)}
+      />
+    )
+  }
 
   // ---------- success ----------
   if (placed) {

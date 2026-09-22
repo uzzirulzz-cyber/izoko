@@ -498,7 +498,9 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
               <>
                 <p>
                   Order {testResult.orderNumber || '—'} · Rs {testResult.amount} ·{' '}
-                  {testResult.ok ? 'checkout created' : `gateway error: ${testResult.error || 'unknown'}`}
+                  {testResult.ok
+                    ? `checkout session created${testResult.sessionId ? ` (${String(testResult.sessionId).slice(0, 18)}…)` : ''}`
+                    : `gateway error: ${testResult.error || 'unknown'}`}
                 </p>
                 {testResult.checkoutUrl && (
                   <p className="mt-1.5">
@@ -766,7 +768,7 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
                   <p className="text-xs text-white font-mono font-bold">{o.orderNumber}</p>
                   <p className="text-[10px] text-zinc-400 font-mono">
                     Rs {o.totalAmount} · {o.status}/{o.paymentStatus}
-                    {o.checkoutUrl && ' · checkout created'}
+                    {(o.checkoutUrl || o.rapidSessionId) && ' · checkout created'}
                     {' · '}
                     {new Date(o.createdAt).toLocaleString()}
                   </p>

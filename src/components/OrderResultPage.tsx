@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import './checkout/checkout.css'
 import { trackPurchase } from '../lib/googleTag'
+import RapidEmbeddedCheckout from './checkout/RapidEmbeddedCheckout'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
@@ -75,6 +76,8 @@ export const OrderResultPage: React.FC<OrderResultPageProps> = ({
   const [order, setOrder] = useState<OrderView | null>(null)
   const [errMsg, setErrMsg] = useState('')
   const [retrying, setRetrying] = useState(false)
+  // Active Rapid embedded-checkout retry session (widget renders over the page)
+  const [rapidRetry, setRapidRetry] = useState<{ clientSecret: string; embeddedUrl: string } | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -190,8 +193,11 @@ export const OrderResultPage: React.FC<OrderResultPageProps> = ({
         body: JSON.stringify({ orderNumber }),
       })
       const data = await res.json()
-      if (data?.success && data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl
+      if (data?.success && data?.clientSecret) {
+        setRapidRetry({
+          clientSecret: String(data.clientSecret),
+          embeddedUrl: String(data.embeddedUrl || 'https://secure.rapid-gateway.com/embedded?boot'),
+        })
         return
       }
       setErrMsg(data?.error || 'Could not restart the payment. Please try again.')
@@ -263,6 +269,17 @@ export const OrderResultPage: React.FC<OrderResultPageProps> = ({
         ...(order?.items || []).flatMap((it) => it.licenseKeys || []),
       ]
     : []
+
+  if (rapidRetry) {
+    return (
+      <RapidEmbeddedCheckout
+        embeddedUrl={rapidRetry.embeddedUrl}
+        clientSecret={rapidRetry.clientSecret}
+        onPaid={() => window.location.reload()}
+        onExit={() => setRapidRetry(null)}
+      />
+    )
+  }
 
   return (
     <div className="pbx-scope min-h-screen py-10 px-4">

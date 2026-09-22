@@ -3405,7 +3405,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           {
             $set: {
               rapidPaymentId: result.paymentId || "",
-              checkoutUrl: result.checkoutUrl || "",
+              rapidSessionId: result.sessionId || "",
               paymentInitiatedAt: new Date(),
               ...(result.ok ? {} : { testPaymentError: String(result.error || "") }),
             },
@@ -3429,7 +3429,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           amount,
           bankCode,
           ...(environment ? { environment } : {}),
-          checkoutUrl: result.checkoutUrl || null,
+          sessionId: result.sessionId || null,
+          clientSecret: result.clientSecret || null,
+          embeddedUrl: result.embeddedUrl || null,
           ok: Boolean(result.ok),
           error: result.error || null,
           raw: result.raw ? JSON.stringify(result.raw).slice(0, 600) : null,

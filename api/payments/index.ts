@@ -218,7 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "0.0.0.0",
         returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(order.orderNumber)}`,
       });
-      if (!result.ok || !result.checkoutUrl) {
+      if (!result.ok || !result.clientSecret) {
         console.error("rapid/create failed:", result.error);
         // Customer-safe message — the order is safe as PENDING and can be
         // retried; technical detail stays in the server log above.
@@ -234,8 +234,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         {
           $set: {
             paymentProvider: "rapid",
-            rapidPaymentId: result.paymentId || "",
-            checkoutUrl: result.checkoutUrl,
+            rapidPaymentId: result.sessionId || "",
+            rapidSessionId: result.sessionId || "",
             paymentStatus: "pending",
             status: order.status === "payment_failed" ? "pending" : order.status,
             paymentMethod: "Rapid Gateway",
@@ -247,7 +247,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return jsonOk(res, {
         success: true,
         orderNumber: order.orderNumber,
-        checkoutUrl: result.checkoutUrl,
+        sessionId: result.sessionId,
+        clientSecret: result.clientSecret,
+        embeddedUrl: result.embeddedUrl,
       });
     } catch (err: any) {
       console.error("rapid/create error:", err);
