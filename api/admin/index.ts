@@ -3353,6 +3353,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           return jsonError(res, "Configure the Rapid secret key first.", 400);
         }
         const amount = Math.min(Math.max(Number((req.body || {}).amount) || 100, 10), 5000);
+        // Optional bankCode probe — ROUTE_NOT_CONFIGURED is bankCode-specific,
+        // so IT staff can discover which provider routes the merchant has
+        // active without a redeploy. Defaults to 1.
+        const bankCodeIn = Number((req.body || {}).bankCode);
+        const bankCode = Number.isFinite(bankCodeIn) && bankCodeIn > 0 ? Math.floor(bankCodeIn) : 1;
         const orderNumber = `PB-GWTEST-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
         const ordersCol = db.collection("orders");
         await ordersCol.insertOne({
@@ -3390,6 +3395,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
             (req.headers["x-real-ip"] as string) ||
             "0.0.0.0",
+          bankCode,
           returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(orderNumber)}`,
         });
         await ordersCol.updateOne(
@@ -3419,10 +3425,55 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           action,
           orderNumber,
           amount,
+          bankCode,
           checkoutUrl: result.checkoutUrl || null,
           ok: Boolean(result.ok),
           error: result.error || null,
         });
+      }
+
+      // ---- routes-probe: authenticated GET sweep of candidate route/bank
+      // catalog paths on the gateway. ROUTE_NOT_CONFIGURED is bankCode-keyed
+      // and the gateway has no public catalog — this discovers (or rules out)
+      // a route-listing endpoint without guess-deploys. Read-only.
+      if (action === "routes-probe") {
+        const cfg = await getRapidConfig(true);
+        if (!cfg.secretKey) {
+          return jsonError(res, "Configure the Rapid secret key first.", 400);
+        }
+        let token: string;
+        try {
+          token = await getRefundAccessToken(true);
+        } catch (e: any) {
+          return jsonError(res, `token request failed: ${e?.message || "unknown"}`, 502);
+        }
+        const paths = [
+          "/api/v1/payments/routes",
+          "/api/v1/payments/banks",
+          "/api/v1/payments/methods",
+          "/api/v1/payments/providers",
+          "/api/v1/payments/config",
+          "/api/v1/payments/settings",
+          "/api/v1/merchants",
+          "/api/v1/merchant/routes",
+          "/api/v1/merchants/current",
+          "/api/v1/merchants/me",
+        ];
+        const results: Array<{ path: string; status: number | string; body: string }> = [];
+        for (const p of paths) {
+          try {
+            const r = await fetch(`${cfg.apiBase}${p}`, {
+              method: "GET",
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(8000),
+            });
+            const txt = (await r.text()).slice(0, 400);
+            results.push({ path: p, status: r.status, body: txt });
+          } catch (e: any) {
+            results.push({ path: p, status: "ERR", body: String(e?.message || "failed") });
+          }
+        }
+        return jsonOk(res, { success: true, action, apiBase: cfg.apiBase, results });
       }
 
       // ---- refunds-token: prove the Refunds API OAuth2 path end-to-end
