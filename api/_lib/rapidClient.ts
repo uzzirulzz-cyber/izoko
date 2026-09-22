@@ -1,16 +1,10 @@
 // Rapid Gateway server-side payment client.
-//
-// Two-step flow:
-//   Step 1: POST {apiBase}/oauth2/token → get OAuth2 access token
-//   Step 2: POST {apiBase}/api/v1/payments/process → create payment
-//
-// The /v1/payments endpoint at api.rapidgateway.pk has no DNS record.
-// The working API is at secure.rapid-gateway.com using OAuth2 + /api/v1/payments/process.
-
-import { getRapidConfig } from "./gatewayConfig.js";
+// Uses env vars directly for speed (avoids MongoDB round-trip in getRapidConfig).
 
 const RAPID_MERCHANT_ID = process.env.RAPID_MERCHANT_ID || "";
 const RAPID_SECRET_KEY = process.env.RAPID_SECRET_KEY || "";
+const RAPID_API_BASE = (process.env.RAPID_API_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
+const RAPID_WEBHOOK_URL = "https://playbeat.digital/webhooks/rapid-gateway";
 
 export interface RapidPaymentRequest {
   orderNumber: string;
@@ -40,17 +34,12 @@ async function getRapidAccessToken(): Promise<string | null> {
     return cachedToken.token;
   }
 
-  const cfg = await getRapidConfig();
-  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
-  const clientSecret = cfg.secretKey || RAPID_SECRET_KEY;
+  if (!RAPID_MERCHANT_ID || !RAPID_SECRET_KEY) return null;
 
-  if (!merchantId || !clientSecret) return null;
-
-  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
-  const basicAuth = Buffer.from(`${merchantId}:${clientSecret}`).toString("base64");
+  const basicAuth = Buffer.from(`${RAPID_MERCHANT_ID}:${RAPID_SECRET_KEY}`).toString("base64");
 
   try {
-    const res = await fetch(`${apiBase}/oauth2/token`, {
+    const res = await fetch(`${RAPID_API_BASE}/oauth2/token`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${basicAuth}`,
@@ -76,10 +65,7 @@ async function getRapidAccessToken(): Promise<string | null> {
 export async function createRapidPayment(
   req: RapidPaymentRequest
 ): Promise<RapidPaymentResult> {
-  const cfg = await getRapidConfig();
-  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
-
-  if (!cfg.secretKey && !RAPID_SECRET_KEY) {
+  if (!RAPID_SECRET_KEY) {
     return { ok: false, error: "Rapid Gateway is not configured." };
   }
 
@@ -88,15 +74,13 @@ export async function createRapidPayment(
     return { ok: false, error: "Could not authenticate with Rapid Gateway." };
   }
 
-  const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
-
   const body: Record<string, unknown> = {
-    merchantId: Number(merchantId) || merchantId,
+    merchantId: Number(RAPID_MERCHANT_ID) || RAPID_MERCHANT_ID,
     basketId: req.orderNumber,
     amount: Math.round(Number(req.amount) * 100) / 100,
     currencyCode: (req.currency || "PKR").toUpperCase(),
     callbackUrl: req.returnUrl,
-    webhookUrl: req.webhookUrl || cfg.webhookUrl,
+    webhookUrl: req.webhookUrl || RAPID_WEBHOOK_URL,
     accountNumber: (req.customerPhone || req.orderNumber || "").replace(/[^\d]/g, "").slice(0, 24).padStart(6, "0"),
     customerIp: req.customerIp || "127.0.0.1",
     orderDescription: `PlayBeat order ${req.orderNumber}`,
@@ -107,7 +91,7 @@ export async function createRapidPayment(
   if (req.customerEmail) body.customerEmail = req.customerEmail;
 
   try {
-    const res = await fetch(`${apiBase}/api/v1/payments/process`, {
+    const res = await fetch(`${RAPID_API_BASE}/api/v1/payments/process`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
