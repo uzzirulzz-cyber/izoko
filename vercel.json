@@ -89,19 +89,19 @@
   "rewrites": [
     {
       "source": "/sitemap.xml",
-      "destination": "/api/products/sitemap.xml"
+      "destination": "/api/products?pbSitemap=index"
     },
     {
       "source": "/sitemap-products.xml",
-      "destination": "/api/products/sitemap-products.xml"
+      "destination": "/api/products?pbSitemap=products"
     },
     {
       "source": "/sitemap-categories.xml",
-      "destination": "/api/products/sitemap-categories.xml"
+      "destination": "/api/products?pbSitemap=categories"
     },
     {
       "source": "/sitemap-pages.xml",
-      "destination": "/api/products/sitemap-pages.xml"
+      "destination": "/api/products?pbSitemap=pages"
     },
     {
       "source": "/api/auth/:path*",

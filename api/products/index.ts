@@ -205,6 +205,17 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const pathSegments = parts.slice(2);
     const slug = pathSegments[0];
 
+    // ---- Dynamic XML sitemaps via rewrite query param (vercel.json maps
+    // /sitemap.xml → /api/products?pbSitemap=index etc.). Query params
+    // survive the rewrite; sub-path destinations do NOT (the edge strips
+    // them), which is why both entry styles are handled here. ----
+    const pbSitemap = String((req.query as Record<string, string>).pbSitemap || "").toLowerCase();
+    if (pbSitemap) {
+      const map = pbSitemap === "index" ? "sitemap.xml" : `sitemap-${pbSitemap}.xml`;
+      const handled = await handleSitemapRequest(res, map, db);
+      if (handled) return;
+    }
+
     // ============ GET /api/products/:slug ============
     if (slug) {
       // ---- Dynamic XML sitemaps (served through this function so the project
