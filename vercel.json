@@ -130,6 +130,10 @@
       "destination": "/api/payments?rapid=1"
     },
     {
+      "source": "/api/rapid/webhook",
+      "destination": "/api/payments?rapid=1"
+    },
+    {
       "source": "/order/:path*",
       "destination": "/index.html"
     },
