@@ -153,7 +153,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   const isLocked = !!lockedUntil && Date.now() < lockedUntil
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#040714]/95 backdrop-blur-2xl animate-in fade-in duration-200">
+    <div className="pbadmin-login fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#040714]/95 backdrop-blur-2xl animate-in fade-in duration-200">
       {/* Ambient glows */}
       <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
