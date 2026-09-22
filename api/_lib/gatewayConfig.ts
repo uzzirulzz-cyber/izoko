@@ -217,18 +217,22 @@ export async function saveRapidConfig(
   const unset: Record<string, any> = {};
   const changed: string[] = [];
 
-  const enc = (field: string, value?: string) => {
-    if (!(field in (patch as any))) return;
-    const trimmed = String(value ?? "").trim();
+  // NOTE: the patch carries PLAINTEXT field names (secretKey / webhookSalt /
+  // webhookSaltPrev) while the DB columns are the *Enc variants — the presence
+  // check must test the PATCH key, not the DB field (this was silently
+  // preventing secret saves entirely).
+  const enc = (dbField: string, patchKey: keyof GatewayConfigPatch) => {
+    if (!(patchKey in (patch as any))) return;
+    const trimmed = String(((patch as any)[patchKey] ?? "")).trim();
     const encVal = trimmed ? encryptSecret(trimmed) : null;
     if (trimmed && encVal) {
-      set[field] = encVal;
-      changed.push(field);
+      set[dbField] = encVal;
+      changed.push(dbField);
     }
   };
-  enc("secretKeyEnc", patch.secretKey);
-  enc("webhookSaltEnc", patch.webhookSalt);
-  enc("webhookSaltPrevEnc", patch.webhookSaltPrev);
+  enc("secretKeyEnc", "secretKey");
+  enc("webhookSaltEnc", "webhookSalt");
+  enc("webhookSaltPrevEnc", "webhookSaltPrev");
 
   for (const field of patch.clear || []) {
     if (field === "secretKey") { unset.secretKeyEnc = ""; changed.push("secretKey (cleared)"); }
