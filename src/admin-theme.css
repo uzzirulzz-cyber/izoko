@@ -1,369 +1,352 @@
 /* ============================================================
-   PLAYBEAT ADMIN — "CORPORATE UI" THEME
-   Reference: Creative Tim Corporate UI Dashboard Pro (Bootstrap 5).
-   slate-900 sidenav · dark active pills · blurred white navbar ·
-   gray-100 canvas · white cards (#dde0e5 hairline + soft shadow) ·
-   124deg gradient icon chips · primary #774dd3 accents · Noto Sans.
+   PLAYBEAT ADMIN — "CRISP CRM" THEME
+   Reference architecture: near-black shell · flat white cards ·
+   solid colored icon squares · white active pill · gold accents.
    Pure re-skin: every selector name is preserved, panels keep
    their markup/logic — the theme layer does the flip.
-   Tailwind v4 utilities live in @layer utilities; this unlayered
-   file therefore always wins, no !important required.
    ============================================================ */
 
 .pbadmin {
-  /* Core palette — Corporate UI Dashboard Pro */
-  --pa-bg: #f9fafb;            /* page canvas (bg-gray-100) */
-  --pa-side: #0f172a;          /* sidenav (bg-slate-900) */
+  /* Core palette */
+  --pa-bg: #05070d;
+  --pa-side: #0a0e17;
   --pa-card-a: #ffffff;
   --pa-card-b: #ffffff;
-  --pa-inset: #f9fafb;
-  --pa-line: #dde0e5;          /* card hairline */
-  --pa-primary: #774dd3;       /* brand primary */
-  --pa-primary-hi: #825ee4;
-  --pa-text: #1e293b;          /* headings */
-  --pa-muted: #64748b;         /* body copy */
+  --pa-inset: #f8fafc;
+  --pa-line: #e8edf5;
+  --pa-gold: #f5b800;
+  --pa-gold-soft: rgba(245, 184, 0, 0.14);
+  --pa-text: #e6ecf7;
+  --pa-muted: #8b95ab;
 
-  /* Corporate gradient system (124deg) */
-  --pa-grad-primary: linear-gradient(124deg, #1b46c2 0%, #825ee4 100%);
-  --pa-grad-info: linear-gradient(124deg, #55a6f8 0%, #0868e7 100%);
-  --pa-grad-success: linear-gradient(124deg, #2dce50 0%, #7ade48 100%);
-  --pa-grad-warning: linear-gradient(124deg, #f19937 0%, #fb6340 100%);
-  --pa-grad-danger: linear-gradient(124deg, #ea4e3d 0%, #f53b58 100%);
-  --pa-grad-dark: linear-gradient(124deg, #3f5578 0%, #1e293b 100%);
-
-  /* Signature shadows */
-  --pa-shadow-xs: 0 0.125rem 5px -0.0625rem rgba(12, 26, 36, 0.1),
-    0 0.0625rem 0.0625rem 0 rgba(12, 26, 36, 0.04);
-  --pa-shadow-sm: 0 0.25rem 0.375rem -0.125rem rgba(12, 26, 36, 0.12),
-    0 0.125rem 0.25rem -0.125rem rgba(12, 26, 36, 0.08);
-
-  color-scheme: light;
-  font-family: 'Noto Sans', 'Open Sans', 'Inter', ui-sans-serif, system-ui,
-    -apple-system, sans-serif;
+  color-scheme: dark;
 }
 
-/* ---------- Root scope: light canvas, dark ink ----------
-   The root div carries .text-zinc-100 for the dark theme; on the
-   light canvas it must become body ink. (0,2,0) beats the utility. */
-.pbadmin.pa-ambient,
-.pbadmin.pa-ambient.text-zinc-100 {
-  color: #334155;
-}
-
-.pbadmin ::selection {
-  background: rgba(119, 77, 211, 0.22);
-  color: #1e293b;
-}
-
-/* ---------- Page canvas — flat gray-100, Corporate style ---------- */
+/* ---------- Ambient page canvas ---------- */
 .pa-ambient {
-  background: var(--pa-bg);
+  background:
+    radial-gradient(900px 480px at 92% -10%, rgba(124, 58, 237, 0.05), transparent 60%),
+    radial-gradient(800px 520px at -8% 12%, rgba(37, 99, 235, 0.055), transparent 55%),
+    var(--pa-bg);
 }
 
 .pa-grid-overlay {
   display: none;
 }
 
-/* ==========================================================================
-   LIGHT ZONE UTILITY FLIPS
-   Panels keep their dark-theme Tailwind utilities; inside light
-   containers the theme remaps them (no markup changes anywhere).
-   Containers: the content <main>, themed components, and every legacy
-   dark-hex surface (incl. translucent /80 · /60 variants).
-   ========================================================================== */
+/* ---------- Enterprise card shell — WHITE, reference style ---------- */
+.pa-card {
+  position: relative;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid var(--pa-line);
+  box-shadow:
+    0 1px 2px rgba(2, 6, 23, 0.28),
+    0 14px 34px -18px rgba(2, 6, 23, 0.55);
+  color: #0f172a;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.pa-card--hover:hover {
+  transform: translateY(-2px);
+  border-color: #d7dfeb;
+  box-shadow:
+    0 1px 2px rgba(2, 6, 23, 0.28),
+    0 22px 44px -20px rgba(2, 6, 23, 0.6);
+}
+
+/* Color variants — kept for markup compatibility (soft tint only) */
+.pa-card--blue   { --pa-edge: #e8edf5; --pa-glow: transparent; --pa-edge-hi: #cfd9e8; }
+.pa-card--gold   { --pa-edge: #f1e8c8; --pa-glow: transparent; --pa-edge-hi: #e3d3a0; }
+.pa-card--purple { --pa-edge: #eae4f5; --pa-glow: transparent; --pa-edge-hi: #d8ccef; }
+.pa-card--rose   { --pa-edge: #f5e4e8; --pa-glow: transparent; --pa-edge-hi: #efccd3; }
+.pa-card--emerald{ --pa-edge: #e0f2ea; --pa-glow: transparent; --pa-edge-hi: #c4e6d6; }
+.pa-card--teal   { --pa-edge: #dff2f0; --pa-glow: transparent; --pa-edge-hi: #c2e6e2; }
+.pa-card--amber  { --pa-edge: #f5ecd8; --pa-glow: transparent; --pa-edge-hi: #eddcb4; }
+.pa-card--sky    { --pa-edge: #e2f0f8; --pa-glow: transparent; --pa-edge-hi: #c8e3f0; }
+.pa-card--fuchsia{ --pa-edge: #f4e4f5; --pa-glow: transparent; --pa-edge-hi: #e9cbee; }
+.pa-card--slate  { --pa-edge: #e8edf5; --pa-glow: transparent; --pa-edge-hi: #d7dfeb; }
+
+/* ---------- Inset data wells inside cards — light inset ---------- */
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap) .pa-well {
+  background: #f8fafc;
+  border: 1px solid #e8edf5;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap) .pa-well-hi {
+  border-color: #dbe4f0;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+/* Standalone pa-well (sidebar account card) stays dark */
+.pa-well {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.pa-well-hi {
+  border-color: rgba(245, 184, 0, 0.3);
+}
+
+/* ---------- LIGHT ZONE UTILITY FLIPS ----------
+   Panels keep their dark-theme Tailwind utilities; inside white
+   containers the theme remaps them (no markup changes anywhere). */
 
 /* Body text colors */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-white { color: #1e293b; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-white { color: #0f172a; }
 
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-100 { color: #1e293b; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-100 { color: #0f172a; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-200 { color: #334155; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-200 { color: #1e293b; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-300,
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-300,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-slate-300 { color: #475569; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-slate-300 { color: #334155; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-400,
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-400,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-slate-400,
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-slate-400,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-500,
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-500,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-slate-500 { color: #64748b; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-slate-500 { color: #64748b; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-zinc-600 { color: #7c8aa0; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-zinc-600 { color: #7c8aa0; }
 
-/* Accent text — Corporate-tuned dark-on-light tones */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+/* Accent text — one step darker for white backgrounds */
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
-    .text-amber-300, .text-yellow-300) { color: #92400e; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
+    .text-amber-300, .text-yellow-300) { color: #a16207; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-amber-400, .text-yellow-400, .text-orange-400) { color: #b45309; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-emerald-300, .text-green-300) { color: #047857; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-emerald-400, .text-green-400, .text-lime-400) { color: #059669; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-sky-300, .text-cyan-300, .text-blue-300) { color: #0369a1; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-sky-400, .text-cyan-400) { color: #0284c7; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .text-blue-400 { color: #1d4ed8; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .text-blue-400 { color: #1d4ed8; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-rose-300, .text-red-300) { color: #be123c; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-rose-400, .text-red-400) { color: #e11d48; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-fuchsia-300, .text-purple-300, .text-violet-300, .text-pink-300) { color: #86198f; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-fuchsia-400, .text-purple-400, .text-violet-400, .text-pink-400) { color: #9333ea; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-teal-300, .text-teal-400) { color: #0f766e; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .text-indigo-300, .text-indigo-400) { color: #4f46e5; }
 
 /* Hover text variants */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .hover\:text-white:hover { color: #1e293b; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .hover\:text-white:hover { color: #0f172a; }
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .hover\:text-amber-300, .hover\:text-amber-400):hover { color: #b45309; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .hover\:text-sky-300, .hover\:text-sky-400):hover { color: #0284c7; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .hover\:text-emerald-300, .hover\:text-emerald-400):hover { color: #059669; }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .hover\:text-rose-300, .hover\:text-rose-400):hover { color: #e11d48; }
 
 /* Subtle white-alpha fills → faint slate fills */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .bg-white\/5,
     .bg-white\/\[0\.02\],
     .bg-white\/\[0\.03\]) {
-  background-color: rgba(15, 23, 42, 0.04);
+  background-color: rgba(15, 23, 42, 0.045);
 }
 
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .bg-white\/10, .hover\:bg-white\/10):hover {
-  background-color: rgba(15, 23, 42, 0.07);
+  background-color: rgba(15, 23, 42, 0.08);
 }
 
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .hover\:bg-white\/5:hover {
-  background-color: rgba(15, 23, 42, 0.04);
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .hover\:bg-white\/5:hover {
+  background-color: rgba(15, 23, 42, 0.045);
 }
 
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .hover\:bg-white\/10:hover {
-  background-color: rgba(15, 23, 42, 0.07);
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.08);
 }
 
 /* Hairline borders → light borders */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .border-white\/5, .border-white\/8, .border-white\/10) {
   border-color: rgba(15, 23, 42, 0.1);
 }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .border-white\/15, .border-white\/20, .border-white\/25) {
   border-color: rgba(15, 23, 42, 0.16);
 }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) .hover\:border-white\/10:hover {
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) .hover\:border-white\/10:hover {
   border-color: rgba(15, 23, 42, 0.16);
 }
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .divide-white\/5, .divide-white\/10) > :not([hidden]) ~ :not([hidden]) {
   border-color: rgba(15, 23, 42, 0.09);
 }
 
 /* Placeholders */
-.pbadmin :is(main, .pa-card, .pa-kpi, .pa-tablewrap, .pa-topbar, .pa-toast,
+.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap,
   .bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) :is(
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) :is(
     .placeholder-zinc-400, .placeholder-zinc-500, .placeholder-zinc-600,
     .placeholder-slate-500, .placeholder-slate-600)::placeholder { color: #94a3b8; }
 
 /* ---------- Dark utility surfaces → light equivalents ---------- */
 /* Inputs / table heads / list wells */
-.pbadmin .bg-\[\#07090E\] { background-color: #f9fafb; }
+.pbadmin .bg-\[\#07090E\] { background-color: #f8fafc; }
 /* Full panels (modals, dropdown sheets, page wells) */
 .pbadmin :is(.bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#0F131D\], .bg-\[\#090D18\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#0D1119\], .bg-\[\#070D22\]) { background-color: #ffffff; }
-/* Wells / dropdowns / accent sheets (incl. translucent navy variants) */
+/* Wells / dropdowns / accent sheets */
 .pbadmin :is(.bg-\[\#121622\], .bg-\[\#12151f\], .bg-\[\#181d2d\], .bg-\[\#0A122E\],
-  .bg-\[\#0D1322\], .bg-\[\#141b2e\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60) { background-color: #f1f5f9; }
-
-/* Topbar translucent navy surfaces (search field, storefront button) → white */
-.pbadmin .bg-\[\#0D1322\]\/90 { background-color: #ffffff; }
+  .bg-\[\#0D1322\], .bg-\[\#141b2e\]) { background-color: #f1f5f9; }
 
 /* Hover variants of dark hex surfaces → light hover */
 .pbadmin .hover\:bg-\[\#181d2d\]:hover { background-color: #e2e8f0; }
@@ -375,71 +358,60 @@
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-white, .hover\:text-white:hover) { color: #1e293b; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-white, .hover\:text-white:hover) { color: #0f172a; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-zinc-100) { color: #1e293b; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-100) { color: #0f172a; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-zinc-200) { color: #334155; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-200) { color: #1e293b; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-zinc-300, .text-slate-300) { color: #475569; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-300, .text-slate-300) { color: #334155; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-zinc-400, .text-slate-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-400, .text-slate-400,
   .text-zinc-500, .text-slate-500) { color: #64748b; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-zinc-600) { color: #7c8aa0; }
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-600) { color: #7c8aa0; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-amber-300, .text-amber-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-amber-300, .text-amber-400,
   .text-yellow-300, .text-yellow-400, .text-orange-400) { color: #b45309; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-emerald-300, .text-emerald-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-emerald-300, .text-emerald-400,
   .text-green-300, .text-green-400, .text-lime-400) { color: #059669; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-sky-300, .text-sky-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-sky-300, .text-sky-400,
   .text-cyan-300, .text-cyan-400, .text-blue-300, .text-blue-400) { color: #0369a1; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-rose-300, .text-rose-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-rose-300, .text-rose-400,
   .text-red-300, .text-red-400) { color: #be123c; }
 .pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
   .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
   .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
-  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\],
-  .bg-\[\#0A122E\]\/80, .bg-\[\#0A122E\]\/60):is(.text-fuchsia-300, .text-fuchsia-400,
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-fuchsia-300, .text-fuchsia-400,
   .text-purple-300, .text-purple-400, .text-violet-300, .text-violet-400,
   .text-pink-300, .text-pink-400) { color: #9333ea; }
 
-/* ---------- Numbered / icon chips — Corporate 124deg gradient squares ---------- */
+/* ---------- Numbered / icon chips — flat solid squares ---------- */
 .pa-chip {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -447,87 +419,52 @@
   font-weight: 800;
   font-size: 11px;
   color: #fff;
-  background: var(--pa-grad-info);
-  box-shadow: var(--pa-shadow-xs);
+  background: var(--chip-b, #2563eb);
+  box-shadow: 0 2px 6px -2px rgba(2, 6, 23, 0.35);
   flex-shrink: 0;
 }
 
-.pa-chip--blue   { --chip-a: #55a6f8; --chip-b: #0868e7; --chip-glow: transparent; background: var(--pa-grad-info); }
-.pa-chip--gold   { --chip-a: #f19937; --chip-b: #fb6340; --chip-glow: transparent; background: var(--pa-grad-warning); }
-.pa-chip--purple { --chip-a: #1b46c2; --chip-b: #825ee4; --chip-glow: transparent; background: var(--pa-grad-primary); }
-.pa-chip--rose   { --chip-a: #ea4e3d; --chip-b: #f53b58; --chip-glow: transparent; background: var(--pa-grad-danger); }
-.pa-chip--emerald{ --chip-a: #2dce50; --chip-b: #7ade48; --chip-glow: transparent; background: var(--pa-grad-success); }
-.pa-chip--teal   { --chip-a: #2dd4bf; --chip-b: #0d9488; --chip-glow: transparent; background: linear-gradient(124deg, var(--chip-a), var(--chip-b)); }
-.pa-chip--amber  { --chip-a: #f19937; --chip-b: #fb6340; --chip-glow: transparent; background: var(--pa-grad-warning); }
-.pa-chip--sky    { --chip-a: #38bdf8; --chip-b: #0284c7; --chip-glow: transparent; background: linear-gradient(124deg, var(--chip-a), var(--chip-b)); }
-.pa-chip--fuchsia{ --chip-a: #e879f9; --chip-b: #c026d3; --chip-glow: transparent; background: linear-gradient(124deg, var(--chip-a), var(--chip-b)); }
+.pa-chip--blue   { --chip-a: #60a5fa; --chip-b: #2563eb; --chip-glow: transparent; }
+.pa-chip--gold   { --chip-a: #fbbf24; --chip-b: #f59e0b; --chip-glow: transparent; color: #1c1917; }
+.pa-chip--purple { --chip-a: #a855f7; --chip-b: #7c3aed; --chip-glow: transparent; }
+.pa-chip--rose   { --chip-a: #fb7185; --chip-b: #e11d48; --chip-glow: transparent; }
+.pa-chip--emerald{ --chip-a: #34d399; --chip-b: #059669; --chip-glow: transparent; }
+.pa-chip--teal   { --chip-a: #2dd4bf; --chip-b: #0d9488; --chip-glow: transparent; }
+.pa-chip--amber  { --chip-a: #fbbf24; --chip-b: #d97706; --chip-glow: transparent; color: #1c1917; }
+.pa-chip--sky    { --chip-a: #38bdf8; --chip-b: #0284c7; --chip-glow: transparent; }
+.pa-chip--fuchsia{ --chip-a: #e879f9; --chip-b: #c026d3; --chip-glow: transparent; }
 
-/* ---------- View header chip — same gradient language ---------- */
-.pa-viewchip {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(124deg, var(--chip-a, #3f5578), var(--chip-b, #1e293b));
-  box-shadow: var(--pa-shadow-xs);
-  color: #fff;
-  flex-shrink: 0;
-}
-
-/* ---------- Sidebar — Corporate slate-900 sidenav ---------- */
+/* ---------- Sidebar ---------- */
 .pa-sidebar {
   background: var(--pa-side);
-  border-right: none;
-  box-shadow: 0 0 1.875rem rgba(2, 6, 23, 0.16);
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
+  box-shadow: none;
 }
 
-/* Uniform muted section labels; the colored dots go primary */
+/* Uniform muted section labels (the colored dots stay) */
 .pa-sidebar div[class*="tracking-wider"] {
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.pa-sidebar div[class*="tracking-wider"] .bg-amber-400 {
-  background: #825ee4;
-  color: #825ee4;
-}
-
-/* Corporate sidebars are monochrome: all colored nav icons → white */
-.pa-sidebar :is(
-  .text-emerald-400, .text-green-400, .text-sky-400, .text-cyan-400,
-  .text-amber-400, .text-yellow-400, .text-orange-400, .text-rose-400,
-  .text-red-400, .text-purple-400, .text-violet-400, .text-fuchsia-400,
-  .text-pink-400, .text-lime-400, .text-teal-400, .text-indigo-400,
-  .text-blue-400) {
-  color: rgba(255, 255, 255, 0.82);
+  color: #5b6b85;
 }
 
 .pa-nav-item {
   position: relative;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  color: #94a3b8;
   transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .pa-nav-item:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.07);
+  color: #f1f5f9;
+  background: rgba(148, 163, 184, 0.08);
 }
 
-/* Active item — slate-800 pill, white text, 600 (reference style) */
+/* Active item — WHITE pill with near-black text (reference style) */
 .pa-nav-item--active-gold,
 .pa-nav-item--active {
-  background: #1e293b;
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 0.125rem 5px -0.0625rem rgba(12, 26, 36, 0.45),
-    0 0.0625rem 0.0625rem 0 rgba(12, 26, 36, 0.25);
-}
-
-/* Accent dot on the active dashboard pill → primary */
-.pa-nav-item .bg-black {
-  background: #825ee4;
+  background: #ffffff;
+  color: #0b1120;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(2, 6, 23, 0.5);
 }
 
 .pa-section-dot {
@@ -538,151 +475,115 @@
   flex-shrink: 0;
 }
 
-/* ---------- Top bar — blurred white Corporate navbar ---------- */
+/* ---------- Top bar ---------- */
 .pa-topbar {
-  background: hsla(0, 0%, 100%, 0.72);
-  backdrop-filter: blur(13.6px);
-  -webkit-backdrop-filter: blur(13.6px);
-  border-bottom: 1px solid rgba(221, 224, 229, 0.9);
-}
-
-/* Notification count badge → warning gradient pill */
-.pbadmin .pa-topbar .bg-amber-400 {
-  background: linear-gradient(124deg, #f19937, #fb6340);
-  color: #ffffff;
-  box-shadow: none;
+  background: rgba(7, 10, 18, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.09);
 }
 
 .pa-iconbtn {
   border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid var(--pa-line);
-  color: #64748b;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  color: #b6c0d4;
   transition: all 0.18s ease;
 }
 
 .pa-iconbtn:hover {
-  color: #1e293b;
-  border-color: #cbd5e1;
-  background: #ffffff;
-  box-shadow: var(--pa-shadow-sm);
+  color: #f8fafc;
+  border-color: rgba(245, 184, 0, 0.4);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .pa-search:focus-within {
-  border-color: rgba(119, 77, 211, 0.55) !important;
-  box-shadow: 0 0 0 3px rgba(119, 77, 211, 0.12);
+  border-color: rgba(245, 184, 0, 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.1);
 }
 
-/* ---------- Primary CTA — Corporate gradient button (name preserved) ---------- */
+/* ---------- Gold primary button — softened ---------- */
 .pa-btn-gold {
-  background: var(--pa-grad-primary);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 2px 10px -3px rgba(119, 77, 211, 0.55);
+  background: linear-gradient(135deg, #ffd54d 0%, #f5b800 55%, #e6a100 100%);
+  color: #17130a;
+  font-weight: 700;
+  box-shadow: 0 2px 10px -3px rgba(245, 184, 0, 0.55);
   transition: all 0.18s ease;
 }
 
 .pa-btn-gold:hover {
-  filter: brightness(1.07);
-  box-shadow: 0 4px 16px -4px rgba(119, 77, 211, 0.6);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 16px -4px rgba(245, 184, 0, 0.6);
 }
 
-/* Legacy solid-amber ACTION buttons (create / save / send / active tab) →
-   primary gradient. Scoped to buttons only — badges and dots keep amber. */
-.pbadmin button.bg-amber-400 {
-  background: var(--pa-grad-primary);
-  color: #ffffff;
-}
-
-.pbadmin button.bg-amber-400:hover {
-  background: var(--pa-grad-primary);
-  filter: brightness(1.08);
-}
-
-/* Storefront-shared gold CTA class used inside admin panels → primary
-   gradient. Scoped override only; index.css definition stays untouched. */
-.pbadmin .btn-gold-gradient,
-.pbadmin .btn-gold-gradient:hover {
-  background: var(--pa-grad-primary);
-  color: #ffffff;
-  border-color: transparent;
-}
-
-.pbadmin .btn-gold-gradient:hover {
-  filter: brightness(1.08);
-}
-
-/* ---------- Inset data wells ---------- */
-/* Wells inside light containers → gray-100 inset */
-.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap) .pa-well {
-  background: #f9fafb;
-  border: 1px solid var(--pa-line);
-  border-radius: 8px;
-  box-shadow: none;
-}
-
-.pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap) .pa-well-hi {
-  border-color: rgba(119, 77, 211, 0.35);
-  box-shadow: 0 0 0 1px rgba(119, 77, 211, 0.08);
-}
-
-/* Standalone pa-well (sidebar account card) stays dark-on-dark */
-.pa-well {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 8px;
-  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.35);
-}
-
-.pa-well-hi {
-  border-color: rgba(130, 94, 228, 0.45);
-}
-
-/* ---------- Cards — white, hairline, soft shadow ---------- */
-.pa-card {
-  position: relative;
-  border-radius: 12px;
+/* ---------- Tables — white ---------- */
+.pa-tablewrap {
+  border-radius: 14px;
   background: #ffffff;
   border: 1px solid var(--pa-line);
-  box-shadow: var(--pa-shadow-xs);
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.22);
+  color: #0f172a;
+  overflow: hidden;
+}
+
+.pa-table thead th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  background: #f8fafc;
+  border-bottom: 1px solid #e8edf5;
+  padding: 13px 14px;
+  white-space: nowrap;
+}
+
+.pa-table tbody td {
+  padding: 13px 14px;
+  border-bottom: 1px solid #eef2f8;
   color: #1e293b;
-  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  vertical-align: middle;
 }
 
-.pa-card--hover:hover {
-  border-color: #cbd5e1;
-  box-shadow: var(--pa-shadow-sm);
+.pa-table tbody tr { transition: background 0.15s ease; }
+
+.pa-table tbody tr:hover {
+  background: #fffbeb;
+  box-shadow: inset 2px 0 0 #f5b800;
 }
 
-/* Color variants — kept for markup compatibility (uniform white cards,
-   hover deepens the hairline per Corporate behavior) */
-.pa-card--blue   { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--gold   { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--purple { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--rose   { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--emerald{ --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--teal   { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--amber  { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--sky    { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--fuchsia{ --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
-.pa-card--slate  { --pa-edge: #dde0e5; --pa-glow: transparent; --pa-edge-hi: #cbd5e1; }
+.pa-table tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- View header chip — flat solid ---------- */
+.pa-viewchip {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--chip-b, #d99e00);
+  box-shadow: 0 2px 8px -2px rgba(2, 6, 23, 0.4);
+  color: #fff;
+  flex-shrink: 0;
+}
 
 /* ---------- KPI stat tiles — white with colored rail ---------- */
 .pa-kpi {
   position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 16px;
   background: #ffffff;
   border: 1px solid var(--pa-line);
-  box-shadow: var(--pa-shadow-xs);
-  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.22);
+  color: #0f172a;
   overflow: hidden;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .pa-kpi:hover {
-  border-color: #cbd5e1;
-  box-shadow: var(--pa-shadow-sm);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px -14px rgba(2, 6, 23, 0.45);
 }
 
 .pa-kpi::after {
@@ -693,48 +594,9 @@
   bottom: 14%;
   width: 3px;
   border-radius: 0 4px 4px 0;
-  background: var(--kpi-rail, #774dd3);
+  background: var(--kpi-rail, #3b82f6);
   box-shadow: none;
 }
-
-/* ---------- Tables — white, gray-100 head, primary hover rail ---------- */
-.pa-tablewrap {
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid var(--pa-line);
-  box-shadow: var(--pa-shadow-xs);
-  color: #1e293b;
-  overflow: hidden;
-}
-
-.pa-table thead th {
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
-  background: #f9fafb;
-  border-bottom: 1px solid var(--pa-line);
-  padding: 13px 14px;
-  white-space: nowrap;
-}
-
-.pa-table tbody td {
-  padding: 13px 14px;
-  border-bottom: 1px solid #eef1f5;
-  color: #334155;
-  vertical-align: middle;
-}
-
-.pa-table tbody tr { transition: background 0.15s ease; }
-
-.pa-table tbody tr:hover {
-  background: #f9fafb;
-  box-shadow: inset 2px 0 0 #774dd3;
-}
-
-.pa-table tbody tr:last-child td { border-bottom: none; }
 
 /* ---------- Neon art stage — intentionally kept dark (contrast card) ---------- */
 .pa-neon-stage {
@@ -743,8 +605,8 @@
   overflow: hidden;
   background:
     radial-gradient(80% 100% at 50% 100%, rgba(15, 23, 42, 0.92) 0%, transparent 70%),
-    linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+    linear-gradient(180deg, #070c17 0%, #0a101f 100%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   color: #e2e8f0;
 }
 
@@ -753,7 +615,6 @@
 .pbadmin .pa-neon-stage .text-zinc-200,
 .pbadmin .pa-neon-stage .text-white { color: #e2e8f0; }
 .pbadmin .pa-neon-stage .text-zinc-400 { color: #94a3b8; }
-.pbadmin .pa-neon-stage .text-sky-300 { color: #7dd3fc; }
 
 .pa-neon-float { animation: paFloat 5s ease-in-out infinite; }
 
@@ -772,21 +633,6 @@
   44% { opacity: 0.88; }
   46% { opacity: 1; }
 }
-
-/* ---------- Toast — white card, primary accent ---------- */
-.pa-toast {
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid var(--pa-line);
-  box-shadow: 0 18px 44px -14px rgba(12, 26, 36, 0.28);
-  backdrop-filter: blur(14px);
-  color: #1e293b;
-}
-
-/* Toast root carries .text-amber-300 from the dark theme — compound flip */
-.pbadmin .pa-toast.text-amber-300 { color: #b45309; }
-
-/* Icon stays vivid warning */
-.pbadmin .pa-toast .text-amber-400 { color: #f19937; }
 
 /* ---------- Animations ---------- */
 @keyframes paRise {
@@ -817,21 +663,15 @@
   animation: paDraw 1.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* ---------- Scrollbars — light canvas, dark sidenav ---------- */
+/* ---------- Scrollbars — dark shell, light cards ---------- */
 .pbadmin ::-webkit-scrollbar { width: 9px; height: 9px; }
 .pbadmin ::-webkit-scrollbar-track { background: transparent; }
 .pbadmin ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #1c2537;
   border-radius: 99px;
-  border: 2px solid #f9fafb;
+  border: 2px solid #070b13;
 }
-.pbadmin ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-.pbadmin .pa-sidebar ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-color: #0f172a;
-}
-.pbadmin .pa-sidebar ::-webkit-scrollbar-thumb:hover { background: #475569; }
+.pbadmin ::-webkit-scrollbar-thumb:hover { background: #2c3d5e; }
 
 .pbadmin :is(.pa-card, .pa-kpi, .pa-tablewrap) ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
@@ -841,83 +681,43 @@
   background: #94a3b8;
 }
 
-/* ---------- Misc polish ---------- */
-.pa-divider { border-color: var(--pa-line); }
+/* ---------- Toast — dark overlay, unchanged role ---------- */
+.pa-toast {
+  background: linear-gradient(135deg, rgba(10, 14, 24, 0.97), rgba(7, 10, 18, 0.97));
+  border: 1px solid rgba(245, 184, 0, 0.45);
+  box-shadow:
+    0 18px 44px -14px rgba(0, 0, 0, 0.9),
+    0 0 26px -8px rgba(245, 184, 0, 0.3);
+  backdrop-filter: blur(14px);
+}
 
-.pa-glowtext-gold { text-shadow: 0 0 22px rgba(119, 77, 211, 0.3); }
+/* ---------- Misc polish ---------- */
+.pa-divider { border-color: rgba(148, 163, 184, 0.12); }
+
+.pa-glowtext-gold { text-shadow: 0 0 22px rgba(245, 184, 0, 0.35); }
 
 .pa-focus:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(119, 77, 211, 0.35);
+  box-shadow: 0 0 0 2px rgba(245, 184, 0, 0.4);
 }
 
 select.pa-select,
 input.pa-input {
   background: #ffffff;
-  border: 1px solid #d5d9e0;
-  border-radius: 8px;
-  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 select.pa-select:focus,
 input.pa-input:focus {
   outline: none;
-  border-color: rgba(119, 77, 211, 0.6);
-  box-shadow: 0 0 0 3px rgba(119, 77, 211, 0.14);
+  border-color: rgba(217, 119, 6, 0.55);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
 }
 
-/* ==========================================================================
-   LOGIN GATE — slate-950 stage, purple accents (class hook on AdminLogin
-   root; markup/logic untouched otherwise)
-   ========================================================================== */
-.pbadmin-login {
-  background-color: rgba(2, 6, 23, 0.96);
-}
-
-.pbadmin-login .bg-\[\#0B1220\] {
-  background-color: #0f172a;
-  border-color: rgba(119, 77, 211, 0.32);
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9),
-    0 0 44px -8px rgba(130, 94, 228, 0.3);
-}
-
-/* Brand box + inputs share bg-[#060B1E] → slate-800 wells */
-.pbadmin-login .bg-\[\#060B1E\] {
-  background-color: #1e293b;
-  border-color: rgba(119, 77, 211, 0.38);
-}
-
-.pbadmin-login img {
-  filter: drop-shadow(0 0 12px rgba(130, 94, 228, 0.45));
-}
-
-/* Security banner → primary-tinted gradient strip */
-.pbadmin-login div.bg-gradient-to-r {
-  background-image: linear-gradient(90deg,
-    rgba(119, 77, 211, 0.18), rgba(27, 70, 194, 0.12), rgba(119, 77, 211, 0.18));
-  border-color: rgba(119, 77, 211, 0.3);
-}
-
-.pbadmin-login .text-amber-300 { color: #c4b5fd; }
-.pbadmin-login .text-amber-200 { color: #ddd6fe; }
-
-.pbadmin-login input:focus {
-  border-color: #825ee4;
-}
-
-/* Submit → primary gradient, white ink */
-.pbadmin-login button[type="submit"] {
-  background-image: var(--pa-grad-primary, linear-gradient(124deg, #1b46c2, #825ee4));
-  color: #ffffff;
-}
-
-.pbadmin-login button[type="submit"] span {
-  border-color: rgba(255, 255, 255, 0.9);
-  border-top-color: transparent;
-}
-
-/* ---------- Reduced motion respect ---------- */
+/* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   .pa-rise, .pa-neon-float, .pa-neon-flicker, .pa-breath, .pa-draw {
     animation: none !important;
