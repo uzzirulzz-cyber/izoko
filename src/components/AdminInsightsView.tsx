@@ -812,13 +812,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 />
                 {!sidebarCollapsed && (
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <span className="font-extrabold text-base tracking-tight text-white">
                         play<span className="text-amber-400">beat</span>
                       </span>
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-[8px] font-mono font-bold text-emerald-300 uppercase tracking-wider">
+                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Live
+                      </span>
                     </div>
-                    <span className="text-[9px] font-mono tracking-widest text-zinc-400 uppercase">
-                      Digital Pvt Ltd
+                    <span className="text-[9px] font-mono tracking-[0.18em] text-zinc-500 uppercase">
+                      Commerce OS
                     </span>
                   </div>
                 )}
@@ -1482,6 +1486,26 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
           {/* Bottom Account Card + Reset Button */}
           <div className="p-3 border-t border-white/5 space-y-2">
+            {/* Storefront promo card — reference-style gold launcher (same handler as topbar) */}
+            {!sidebarCollapsed && (
+              <button
+                onClick={onBackToStorefront}
+                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-400/25 hover:border-amber-400/50 hover:shadow-[0_0_20px_-6px_rgba(245,184,0,0.4)] transition text-left group"
+                title="Open the live customer storefront"
+              >
+                <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0 shadow-[0_2px_8px_-2px_rgba(245,184,0,0.6)]">
+                  <Store className="w-4 h-4 text-black" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-xs font-bold text-white truncate">PlayBeat Storefront</span>
+                  <span className="block text-[9px] font-mono text-amber-300/80 uppercase tracking-wider truncate">
+                    Live store · 60+ products
+                  </span>
+                </span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-amber-400 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition" />
+              </button>
+            )}
+
             {/* Account Card — opens Profile Settings (enterprise style) */}
             <button
               onClick={() => openProfile('identity')}
@@ -1534,6 +1558,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         <div className="flex-1 flex flex-col overflow-y-auto max-h-screen">
           {/* Top Bar Header */}
           <header className="pa-topbar sticky top-0 z-20 px-6 py-3.5 flex items-center justify-between gap-4">
+            {/* Greeting — reference-style header (xl+ screens, pure presentation) */}
+            <div className="hidden xl:block shrink-0 mr-2">
+              <p className="text-sm font-bold text-white leading-tight">
+                Welcome back, {(adminName || 'Admin').split(' ')[0]}
+              </p>
+              <p className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Store operations · live data
+              </p>
+            </div>
+
             {/* Search input (Ctrl+K) */}
             <div className="flex-1 max-w-md relative pa-search rounded-xl">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
