@@ -21,7 +21,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "https://playbeat.digital/:path*",
+      "destination": "https://playbeat.digital/$1",
       "permanent": true,
       "has": [
         {
