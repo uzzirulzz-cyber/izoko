@@ -211,6 +211,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         currency: String(order.currency || "PKR"),
         customerName: order.customerName,
         customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+        customerIp:
+          (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+          (req.headers["x-real-ip"] as string) ||
+          "0.0.0.0",
         returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(order.orderNumber)}`,
       });
       if (!result.ok || !result.checkoutUrl) {

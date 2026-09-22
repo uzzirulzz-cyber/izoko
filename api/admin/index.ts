@@ -3386,6 +3386,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           amount,
           currency: "PKR",
           customerEmail: actor,
+          customerIp:
+            (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+            (req.headers["x-real-ip"] as string) ||
+            "0.0.0.0",
           returnUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/order/${encodeURIComponent(orderNumber)}`,
         });
         await ordersCol.updateOne(

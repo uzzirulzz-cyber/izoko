@@ -1,21 +1,34 @@
 // Rapid Gateway server-side payment client (OAuth2 + Pay-In API).
 //
-// Two-step flow per Rapid Gateway developer docs:
+// Two-step flow per Rapid Gateway developer docs (contract verified live
+// against secure.rapid-gateway.com — see worklog Task 55):
 //   Step 1: POST https://secure.rapid-gateway.com/oauth2/token
 //     Headers:
 //       Authorization: Basic base64(merchantId:clientSecret)
 //       Content-Type: application/x-www-form-urlencoded
 //     Body: grant_type=client_credentials
-//     Response: { access_token, token_type: "Bearer", expires_in: 299 }
+//     Response: { access_token, token_type: "Bearer", expires_in: ~299 }
 //
-//   Step 2: POST https://secure.rapid-gateway.com/rapid/process-transaction
+//   Step 2: POST https://secure.rapid-gateway.com/api/v1/payments/process
+//     (same JSON API generation as /api/v1/payments/refunds — the legacy
+//      /rapid/process-transaction path is DEAD: it 415s on application/json
+//      and was never the correct contract)
 //     Headers:
 //       Authorization: Bearer <access_token from step 1>
 //       Content-Type: application/json
-//       Idempotency-Key: <stable per-order key>
-//     Body:
-//       merchantId, basketId, amount, currency, returnUrl, webhookUrl
-//     Response: { checkout_url } → redirect customer there
+//     Body (validated field-by-field against the live gateway):
+//       merchantId      number   (required)
+//       basketId        string   (required — our order number)
+//       amount          number   (required)
+//       currencyCode    string   (required — "PKR")
+//       callbackUrl     string   (required — customer-facing return URL)
+//       accountNumber   string   (required — 6-24 digits; customer phone
+//                                 digits or order-number digits fallback)
+//       customerIp      string   (required)
+//       orderDescription string  (required)
+//       bankCode        number   (required — positive code; 1 = default)
+//       webhookUrl      string   (optional — unknown fields are tolerated)
+//     Response: hosted-checkout reference/URL → redirect customer there.
 //
 // Fulfillment rule: the return redirect is NEVER trusted — the order is
 // marked paid exclusively by the verified webhook.
@@ -34,6 +47,7 @@ export interface RapidPaymentRequest {
   customerEmail?: string;
   returnUrl: string;
   webhookUrl?: string;
+  customerIp?: string;
 }
 
 export interface RapidPaymentResult {
@@ -102,16 +116,24 @@ async function getRapidAccessToken(): Promise<string | null> {
 /**
  * Step 2: Create a hosted-checkout payment on Rapid Gateway.
  * Uses the OAuth2 access token from step 1.
- * Idempotent per orderNumber.
+ *
+ * Endpoint: POST {apiBase}/api/v1/payments/process (JSON contract, verified
+ * live 2026-09 — see file header). accountNumber must be 6-24 DIGITS: we use
+ * the customer's phone digits when we have them, otherwise digits recovered
+ * from the order number (always ≥ 9 digits in our numbering scheme).
  */
 export async function createRapidPayment(
   req: RapidPaymentRequest
 ): Promise<RapidPaymentResult> {
   const cfg = await getRapidConfig();
-  const merchantId = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
+  const merchantIdRaw = RAPID_MERCHANT_ID || (cfg as any)?.merchantId || "";
+  const merchantId = Number(String(merchantIdRaw).replace(/\D/g, ""));
 
   if (!cfg.secretKey && !RAPID_SECRET_KEY) {
     return { ok: false, error: "Rapid Gateway is not configured (no secret key — set it in Admin → Payment Gateway)." };
+  }
+  if (!merchantId || !Number.isFinite(merchantId)) {
+    return { ok: false, error: "Rapid Gateway is not configured (merchant ID missing or invalid)." };
   }
 
   // Step 1: Get OAuth2 access token
@@ -122,29 +144,43 @@ export async function createRapidPayment(
 
   const apiBase = (cfg.apiBase || "https://secure.rapid-gateway.com").replace(/\/+$/, "");
   const amount = Math.round(Number(req.amount) * 100) / 100;
+  const currency = (req.currency || "PKR").toUpperCase();
 
-  // Build the transaction body per Rapid Gateway docs
+  // accountNumber: 6-24 digits, required by the gateway. Prefer the customer's
+  // real phone digits; fall back to digits from the order number (padded if
+  // ever short) so the request always satisfies the gateway's validator.
+  const phoneDigits = String(req.customerPhone || "").replace(/\D/g, "");
+  const orderDigits = String(req.orderNumber || "").replace(/\D/g, "");
+  let accountNumber = phoneDigits.length >= 6 ? phoneDigits.slice(0, 24) : "";
+  if (accountNumber.length < 6) {
+    accountNumber = (orderDigits + "00").slice(0, 24);
+  }
+  if (accountNumber.length < 6 || accountNumber.length > 24) {
+    accountNumber = (accountNumber + "0000000000").slice(0, 12);
+  }
+
+  const orderDescription = `PlayBeat Digital order ${req.orderNumber}`.slice(0, 120);
+
+  // Build the transaction body per the verified Rapid Gateway contract.
   const body: Record<string, unknown> = {
-    merchantId: merchantId,
+    merchantId,
     basketId: req.orderNumber,
     amount: amount,
-    currency: (req.currency || "PKR").toUpperCase(),
-    returnUrl: req.returnUrl,
+    currencyCode: currency,
+    callbackUrl: req.returnUrl,
+    accountNumber,
+    customerIp: String(req.customerIp || "0.0.0.0").slice(0, 45),
+    orderDescription,
+    bankCode: 1, // positive code required; 1 = default channel on hosted checkout
     webhookUrl: req.webhookUrl || cfg.webhookUrl,
   };
 
-  // Add customer info if available
-  if (req.customerName) body.customerName = req.customerName;
-  if (req.customerEmail) body.customerEmail = req.customerEmail;
-  if (req.customerPhone) body.customerPhone = req.customerPhone;
-
   try {
-    const res = await fetch(`${apiBase}/rapid/process-transaction`, {
+    const res = await fetch(`${apiBase}/api/v1/payments/process`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        "Idempotency-Key": `playbeat-order-${req.orderNumber}`,
       },
       body: JSON.stringify(body),
     });
@@ -152,27 +188,41 @@ export async function createRapidPayment(
     const data = await res.json().catch(() => null);
 
     if (!res.ok) {
-      return {
-        ok: false,
-        error:
-          (data && (data.message || data.error || data.error_description)) ||
-          `Rapid Gateway rejected the payment request (${res.status}).`,
-        raw: data,
-      };
+      // New-style errors: { error: "VALIDATION_FAILED"|..., message: "..." }.
+      // Old-style Spring errors: { error: "Unsupported Media Type" }.
+      // Surface the message whenever it adds information beyond the code.
+      const code = String(data?.error || "");
+      const message = String(data?.message || data?.error_description || "");
+      const detail =
+        message && message.toLowerCase() !== code.toLowerCase()
+          ? `${code ? code + ": " : ""}${message}`
+          : message || code || `Rapid Gateway rejected the payment request (${res.status}).`;
+      return { ok: false, error: detail, raw: data };
     }
 
-    // Response may contain checkout_url, redirect_url, or checkoutUrl
-    const checkoutUrl =
-      String(data?.checkout_url || data?.redirect_url || data?.checkoutUrl || data?.redirectUrl || "");
-    const paymentId =
-      String(data?.id || data?.paymentId || data?.transactionId || data?.basketId || "");
+    // Response may contain the checkout URL under several field names —
+    // scan shallowly (and one level deep) for anything URL-shaped.
+    const pickUrl = (obj: any): string => {
+      if (!obj || typeof obj !== "object") return "";
+      const candidates = [
+        obj.checkoutUrl, obj.checkout_url, obj.redirectUrl, obj.redirect_url,
+        obj.paymentUrl, obj.payment_url, obj.checkoutPageUrl, obj.hostedCheckoutUrl,
+        obj.payUrl, obj.url, obj.link,
+        Array.isArray(obj.data) ? "" : pickUrl(obj.data),
+      ];
+      for (const c of candidates) {
+        const s = String(c || "");
+        if (/^https:\/\//i.test(s)) return s;
+      }
+      return "";
+    };
+    const checkoutUrl = pickUrl(data) || res.headers.get("location") || "";
+    const paymentId = String(
+      data?.id || data?.paymentId || data?.transactionId || data?.transactionRef ||
+      data?.reference || data?.basketId || ""
+    );
 
     if (!checkoutUrl) {
-      // Some responses return the URL in a Location header or different field
-      const locationHeader = res.headers.get("location") || res.headers.get("Location");
-      if (locationHeader) {
-        return { ok: true, paymentId, checkoutUrl: locationHeader, raw: data };
-      }
       return { ok: false, error: "Rapid Gateway did not return a checkout URL.", raw: data };
     }
 
