@@ -330,6 +330,9 @@ function parseRoute(): Route {
   if (path.startsWith('product/') && path.split('/').length >= 2) return 'product'
   // /category/:slug renders the storefront filtered to that category
   if (path.startsWith('category/') && path.split('/').length >= 2) return 'category'
+  // /policy is a friendly alias of /privacy — renders the privacy policy while
+  // the /policy URL stays in the address bar (canonical link still points to /privacy)
+  if (path === 'policy') return 'privacy'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
