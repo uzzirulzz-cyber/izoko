@@ -121,6 +121,35 @@ const TRANSITIONS: Record<
   "webhook.test": null,
 };
 
+// Refunds-API v1 events (secure host). Unlike the legacy refund.completed
+// event, these carry merchantTransactionId = refundRef while the order
+// reference rides in data.basketId. Every state change lands in the
+// rapid_refunds ledger; only refund.succeeded touches the order:
+//   remainingRefundableAmount ≤ 0.01 → full refund (order refunded)
+//   otherwise                        → partial refund (order stays paid,
+//                                       refundedAmount tracks the total)
+// Delivery is at-least-once and UNORDERED — dedupe on eventId and never
+// assume refund.approved arrives before refund.succeeded.
+const REFUND_EVENTS = new Set([
+  "refund.created",
+  "refund.pending_approval",
+  "refund.approved",
+  "refund.rejected",
+  "refund.succeeded",
+  "refund.failed",
+  "refund.cancelled",
+]);
+
+const REFUND_EVENT_STATUS: Record<string, string> = {
+  "refund.created": "ACCEPTED",
+  "refund.pending_approval": "PENDING_APPROVAL",
+  "refund.approved": "APPROVED",
+  "refund.succeeded": "SUCCEEDED",
+  "refund.rejected": "REJECTED",
+  "refund.failed": "FAILED",
+  "refund.cancelled": "CANCELLED",
+};
+
 function header(req: VercelRequest, name: string): string {
   const v = req.headers[name];
   return Array.isArray(v) ? v[0] : v || "";
@@ -234,6 +263,132 @@ export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelR
     }
 
     const transition = TRANSITIONS[eventType];
+
+    // ---- 3b. Refunds-API v1 events (refund.*) ----
+    if (REFUND_EVENTS.has(eventType)) {
+      const now = new Date();
+      const d = body?.data && typeof body.data === "object" ? body.data : {};
+      const refundRef = merchantTxnId; // per docs: refundRef rides in merchantTransactionId
+      const basketId = String(d.basketId ?? body?.basketId ?? "").trim();
+      const refundAmount = Number(d.refundAmount ?? body?.refundAmount);
+      const remaining = Number(d.remainingRefundableAmount ?? body?.remainingRefundableAmount);
+      const txnAmount = Number(d.transactionAmount ?? body?.transactionAmount);
+      const currency = String(d.currency ?? body?.currency ?? "PKR");
+      const status = String(d.status ?? body?.status ?? REFUND_EVENT_STATUS[eventType] ?? "");
+
+      // Idempotency — same unique eventId ledger as payment events.
+      try {
+        await eventsCol.createIndex({ eventId: 1 }, { unique: true });
+      } catch {
+        /* index already exists */
+      }
+      try {
+        await eventsCol.insertOne({
+          eventId,
+          type: eventType,
+          orderNumber: basketId,
+          refundRef,
+          source: "rapid-gateway-refunds",
+          environment,
+          receivedAt: now,
+        });
+      } catch (err: any) {
+        if (err && (err.code === 11000 || /duplicate/i.test(err.message || ""))) {
+          return jsonOk(res, { success: true, duplicate: true, eventId, refundRef });
+        }
+        throw err;
+      }
+
+      // Refund ledger — one row per refundRef, latest state wins.
+      try {
+        await db.collection("rapid_refunds").updateOne(
+          { refundRef },
+          {
+            $set: {
+              refundRef,
+              basketId,
+              refundAmount: Number.isFinite(refundAmount) ? refundAmount : undefined,
+              remainingRefundableAmount: Number.isFinite(remaining) ? remaining : undefined,
+              transactionAmount: Number.isFinite(txnAmount) ? txnAmount : undefined,
+              currency,
+              status,
+              requiresApproval: Boolean(d.requiresApproval ?? body?.requiresApproval),
+              reasonCode: d.reasonCode ?? body?.reasonCode ?? null,
+              reasonNote: d.reasonNote ?? body?.reasonNote ?? null,
+              lastEvent: eventType,
+              environment,
+              updatedAt: now,
+            },
+            $setOnInsert: { createdAt: now },
+          },
+          { upsert: true }
+        );
+      } catch (e) {
+        console.error("rapid-webhook: refund ledger write failed", e);
+      }
+
+      // Order side effects — ONLY on refund.succeeded.
+      let action = "ledger_updated";
+      if (eventType === "refund.succeeded" && basketId) {
+        const order = await ordersCol.findOne({ orderNumber: basketId });
+        if (!order) {
+          action = "order_not_found";
+        } else {
+          const succeeded = await db
+            .collection("rapid_refunds")
+            .find({ basketId, status: "SUCCEEDED" })
+            .toArray();
+          const totalRefunded = succeeded.reduce(
+            (s, r: any) => s + (Number(r.refundAmount) || 0),
+            0
+          );
+          const full = Number.isFinite(remaining)
+            ? remaining <= 0.01
+            : Number.isFinite(txnAmount)
+            ? totalRefunded >= txnAmount - 0.01
+            : false;
+          await ordersCol.updateOne(
+            { _id: new ObjectId(order._id as any) },
+            {
+              $set: {
+                ...(full
+                  ? { status: "refunded", paymentStatus: "refunded" }
+                  : { paymentStatus: order.paymentStatus === "refunded" ? "refunded" : "paid" }),
+                refundedAmount: totalRefunded,
+                refundStatus: full ? "full" : "partial",
+                paymentUpdatedAt: now,
+                lastPaymentEventId: eventId,
+                gatewayName: "rapid",
+              },
+            }
+          );
+          action = full ? "order_refunded" : "order_partial_refund";
+        }
+      }
+
+      try {
+        await logCol.insertOne({
+          verified: true,
+          verifiedVia,
+          eventId,
+          eventType,
+          refundRef,
+          basketId,
+          merchantTransactionId: refundRef,
+          status,
+          refundAmount: Number.isFinite(refundAmount) ? refundAmount : undefined,
+          remainingRefundableAmount: Number.isFinite(remaining) ? remaining : undefined,
+          currency,
+          environment,
+          action,
+          receivedAt: now,
+        });
+      } catch (e) {
+        console.error("rapid-webhook: log write failed", e);
+      }
+
+      return jsonOk(res, { success: true, eventId, refundRef, basketId, action });
+    }
 
     // ---- 4. Unknown / non-order event types: acknowledge + log ----
     if (transition === undefined || transition === null) {

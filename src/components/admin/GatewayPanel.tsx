@@ -15,6 +15,8 @@ import {
   Globe,
   FlaskConical,
   AlertTriangle,
+  Undo2,
+  Ban,
 } from 'lucide-react'
 
 interface GatewayPanelProps {
@@ -65,9 +67,22 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
   const [webhookSalt, setWebhookSalt] = useState('')
   const [webhookSaltPrev, setWebhookSaltPrev] = useState('')
   const [apiBase, setApiBase] = useState('')
+  const [merchantId, setMerchantId] = useState('')
   const [methods, setMethods] = useState('')
 
   const [testResult, setTestResult] = useState<any>(null)
+
+  // refunds state
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [refundLedger, setRefundLedger] = useState<any[]>([])
+  const [refundsMeta, setRefundsMeta] = useState<any>(null)
+  const [refundsLoading, setRefundsLoading] = useState(false)
+  const [refundOrderNumber, setRefundOrderNumber] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('CUSTOMER_REQUEST')
+  const [refundNote, setRefundNote] = useState('')
+  const [refundBusy, setRefundBusy] = useState(false)
+  const [refundResult, setRefundResult] = useState<any>(null)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -78,15 +93,30 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
     if (cfgRes.data?.success) {
       setConfig(cfgRes.data)
       setApiBase(cfgRes.data.apiBase || '')
+      setMerchantId(cfgRes.data.merchantId || '')
       setMethods((cfgRes.data.methods || []).join(', '))
     }
     if (logRes.data?.success) setLogs(logRes.data)
     setLoading(false)
   }, [])
 
+  const loadRefunds = useCallback(async () => {
+    setRefundsLoading(true)
+    const res = await gwFetch('gateway-refunds')
+    setRefundsLoading(false)
+    if (res.data?.success) {
+      setRefunds(res.data.refunds || [])
+      setRefundLedger(res.data.ledger || [])
+      setRefundsMeta({ ok: res.data.ok, error: res.data.error, errorDetail: res.data.errorDetail })
+    } else {
+      onToast(res.data?.error || 'Could not load refunds.')
+    }
+  }, [])
+
   useEffect(() => {
     loadAll()
-  }, [loadAll])
+    loadRefunds()
+  }, [loadAll, loadRefunds])
 
   const save = async (clear: string[] = []) => {
     setSaving(true)
@@ -95,6 +125,7 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
     if (webhookSalt.trim()) body.webhookSalt = webhookSalt.trim()
     if (webhookSaltPrev.trim()) body.webhookSaltPrev = webhookSaltPrev.trim()
     if (apiBase !== (config?.apiBase || '')) body.apiBase = apiBase
+    if (merchantId !== (config?.merchantId || '')) body.merchantId = merchantId.trim()
     if (methods !== (config?.methods || []).join(', ')) body.methods = methods
     if (clear.length) body.clear = clear
     const res = await gwFetch('gateway-config', { method: 'POST', body: JSON.stringify(body) })
@@ -105,6 +136,48 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
       loadAll()
     } else {
       onToast(res.data?.error || 'Save failed.')
+    }
+  }
+
+  const submitRefund = async () => {
+    if (!refundOrderNumber.trim()) {
+      onToast('Order number is required.')
+      return
+    }
+    setRefundBusy(true)
+    setRefundResult(null)
+    const res = await gwFetch('gateway-refund', {
+      method: 'POST',
+      body: JSON.stringify({
+        orderNumber: refundOrderNumber.trim(),
+        amount: refundAmount.trim() === '' ? undefined : Number(refundAmount),
+        reasonCode: refundReason,
+        reasonNote: refundNote.trim() || undefined,
+      }),
+    })
+    setRefundBusy(false)
+    setRefundResult(res.data || { success: false, error: 'Request failed' })
+    if (res.data?.success) {
+      onToast(`Refund ${res.data.refund?.refundRef || ''} ${res.data.refund?.status || 'submitted'}`.trim())
+      setRefundAmount(''); setRefundNote('')
+      loadRefunds()
+    } else {
+      onToast(res.data?.errorDetail || res.data?.error || 'Refund failed.')
+    }
+  }
+
+  const cancelRefundByRef = async (refundRef: string) => {
+    setRefundBusy(true)
+    const res = await gwFetch('gateway-refund-cancel', {
+      method: 'POST',
+      body: JSON.stringify({ refundRef }),
+    })
+    setRefundBusy(false)
+    if (res.data?.success) {
+      onToast(`Refund ${refundRef} cancelled.`)
+      loadRefunds()
+    } else {
+      onToast(res.data?.errorDetail || res.data?.error || 'Cancel failed.')
     }
   }
 
@@ -286,6 +359,18 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
               className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-teal-400/50"
             />
           </label>
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+              Merchant ID {config?.configured?.merchantId && '(refunds OAuth client_id)'}
+            </span>
+            <input
+              type="text"
+              value={merchantId}
+              onChange={(e) => setMerchantId(e.target.value)}
+              placeholder="e.g. 1367"
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-teal-400/50"
+            />
+          </label>
           <label className="block md:col-span-2">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
               Payment Methods (comma-separated)
@@ -367,6 +452,14 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
             <CreditCard className="w-3.5 h-3.5 text-amber-400" />
             {busyAction === 'test-payment' ? 'Creating…' : '3 · Create Rs 100 Test Payment'}
           </button>
+          <button
+            onClick={() => runTest('refunds-token')}
+            disabled={busyAction !== null}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#121622] border border-white/10 text-xs font-semibold text-zinc-200 hover:bg-[#181d2d] transition disabled:opacity-60"
+          >
+            <Undo2 className="w-3.5 h-3.5 text-orange-400" />
+            {busyAction === 'refunds-token' ? 'Checking…' : '4 · Check Refunds API Token'}
+          </button>
         </div>
 
         {testResult && (
@@ -423,11 +516,196 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
                 )}
               </>
             )}
+            {testResult.action === 'refunds-token' && (
+              <p>
+                {testResult.ok
+                  ? `Refunds API OAuth token OK in ${testResult.latencyMs}ms (${testResult.tokenMasked})`
+                  : `Token request FAILED after ${testResult.latencyMs}ms — ${testResult.error}`}
+              </p>
+            )}
             {testResult.error && testResult.action !== 'test-payment' && (
               <p className="mt-1">{String(testResult.error)}</p>
             )}
           </div>
         )}
+      </div>
+
+      {/* Refunds — create / list / cancel */}
+      <div className="rounded-2xl bg-[#0B0F19] border border-white/5 p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <Undo2 className="w-4 h-4 text-orange-400" /> Refunds — full &amp; partial
+          </h3>
+          <button
+            onClick={loadRefunds}
+            className="text-[10px] font-mono text-zinc-400 hover:text-white transition"
+          >
+            reload
+          </button>
+        </div>
+        <p className="text-[11px] text-zinc-500 mb-4">
+          Refund a completed Rapid payment — leave the amount blank for a full refund, or enter any
+          amount up to the remaining balance (repeatable). Refunds at or above your auto-approve
+          threshold queue for review (PENDING_APPROVAL) and can be cancelled until approved.
+        </p>
+
+        {/* create refund */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Order # (basketId)</span>
+            <input
+              type="text"
+              value={refundOrderNumber}
+              onChange={(e) => setRefundOrderNumber(e.target.value)}
+              placeholder="PB-XXXXXX-XXX"
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-400/50"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Amount (blank = full)</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              placeholder="full refund"
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-400/50"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Reason</span>
+            <select
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-400/50"
+            >
+              <option value="CUSTOMER_REQUEST">Customer request</option>
+              <option value="PRODUCT_ISSUE">Product issue</option>
+              <option value="SERVICE_ISSUE">Service issue</option>
+              <option value="DUPLICATE_CHARGE">Duplicate charge</option>
+              <option value="FRAUD_SUSPECTED">Fraud suspected</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Note (optional)</span>
+            <input
+              type="text"
+              value={refundNote}
+              onChange={(e) => setRefundNote(e.target.value)}
+              placeholder="e.g. one of two items returned"
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-400/50"
+            />
+          </label>
+        </div>
+        <button
+          onClick={submitRefund}
+          disabled={refundBusy || !refundOrderNumber.trim()}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-400/15 border border-orange-400/40 text-orange-300 text-xs font-bold hover:bg-orange-400/25 transition disabled:opacity-60"
+        >
+          <Undo2 className="w-3.5 h-3.5" /> {refundBusy ? 'Submitting…' : 'Submit Refund'}
+        </button>
+
+        {refundResult && (
+          <div
+            className={`mt-3 rounded-xl border p-4 font-mono text-[11px] leading-relaxed overflow-x-auto ${
+              refundResult.success
+                ? 'bg-emerald-500/5 border-emerald-500/25 text-emerald-200'
+                : 'bg-rose-500/5 border-rose-500/25 text-rose-200'
+            }`}
+          >
+            {refundResult.success ? (
+              <>
+                <p className="font-bold">
+                  {refundResult.refund?.refundRef || 'refund accepted'} — {refundResult.refund?.status || 'submitted'}
+                  {refundResult.httpStatus === 202 || refundResult.refund?.requiresApproval
+                    ? ' (queued for approval)'
+                    : refundResult.httpStatus === 201
+                    ? ' (auto-approved)'
+                    : ''}
+                  {refundResult.idempotentReplay ? ' · idempotent replay' : ''}
+                </p>
+                <p>
+                  {refundResult.refund?.refundAmount != null && <>refunded Rs {refundResult.refund.refundAmount} · </>}
+                  {refundResult.refund?.remainingRefundableAmount != null &&
+                    <>remaining Rs {refundResult.refund.remainingRefundableAmount} · </>}
+                  {refundResult.refund?.currency || 'PKR'}
+                </p>
+              </>
+            ) : (
+              <p>
+                Refund FAILED — {refundResult.error || 'unknown'}
+                {refundResult.errorDetail ? ` (${refundResult.errorDetail})` : ''}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* refunds list */}
+        <div className="mt-4">
+          {refundsMeta && !refundsMeta.ok && (
+            <p className="text-[10px] text-amber-300 font-mono mb-2">
+              Gateway list unavailable ({refundsMeta.error}) — showing the local ledger below.
+              {refundsMeta.error === 'MERCHANT_NOT_ELIGIBLE' &&
+                ' Refunds are not enabled on this account yet — contact support@rapidgateway.pk.'}
+            </p>
+          )}
+          {(refunds.length === 0 && refundLedger.length === 0) ? (
+            <p className="text-[11px] text-zinc-600 font-mono">No refunds yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[9px] font-mono uppercase tracking-wider text-zinc-500 border-b border-white/10">
+                    <th className="py-2 pr-3">Refund Ref</th>
+                    <th className="py-2 pr-3">Order</th>
+                    <th className="py-2 pr-3">Refunded</th>
+                    <th className="py-2 pr-3">Remaining</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(refunds.length > 0 ? refunds : refundLedger).map((r: any, i: number) => (
+                    <tr key={r.refundRef || i} className="text-[10px] font-mono text-zinc-300 border-b border-white/5">
+                      <td className="py-2 pr-3 text-orange-300">{r.refundRef || '—'}</td>
+                      <td className="py-2 pr-3">{r.basketId || '—'}</td>
+                      <td className="py-2 pr-3">{r.refundAmount != null ? `Rs ${r.refundAmount}` : '—'}</td>
+                      <td className="py-2 pr-3">{r.remainingRefundableAmount != null ? `Rs ${r.remainingRefundableAmount}` : '—'}</td>
+                      <td className="py-2 pr-3">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            r.status === 'SUCCEEDED'
+                              ? 'bg-emerald-400/10 text-emerald-300'
+                              : r.status === 'PENDING_APPROVAL'
+                              ? 'bg-amber-400/10 text-amber-300'
+                              : 'bg-rose-400/10 text-rose-300'
+                          }`}
+                        >
+                          {r.status || '—'}
+                        </span>
+                      </td>
+                      <td className="py-2">
+                        {r.status === 'PENDING_APPROVAL' && r.refundRef ? (
+                          <button
+                            onClick={() => cancelRefundByRef(r.refundRef)}
+                            disabled={refundBusy}
+                            className="flex items-center gap-1 px-2 py-1 rounded bg-rose-500/10 border border-rose-500/25 text-rose-300 text-[9px] font-semibold hover:bg-rose-500/20 transition disabled:opacity-60"
+                          >
+                            <Ban className="w-3 h-3" /> Cancel
+                          </button>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Flagged orders — check & resolve */}

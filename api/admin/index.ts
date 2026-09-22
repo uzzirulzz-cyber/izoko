@@ -73,6 +73,13 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD, MONGODB_DB_NAME, PUBLIC_SITE_URL } from ".
 import { hashPassword, comparePassword } from "../_lib/auth.js";
 import { getRapidConfig, saveRapidConfig, describeGatewayStatus } from "../_lib/gatewayConfig.js";
 import {
+  createRefund,
+  listRefunds,
+  getRefund,
+  cancelRefund,
+  getRefundAccessToken,
+} from "../_lib/rapidRefunds.js";
+import {
   getTrackingConfig,
   saveTrackingConfig,
   sanitizeTrackingPatch,
@@ -3414,10 +3421,210 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         });
       }
 
-      return jsonError(res, "Unknown test action. Use connectivity | webhook-selftest | test-payment.", 400);
+      // ---- refunds-token: prove the Refunds API OAuth2 path end-to-end
+      // (client_credentials token against the secure host — no side effects).
+      if (action === "refunds-token") {
+        const started = Date.now();
+        try {
+          const token = await getRefundAccessToken(true);
+          return jsonOk(res, {
+            success: true,
+            action,
+            ok: Boolean(token),
+            latencyMs: Date.now() - started,
+            tokenMasked: token ? `${token.slice(0, 8)}…${token.slice(-4)}` : null,
+          });
+        } catch (e: any) {
+          return jsonOk(res, {
+            success: true,
+            action,
+            ok: false,
+            latencyMs: Date.now() - started,
+            error: e?.message || "token request failed",
+          });
+        }
+      }
+
+      return jsonError(res, "Unknown test action. Use connectivity | webhook-selftest | test-payment | refunds-token.", 400);
     } catch (err: any) {
       console.error("POST /api/admin/gateway-test error:", err);
       return jsonError(res, err.message || "Gateway test failed.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/gateway-refund ============
+  // Body: { orderNumber, amount?, reasonCode, reasonNote? }
+  // amount omitted → FULL refund of the remaining balance; any amount ≤
+  // remaining → partial refund (repeatable until zero). Idempotency-Key is
+  // generated server-side per attempt; the ledger row (rapid_refunds) gives
+  // the panel immediate state even before webhooks arrive.
+  if (route === "gateway-refund" && req.method === "POST") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const body = req.body || {};
+      const orderNumber = String(body.orderNumber || "").trim();
+      const reasonCode = String(body.reasonCode || "CUSTOMER_REQUEST").toUpperCase();
+      const reasonNote = typeof body.reasonNote === "string" ? body.reasonNote.trim() : undefined;
+      const rawAmount = body.amount;
+      const amount =
+        rawAmount == null || rawAmount === "" ? undefined : Number(rawAmount);
+      if (!orderNumber) return jsonError(res, "orderNumber is required.", 400);
+      if (amount != null && (!Number.isFinite(amount) || amount <= 0)) {
+        return jsonError(res, "amount must be a positive number.", 400);
+      }
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+
+      const order = await db.collection("orders").findOne({ orderNumber });
+      if (!order) return jsonError(res, "No such order.", 404);
+      const isRapid =
+        String(order.paymentProvider || "") === "rapid" ||
+        /rapid/i.test(String(order.paymentMethod || ""));
+      if (!isRapid) {
+        return jsonError(res, "Refunds are only available for Rapid Gateway orders.", 409);
+      }
+      if (String(order.status) === "refunded") {
+        return jsonError(res, "This order is already fully refunded.", 409);
+      }
+
+      const result = await createRefund({
+        basketId: orderNumber,
+        amount,
+        reasonCode,
+        reasonNote: reasonNote || undefined,
+      });
+
+      // Ledger + audit (best-effort — never blocks the gateway response).
+      if (result.ok && result.refund?.refundRef) {
+        try {
+          await db.collection("rapid_refunds").updateOne(
+            { refundRef: result.refund.refundRef },
+            {
+              $set: {
+                refundRef: result.refund.refundRef,
+                basketId: orderNumber,
+                refundAmount: result.refund.refundAmount,
+                remainingRefundableAmount: result.refund.remainingRefundableAmount,
+                transactionAmount: result.refund.transactionAmount,
+                currency: result.refund.currency || order.currency || "PKR",
+                status: result.refund.status || (result.httpStatus === 202 ? "PENDING_APPROVAL" : "SUCCEEDED"),
+                requiresApproval: result.refund.requiresApproval ?? result.httpStatus === 202,
+                reasonCode,
+                reasonNote: reasonNote || null,
+                lastEvent: "admin_created",
+                createdBy: actor,
+                updatedAt: new Date(),
+              },
+              $setOnInsert: { createdAt: new Date() },
+            },
+            { upsert: true }
+          );
+        } catch { /* ledger best-effort */ }
+      }
+      try {
+        await db.collection("gateway_config_audit").insertOne({
+          gateway: "rapid",
+          action: "refund",
+          orderNumber,
+          amount: amount ?? "full",
+          ok: Boolean(result.ok),
+          error: result.error || null,
+          updatedBy: actor,
+          at: new Date(),
+        });
+      } catch { /* audit best-effort */ }
+
+      return jsonOk(res, {
+        success: Boolean(result.ok),
+        httpStatus: result.httpStatus ?? null,
+        idempotentReplay: result.idempotentReplay ?? false,
+        refund: result.refund || null,
+        error: result.error || null,
+        errorDetail: result.errorDetail || null,
+      });
+    } catch (err: any) {
+      console.error("POST /api/admin/gateway-refund error:", err);
+      return jsonError(res, err.message || "Refund request failed.", 500);
+    }
+  }
+
+  // ============ GET /api/admin/gateway-refunds?basketId=&status=&page=&size= ======
+  // Live list from the gateway; the local rapid_refunds ledger rides along so
+  // the panel still shows recent activity if the gateway list is unavailable
+  // (e.g. refunds not yet enabled → MERCHANT_NOT_ELIGIBLE).
+  if (route === "gateway-refunds" && req.method === "GET") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const q = new URL(req.url || "", "http://localhost").searchParams;
+      const basketId = q.get("basketId") || undefined;
+      const status = q.get("status") || undefined;
+      const page = q.get("page") != null ? Number(q.get("page")) : undefined;
+      const size = q.get("size") != null ? Number(q.get("size")) : undefined;
+      const result = await listRefunds({ basketId, status, page, size });
+      const ledger = await db
+        .collection("rapid_refunds")
+        .find(basketId ? { basketId } : {})
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        ok: Boolean(result.ok),
+        refunds: result.items || [],
+        ledger,
+        error: result.error || null,
+        errorDetail: result.errorDetail || null,
+      });
+    } catch (err: any) {
+      console.error("GET /api/admin/gateway-refunds error:", err);
+      return jsonError(res, err.message || "Could not list refunds.", 500);
+    }
+  }
+
+  // ============ GET /api/admin/gateway-refund-status?ref= ============
+  if (route === "gateway-refund-status" && req.method === "GET") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const ref = new URL(req.url || "", "http://localhost").searchParams.get("ref") || "";
+      if (!ref) return jsonError(res, "ref (refundRef) is required.", 400);
+      const result = await getRefund(ref);
+      return jsonOk(res, {
+        success: Boolean(result.ok),
+        refund: result.refund || null,
+        httpStatus: result.httpStatus ?? null,
+        error: result.error || null,
+        errorDetail: result.errorDetail || null,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not fetch the refund.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/gateway-refund-cancel ============
+  // Body: { refundRef } — only while the refund is PENDING_APPROVAL.
+  if (route === "gateway-refund-cancel" && req.method === "POST") {
+    if (!requireGatewayTech(req, res)) return;
+    try {
+      const refundRef = String((req.body || {}).refundRef || "").trim();
+      if (!refundRef) return jsonError(res, "refundRef is required.", 400);
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      const result = await cancelRefund(refundRef);
+      if (result.ok) {
+        try {
+          await db.collection("rapid_refunds").updateOne(
+            { refundRef },
+            { $set: { status: "CANCELLED", lastEvent: "admin_cancelled", cancelledBy: actor, updatedAt: new Date() } }
+          );
+        } catch { /* ledger best-effort */ }
+      }
+      return jsonOk(res, {
+        success: Boolean(result.ok),
+        refund: result.refund || null,
+        httpStatus: result.httpStatus ?? null,
+        error: result.error || null,
+        errorDetail: result.errorDetail || null,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not cancel the refund.", 500);
     }
   }
 

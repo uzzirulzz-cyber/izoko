@@ -29,6 +29,8 @@ export interface RapidRuntimeConfig {
   webhookSalt: string;
   webhookSaltPrev: string;
   apiBase: string;
+  merchantId: string;
+  refundsBase: string;
   methods: string[];
   webhookUrl: string;
   sources: Record<string, "database" | "environment" | "none">;
@@ -41,6 +43,8 @@ export interface GatewayConfigPatch {
   webhookSalt?: string;
   webhookSaltPrev?: string;
   apiBase?: string;
+  merchantId?: string;
+  refundsBase?: string;
   methods?: string;
   clear?: string[]; // field names to remove ("secretKey" | "webhookSalt" | "webhookSaltPrev")
 }
@@ -104,6 +108,10 @@ function envDefaults() {
     webhookSalt: process.env.RAPID_WEBHOOK_SECRET || "",
     webhookSaltPrev: process.env.RAPID_WEBHOOK_SECRET_PREVIOUS || "",
     apiBase: (process.env.RAPID_API_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, ""),
+    merchantId: (process.env.RAPID_MERCHANT_ID || "").trim(),
+    // Refunds API lives on the secure host per vendor docs (OAuth2 + refunds);
+    // the Pay-In client defaults to the secure host as well (OAuth2 fix).
+    refundsBase: (process.env.RAPID_REFUNDS_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, ""),
     methods: (process.env.RAPID_METHODS || "easypaisa,jazzcash,card")
       .split(",")
       .map((m) => m.trim())
@@ -134,6 +142,8 @@ export async function getRapidConfig(force = false): Promise<RapidRuntimeConfig>
   const webhookSalt = dbSecret("webhookSaltEnc") || env.webhookSalt;
   const webhookSaltPrev = dbSecret("webhookSaltPrevEnc") || env.webhookSaltPrev;
   const apiBase = String(dbDoc?.apiBase || env.apiBase).replace(/\/+$/, "");
+  const merchantId = String(dbDoc?.merchantId || env.merchantId || "").trim();
+  const refundsBase = String(dbDoc?.refundsBase || env.refundsBase).replace(/\/+$/, "");
   const methods = Array.isArray(dbDoc?.methods) && dbDoc.methods.length
     ? dbDoc.methods.map((m: any) => String(m))
     : env.methods;
@@ -143,6 +153,8 @@ export async function getRapidConfig(force = false): Promise<RapidRuntimeConfig>
     webhookSalt,
     webhookSaltPrev,
     apiBase,
+    merchantId,
+    refundsBase,
     methods,
     webhookUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/webhooks/rapid-gateway`,
     sources: {
@@ -150,6 +162,8 @@ export async function getRapidConfig(force = false): Promise<RapidRuntimeConfig>
       webhookSalt: pick(dbSecret("webhookSaltEnc"), env.webhookSalt),
       webhookSaltPrev: pick(dbSecret("webhookSaltPrevEnc"), env.webhookSaltPrev),
       apiBase: dbDoc?.apiBase ? "database" : "environment",
+      merchantId: dbDoc?.merchantId ? "database" : "environment",
+      refundsBase: dbDoc?.refundsBase ? "database" : "environment",
       methods: Array.isArray(dbDoc?.methods) && dbDoc.methods.length ? "database" : "environment",
     },
     updatedBy: dbDoc?.updatedBy || null,
@@ -169,6 +183,7 @@ export async function describeGatewayStatus() {
       secretKey: Boolean(cfg.secretKey),
       webhookSalt: Boolean(cfg.webhookSalt),
       webhookSaltPrev: Boolean(cfg.webhookSaltPrev),
+      merchantId: Boolean(cfg.merchantId),
     },
     masked: {
       secretKey: maskSecret(cfg.secretKey),
@@ -176,6 +191,8 @@ export async function describeGatewayStatus() {
       webhookSaltPrev: maskSecret(cfg.webhookSaltPrev),
     },
     apiBase: cfg.apiBase,
+    merchantId: cfg.merchantId,
+    refundsBase: cfg.refundsBase,
     methods: cfg.methods,
     webhookUrl: cfg.webhookUrl,
     sources: cfg.sources,
@@ -227,6 +244,26 @@ export async function saveRapidConfig(
     } else if (!cleaned) {
       unset.apiBase = ""; // reset to env default
       changed.push("apiBase (reset to default)");
+    }
+  }
+  if (typeof patch.merchantId === "string") {
+    const cleaned = patch.merchantId.trim();
+    if (cleaned && /^\d{1,15}$/.test(cleaned)) {
+      set.merchantId = cleaned;
+      changed.push("merchantId");
+    } else if (!cleaned) {
+      unset.merchantId = ""; // reset to env default
+      changed.push("merchantId (reset to default)");
+    }
+  }
+  if (typeof patch.refundsBase === "string") {
+    const cleaned = patch.refundsBase.trim().replace(/\/+$/, "");
+    if (cleaned && /^https:\/\/.+/i.test(cleaned)) {
+      set.refundsBase = cleaned;
+      changed.push("refundsBase");
+    } else if (!cleaned) {
+      unset.refundsBase = ""; // reset to env default
+      changed.push("refundsBase (reset to default)");
     }
   }
   if (typeof patch.methods === "string") {
