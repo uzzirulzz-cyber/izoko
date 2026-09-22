@@ -348,6 +348,65 @@
 .pbadmin :is(.bg-\[\#121622\], .bg-\[\#12151f\], .bg-\[\#181d2d\], .bg-\[\#0A122E\],
   .bg-\[\#0D1322\], .bg-\[\#141b2e\]) { background-color: #f1f5f9; }
 
+/* Hover variants of dark hex surfaces → light hover */
+.pbadmin .hover\:bg-\[\#181d2d\]:hover { background-color: #e2e8f0; }
+.pbadmin .hover\:bg-\[\#141b2e\]:hover { background-color: #e2e8f0; }
+
+/* ---------- Compound flip: hex surface + dark-theme text on ONE element ----------
+   Header action buttons / modal roots carry e.g. "bg-[#121622] text-zinc-200"
+   on the same node — the descendant rules above never reach them. */
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-white, .hover\:text-white:hover) { color: #0f172a; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-100) { color: #0f172a; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-200) { color: #1e293b; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-300, .text-slate-300) { color: #334155; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-400, .text-slate-400,
+  .text-zinc-500, .text-slate-500) { color: #64748b; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-zinc-600) { color: #7c8aa0; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-amber-300, .text-amber-400,
+  .text-yellow-300, .text-yellow-400, .text-orange-400) { color: #b45309; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-emerald-300, .text-emerald-400,
+  .text-green-300, .text-green-400, .text-lime-400) { color: #059669; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-sky-300, .text-sky-400,
+  .text-cyan-300, .text-cyan-400, .text-blue-300, .text-blue-400) { color: #0369a1; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-rose-300, .text-rose-400,
+  .text-red-300, .text-red-400) { color: #be123c; }
+.pbadmin :is(.bg-\[\#0F131D\], .bg-\[\#090D18\], .bg-\[\#12151f\], .bg-\[\#07090E\],
+  .bg-\[\#060B1E\], .bg-\[\#0B0F19\], .bg-\[\#121622\], .bg-\[\#0A122E\],
+  .bg-\[\#040816\], .bg-\[\#040814\], .bg-\[\#181d2d\], .bg-\[\#0D1322\],
+  .bg-\[\#141b2e\], .bg-\[\#0D1119\], .bg-\[\#070D22\]):is(.text-fuchsia-300, .text-fuchsia-400,
+  .text-purple-300, .text-purple-400, .text-violet-300, .text-violet-400,
+  .text-pink-300, .text-pink-400) { color: #9333ea; }
+
 /* ---------- Numbered / icon chips — flat solid squares ---------- */
 .pa-chip {
   width: 32px;
