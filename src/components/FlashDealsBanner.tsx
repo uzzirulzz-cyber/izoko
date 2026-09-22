@@ -52,7 +52,7 @@ export const FlashDealsBanner: React.FC<FlashDealsBannerProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-extrabold text-white tracking-tight">
+                <h2 className="text-base font-extrabold pb-blue-heading tracking-tight">
                   Limited VIP Promotional Drops
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold bg-yellow-400/15 text-yellow-300 border border-yellow-400/30">

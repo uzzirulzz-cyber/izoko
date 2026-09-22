@@ -212,11 +212,11 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="inline-flex w-6 h-[2px] rounded-full bg-gradient-to-r from-[#FFC107] to-transparent"></span>
-              <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-slate-400">
+              <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-yellow-400/90 font-semibold">
                 Collections
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-extrabold pb-blue-heading tracking-tight">
               Shop by Category
             </h2>
           </div>
@@ -276,7 +276,7 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 border transition-all ${
                       isSelected
                         ? `bg-white/10 ${acc.text} border-white/20`
-                        : `bg-white/[0.04] text-slate-300 group-hover:${acc.text} border-white/10`
+                        : 'bg-sky-400/10 text-sky-300 border-sky-400/20'
                     }`}
                     style={!isSelected ? { transition: 'all .3s' } : undefined}
                   >

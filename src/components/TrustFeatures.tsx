@@ -6,15 +6,15 @@ const ITEMS = [
     icon: Zap,
     title: 'Instant Delivery',
     desc: 'Digital codes in minutes — 24/7 automated',
-    color: 'text-amber-300',
-    bg: 'bg-amber-400/10 border-amber-400/25',
+    color: 'text-sky-300',
+    bg: 'bg-sky-400/10 border-sky-400/25',
   },
   {
     icon: ShieldCheck,
     title: 'Secure Checkout',
     desc: 'Encrypted payments, 100% protected',
-    color: 'text-emerald-300',
-    bg: 'bg-emerald-400/10 border-emerald-400/25',
+    color: 'text-sky-300',
+    bg: 'bg-sky-400/10 border-sky-400/25',
   },
   {
     icon: Tag,
@@ -27,8 +27,8 @@ const ITEMS = [
     icon: Headphones,
     title: '24/7 Human Support',
     desc: 'Real people on WhatsApp & live chat',
-    color: 'text-rose-300',
-    bg: 'bg-rose-400/10 border-rose-400/25',
+    color: 'text-sky-300',
+    bg: 'bg-sky-400/10 border-sky-400/25',
   },
 ]
 

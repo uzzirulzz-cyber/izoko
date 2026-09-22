@@ -1447,7 +1447,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050814] text-slate-100 font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
+    <div className="pb-store min-h-screen bg-[#050814] text-slate-100 font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-[#091330] border border-yellow-400/50 shadow-2xl text-xs font-semibold text-white animate-in slide-in-from-bottom-5">
@@ -1639,7 +1639,7 @@ export function App() {
 
       {/* COMPARE PAGE — dedicated projector comparison (not on main storefront) */}
       {route === 'compare' && (
-        <div className="min-h-screen bg-[#050814] text-slate-100 font-sans">
+        <div className="pb-store min-h-screen bg-[#050814] text-slate-100 font-sans">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
@@ -1800,18 +1800,18 @@ export function App() {
             <section id="popular-products-section" className="w-full py-8 bg-[#050814]">
               <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
-                    <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-                      Popular Products
+                  <div>
+                    <span className="pb-eyebrow">Popular Products</span>
+                    <h2 className="text-xl sm:text-2xl font-extrabold pb-blue-heading tracking-tight mt-1">
+                      Top Picks for You
                     </h2>
                   </div>
 
                   <button
                     onClick={() => setSelectedCategory('all')}
-                    className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-slate-300 hover:text-yellow-400 transition group"
+                    className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-sky-300 hover:text-sky-200 transition group"
                   >
-                    <span>View All</span>
+                    <span>View All Products</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </button>
                 </div>
@@ -1840,18 +1840,20 @@ export function App() {
             {/* Catalog Header & Controls Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-400/10">
               <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
-                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-                  {SUBCATEGORY_ROUTE_KEYS.includes(route)
-                    ? SUBCATEGORY_ROUTES[route as string]?.label || 'Curated Collection'
-                    : route === 'category' &&
-                      categorySlugParam &&
-                      SUBCATEGORY_ROUTE_KEYS.includes(categorySlugParam.toLowerCase() as Route)
-                    ? SUBCATEGORY_ROUTES[categorySlugParam.toLowerCase()]?.label || 'Curated Collection'
-                    : selectedCategory === 'all'
-                    ? 'Complete Catalog — Every Product'
-                    : selectedCategory}
-                </h2>
+                <div>
+                  <span className="pb-eyebrow">Browse the Catalog</span>
+                  <h2 className="text-lg sm:text-xl font-bold pb-blue-heading tracking-tight mt-0.5">
+                    {SUBCATEGORY_ROUTE_KEYS.includes(route)
+                      ? SUBCATEGORY_ROUTES[route as string]?.label || 'Curated Collection'
+                      : route === 'category' &&
+                        categorySlugParam &&
+                        SUBCATEGORY_ROUTE_KEYS.includes(categorySlugParam.toLowerCase() as Route)
+                      ? SUBCATEGORY_ROUTES[categorySlugParam.toLowerCase()]?.label || 'Curated Collection'
+                      : selectedCategory === 'all'
+                      ? 'Complete Catalog — Every Product'
+                      : selectedCategory}
+                  </h2>
+                </div>
                 <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-mono font-semibold text-yellow-300 bg-[#0A122E] border border-yellow-400/25">
                   {filteredProducts.length} items
                 </span>

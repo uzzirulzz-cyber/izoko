@@ -158,7 +158,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({ user, onRequireAuth, o
   ]
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] font-sans">
+    <div className="pcraft-root min-h-screen bg-[#F4F5F7] font-sans">
       {/* ===== Dark hero band with overlapping avatar (ProfileCraft signature) ===== */}
       <div className="bg-[#17181C] pb-16 pt-8 px-4">
         <div className="max-w-2xl mx-auto" />

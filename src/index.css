@@ -33,6 +33,8 @@
   --silver-glow: rgba(226, 232, 240, 0.25);
   --gold-primary: #FACC15;
   --gold-glow: rgba(250, 204, 21, 0.35);
+  --electric-blue: #3B82F6;
+  --electric-sky: #38BDF8;
   --water-blue-glow: rgba(56, 189, 248, 0.2);
 }
 
@@ -267,4 +269,88 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(250, 204, 21, 0.45);
+}
+
+/* =========================================================
+   STOREFRONT THEME LAYER — "PlayBeat LeadPulse" look
+   (Deep navy canvas · gold CTAs · electric-blue accents ·
+   clean bold sans typography)
+   Scoped under .pb-store (storefront root only). The admin
+   console (.pbadmin), admin login (.pb-adminlogin), checkout
+   + payment pages (.pbx-scope), the ProfileCraft account
+   dashboard (.pcraft-root) and the printable invoice
+   (.pb-doc-root) are explicitly OUT of scope below.
+   Zero markup/logic changes — theme only.
+   ========================================================= */
+
+/* 1) Typography personality: the storefront retires the
+      terminal/mono voice for the reference's clean bold sans.
+      Tabular numerals keep prices/counters perfectly aligned. */
+.pb-store .font-mono {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'tnum' 1, 'cv05' 1;
+  letter-spacing: 0.01em;
+}
+
+/* Re-assert JetBrains Mono where the mono voice is contractual */
+.pb-store .pbadmin .font-mono,
+.pb-store .pb-adminlogin .font-mono,
+.pb-store .pbx-scope .font-mono,
+.pb-store .pcraft-root .font-mono,
+.pb-store .pb-doc-root .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0;
+}
+
+/* 2) Electric-blue display headings (ref: "Top Picks for You") */
+.pb-blue-heading {
+  background: linear-gradient(100deg, #7DD3FC 0%, #38BDF8 35%, #3B82F6 75%, #2563EB 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 22px rgba(56, 189, 248, 0.22));
+}
+
+/* 3) Gold uppercase eyebrow labels (ref: "POPULAR PRODUCTS") */
+.pb-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #FACC15;
+}
+
+/* Sky variant of the eyebrow (ref hero: blue caps line) */
+.pb-eyebrow-sky {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #7DD3FC;
+}
+
+/* 4) Blue interactive links (ref "View All Products →") */
+.pb-store a,
+.pb-store button {
+  scroll-margin-top: 96px;
+}
+.pb-link-blue {
+  color: #7DD3FC;
+  transition: color 0.2s ease;
+}
+.pb-link-blue:hover {
+  color: #BAE6FD;
+}
+
+/* 5) Bluer ambient canvas behind storefront sections */
+.pb-store {
+  background:
+    radial-gradient(ellipse 90% 42% at 50% -8%, rgba(37, 99, 235, 0.14) 0%, transparent 62%),
+    radial-gradient(ellipse 60% 34% at 84% 4%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+    #050814;
+}
+
+/* 6) Gold CTA — align gradient to the ref's flat vivid gold */
+.pb-store .btn-gold-gradient {
+  background: linear-gradient(135deg, #FDE047 0%, #FACC15 55%, #F59E0B 100%);
 }

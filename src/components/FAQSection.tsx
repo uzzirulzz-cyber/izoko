@@ -84,7 +84,7 @@ export const FAQSection: React.FC<FAQSectionProps> = ({ onNavigate }) => {
           <div>
             <div className="flex items-center gap-2.5 mb-2">
               <span className="w-1.5 h-5 rounded-full bg-[#FFC107] inline-block"></span>
-              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
+              <h2 className="text-lg sm:text-xl font-bold pb-blue-heading tracking-tight font-sans">
                 Frequently Asked Questions
               </h2>
             </div>

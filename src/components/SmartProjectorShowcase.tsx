@@ -48,7 +48,7 @@ export const SmartProjectorShowcase: React.FC<SmartProjectorShowcaseProps> = ({
               <Projector className="w-3.5 h-3.5" />
               Flagship Hardware
             </div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-extrabold pb-blue-heading tracking-tight flex items-center gap-2">
               <span className="w-1.5 h-6 rounded-full bg-cyan-400 inline-block"></span>
               Smart 4K Cinema Projectors
             </h2>

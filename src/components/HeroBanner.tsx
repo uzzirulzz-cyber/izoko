@@ -40,18 +40,18 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
           {/* Left Narrative */}
           <div className="lg:col-span-7 space-y-7 text-left">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#081028]/80 backdrop-blur border border-amber-400/25 shadow-[0_0_24px_rgba(255,193,7,0.08)]">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#081028]/80 backdrop-blur border border-sky-400/25 shadow-[0_0_24px_rgba(56,189,248,0.10)]">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-60"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
               </span>
-              <span className="text-[11px] font-mono tracking-[0.18em] uppercase text-amber-200/90">
+              <span className="text-[11px] font-mono tracking-[0.18em] uppercase text-sky-200/90">
                 Pakistan&rsquo;s Premium Digital Marketplace
               </span>
             </div>
 
             {/* Headline — gradient premium type */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[58px] font-extrabold tracking-tight leading-[1.08] text-white">
+            <h1 className="text-4xl sm:text-5xl lg:text-[58px] font-extrabold uppercase tracking-tight leading-[1.08] text-white">
               Your Digital World.
               <br />
               <span className="bg-gradient-to-r from-amber-200 via-[#FFC107] to-amber-400 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(255,193,7,0.25)]">
@@ -92,19 +92,25 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             {/* Live stats strip */}
             <div className="flex flex-wrap items-center gap-x-7 gap-y-3 pt-3">
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-400" />
+                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
+                  <Zap className="w-4 h-4 text-sky-400" />
+                </span>
                 <span className="text-xs text-slate-300">
                   <span className="font-bold text-white font-mono">{productsCount}+</span> products in stock
                 </span>
               </div>
               <div className="hidden sm:flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-400" />
+                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
+                  <Star className="w-4 h-4 text-sky-400" />
+                </span>
                 <span className="text-xs text-slate-300">
                   <span className="font-bold text-white font-mono">{categoriesCount}</span> curated categories
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-sky-400" />
+                </span>
                 <span className="text-xs text-slate-300">
                   <span className="font-bold text-white font-mono">100%</span> genuine &amp; warranted
                 </span>

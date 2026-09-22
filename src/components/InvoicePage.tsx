@@ -86,7 +86,7 @@ export const InvoicePage: React.FC<{
   }, [orderNumber])
 
   return (
-    <div className="min-h-screen bg-[#050814] text-slate-100 font-sans pb-16">
+    <div className="pb-doc-root min-h-screen bg-[#050814] text-slate-100 font-sans pb-16">
       {/* Toolbar (screen only) */}
       <div className="max-w-[860px] mx-auto px-4 pt-8 pb-4 flex items-center justify-between gap-3 no-print">
         <button
