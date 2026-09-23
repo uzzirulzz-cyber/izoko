@@ -24,7 +24,7 @@ const AVATAR_BG: Record<string, string> = {
 }
 
 const AVATAR_GLOW: Record<string, string> = {
-  amber: 'shadow-[0_0_16px_-2px_rgba(251,191,36,0.55)]',
+  amber: 'shadow-[0_0_16px_-2px_rgba(61,127,247,0.55)]',
   blue: 'shadow-[0_0_16px_-2px_rgba(59,130,246,0.55)]',
   emerald: 'shadow-[0_0_16px_-2px_rgba(16,185,129,0.55)]',
   purple: 'shadow-[0_0_16px_-2px_rgba(168,85,247,0.55)]',

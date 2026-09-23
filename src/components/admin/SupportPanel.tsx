@@ -149,7 +149,7 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ triggerToast }) => {
             <div className="text-[10px] text-zinc-500 mt-1.5 font-mono">status: new</div>
           </div>
         </div>
-        <div className="pa-kpi" style={{ ['--kpi-rail' as string]: '#fbbf24', ['--kpi-tint' as string]: 'rgba(251,191,36,0.1)', ['--kpi-edge' as string]: 'rgba(251,191,36,0.22)', ['--kpi-glow' as string]: 'rgba(251,191,36,0.3)' } as React.CSSProperties}>
+        <div className="pa-kpi" style={{ ['--kpi-rail' as string]: '#3d7ff7', ['--kpi-tint' as string]: 'rgba(61,127,247,0.1)', ['--kpi-edge' as string]: 'rgba(61,127,247,0.22)', ['--kpi-glow' as string]: 'rgba(61,127,247,0.3)' } as React.CSSProperties}>
           <div className="pl-2">
             <div className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider mb-1.5">In Progress</div>
             <div className="text-2xl font-black text-amber-300 font-mono leading-none">{counts?.pending ?? '—'}</div>

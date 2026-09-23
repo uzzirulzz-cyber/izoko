@@ -190,24 +190,24 @@ export const NeonShield: React.FC<{ className?: string }> = ({ className = '' })
 /** Card 07 — neon lightning bolt */
 export const NeonBolt: React.FC<{ className?: string }> = ({ className = '' }) => (
   <svg viewBox='0 0 160 110' className={`${className} pa-neon-float`} fill='none' xmlns='http://www.w3.org/2000/svg'>
-    <NeonDefs id='nb' color='#fbbf24' />
+    <NeonDefs id='nb' color='#3d7ff7' />
     <g filter='url(#nb-glow)'>
       <path
         d='M86 8L48 62h22l-10 40 44-56H80l14-38z'
         stroke='url(#nb-grad)'
         strokeWidth='3'
-        fill='rgba(251,191,36,0.1)'
+        fill='rgba(61,127,247,0.1)'
         strokeLinejoin='round'
       />
     </g>
     <g filter='url(#nb-glow)' opacity='0.6'>
       <path d='M24 34l12-6M20 58l10 1M136 28l-10 8M140 66l-12-4' stroke='#fcd34d' strokeWidth='1.5' strokeLinecap='round' />
       <circle cx='30' cy='84' r='1.8' fill='#fde68a' />
-      <circle cx='132' cy='90' r='1.6' fill='#fbbf24' />
+      <circle cx='132' cy='90' r='1.6' fill='#3d7ff7' />
     </g>
     {/* speed lines */}
     <g filter='url(#nb-glow)' opacity='0.45'>
-      <path d='M34 74h18M28 82h14' stroke='#fbbf24' strokeWidth='1.4' strokeLinecap='round' />
+      <path d='M34 74h18M28 82h14' stroke='#3d7ff7' strokeWidth='1.4' strokeLinecap='round' />
     </g>
   </svg>
 )

@@ -775,7 +775,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   })
 
   return (
-    <div className="pbadmin min-h-screen pa-ambient text-zinc-100 font-sans flex flex-col antialiased selection:bg-amber-500 selection:text-black">
+    <div className="pbadmin min-h-screen pa-ambient text-zinc-100 font-sans flex flex-col antialiased selection:bg-[#3d7ff7] selection:text-white">
       {/* Ambient enterprise grid canvas */}
       <div className="pa-grid-overlay" aria-hidden="true"></div>
 
@@ -1006,7 +1006,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     }`}
                     style={
                       activeNav === 'business'
-                        ? ({ '--nav-a': '#fbbf24', '--nav-bg': 'rgba(251,191,36,0.09)', '--nav-edge': 'rgba(251,191,36,0.28)' } as React.CSSProperties)
+                        ? ({ '--nav-a': '#3d7ff7', '--nav-bg': 'rgba(61,127,247,0.09)', '--nav-edge': 'rgba(61,127,247,0.28)' } as React.CSSProperties)
                         : undefined
                     }
                     title="Google Analytics · Tag Manager · AdSense · Ads"
@@ -1088,7 +1088,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     }`}
                     style={
                       activeNav === 'products'
-                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(61,127,247,0.09)', '--nav-edge': 'rgba(61,127,247,0.3)' } as React.CSSProperties)
                         : undefined
                     }
                   >
@@ -1181,7 +1181,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     }`}
                     style={
                       activeNav === 'vault'
-                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(61,127,247,0.09)', '--nav-edge': 'rgba(61,127,247,0.3)' } as React.CSSProperties)
                         : undefined
                     }
                   >
@@ -1336,7 +1336,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     }`}
                     style={
                       activeNav === 'reviews-mod'
-                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,184,0,0.09)', '--nav-edge': 'rgba(245,184,0,0.3)' } as React.CSSProperties)
+                        ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(61,127,247,0.09)', '--nav-edge': 'rgba(61,127,247,0.3)' } as React.CSSProperties)
                         : undefined
                     }
                   >
@@ -1464,7 +1464,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   }`}
                   style={
                     activeNav === 'mobile-apps'
-                      ? ({ '--nav-a': '#fbbf24', '--nav-bg': 'rgba(251,191,36,0.09)', '--nav-edge': 'rgba(251,191,36,0.28)' } as React.CSSProperties)
+                      ? ({ '--nav-a': '#3d7ff7', '--nav-bg': 'rgba(61,127,247,0.09)', '--nav-edge': 'rgba(61,127,247,0.28)' } as React.CSSProperties)
                       : undefined
                   }
                   title="Customer mobile apps — Android & iOS"
@@ -1507,10 +1507,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {!sidebarCollapsed && (
               <button
                 onClick={onBackToStorefront}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-400/25 hover:border-amber-400/50 hover:shadow-[0_0_20px_-6px_rgba(245,184,0,0.4)] transition text-left group"
+                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-500/15 to-amber-500/5 border border-amber-400/25 hover:border-amber-400/50 hover:shadow-[0_0_20px_-6px_rgba(61,127,247,0.4)] transition text-left group"
                 title="Open the live customer storefront"
               >
-                <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0 shadow-[0_2px_8px_-2px_rgba(245,184,0,0.6)]">
+                <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shrink-0 shadow-[0_2px_8px_-2px_rgba(61,127,247,0.6)]">
                   <Store className="w-4 h-4 text-black" />
                 </span>
                 <span className="flex-1 min-w-0">
@@ -1526,7 +1526,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* Account Card — opens Profile Settings (enterprise style) */}
             <button
               onClick={() => openProfile('identity')}
-              className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl pa-well hover:border-amber-400/30 hover:shadow-[0_0_18px_-6px_rgba(245,184,0,0.35)] transition text-left ${
+              className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl pa-well hover:border-amber-400/30 hover:shadow-[0_0_18px_-6px_rgba(61,127,247,0.35)] transition text-left ${
                 activeNav === 'profile' ? 'border-amber-400/40' : ''
               }`}
               title="Open Profile Settings"
@@ -1693,7 +1693,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               >
                 <Bell className="w-4 h-4" />
                 {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono shadow-[0_0_10px_rgba(245,184,0,0.6)]">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono shadow-[0_0_10px_rgba(61,127,247,0.6)]">
                     {adminHealth.alerts.pendingOrders}
                   </span>
                 )}
@@ -2113,7 +2113,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                 >
                                   <defs>
                                     <linearGradient id="goldGradient02" x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.42" />
+                                      <stop offset="0%" stopColor="#3d7ff7" stopOpacity="0.42" />
                                       <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
                                     </linearGradient>
                                     <filter id="goldGlow02" x="-40%" y="-40%" width="180%" height="180%">
@@ -2137,7 +2137,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                       y1="4"
                                       x2={hovered.cx}
                                       y2={H - 14}
-                                      stroke="rgba(251,191,36,0.35)"
+                                      stroke="rgba(61,127,247,0.35)"
                                       strokeWidth="1"
                                       strokeDasharray="3 3"
                                     />
@@ -2147,7 +2147,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                   {areaPath && <path d={areaPath} fill="url(#goldGradient02)" />}
                                   {/* Gold Trend Line with glow */}
                                   {linePath && (
-                                    <path d={linePath} fill="none" stroke="#fbbf24" strokeWidth="2.4" filter="url(#goldGlow02)" className="pa-draw" />
+                                    <path d={linePath} fill="none" stroke="#3d7ff7" strokeWidth="2.4" filter="url(#goldGlow02)" className="pa-draw" />
                                   )}
 
                                   {/* Best day pulse ring */}
@@ -2157,11 +2157,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                       cy={points[bestIdx].cy}
                                       r="6.5"
                                       fill="none"
-                                      stroke="#fbbf24"
+                                      stroke="#3d7ff7"
                                       strokeWidth="1"
                                       opacity="0.5"
                                       className="pa-breath"
-                                      style={{ color: '#fbbf24' }}
+                                      style={{ color: '#3d7ff7' }}
                                     />
                                   )}
 
@@ -2178,7 +2178,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                       }
                                       fill={
                                         i === revHoverIdx ? '#fde68a' :
-                                        p.revenue > 0 ? '#fbbf24' : '#374151'
+                                        p.revenue > 0 ? '#3d7ff7' : '#374151'
                                       }
                                       stroke={i === revHoverIdx || (i === bestIdx && p.revenue > 0) ? '#fffbeb' : 'none'}
                                       strokeWidth={i === revHoverIdx ? 1.2 : 0.8}
@@ -2208,7 +2208,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                     style={{
                                       left: `${(hovered.cx / W) * 100}%`,
                                       top: `${Math.max(0, (hovered.cy / H) * 100 - 62)}%`,
-                                      boxShadow: '0 10px 24px -8px rgba(0,0,0,0.9), 0 0 18px -6px rgba(245,184,0,0.4)',
+                                      boxShadow: '0 10px 24px -8px rgba(0,0,0,0.9), 0 0 18px -6px rgba(61,127,247,0.4)',
                                     }}
                                   >
                                     <div className="text-[9px] font-mono text-zinc-400 whitespace-nowrap">
@@ -2957,7 +2957,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <img
                       src="/playbeat-logo.png"
                       alt="PlayBeat Arena"
-                      className="h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(255,193,7,0.4)]"
+                      className="h-7 w-auto object-contain drop-shadow-[0_0_10px_rgba(61,127,247,0.4)]"
                     />
                     <div className="text-xs sm:text-sm font-semibold text-zinc-300">
                       Everything you need to manage your digital business – all in one powerful dashboard.
@@ -3583,7 +3583,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <KpiTile label="Live Plans" value={subs.length || '—'} rail="#e879f9" tint="rgba(232,121,249,0.1)" edge="rgba(232,121,249,0.22)" glow="rgba(232,121,249,0.3)" icon={<Repeat className="w-4 h-4 text-fuchsia-400" />} sub={<span className="text-fuchsia-300">subscription products</span>} />
                       <KpiTile label="Plan Options" value={totalOptions || '—'} rail="#c084fc" tint="rgba(192,132,252,0.1)" edge="rgba(192,132,252,0.22)" glow="rgba(192,132,252,0.3)" icon={<Boxes className="w-4 h-4 text-purple-400" />} sub={<span className="text-zinc-400">variant dropdowns</span>} />
                       <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Key className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">in stock now</span>} />
-                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all plans</span>} />
+                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all plans</span>} />
                     </div>
                   )
                 })()}
@@ -3685,7 +3685,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KpiTile label="Deals Live" value={deals.length || '—'} rail="#fb7185" tint="rgba(251,113,133,0.1)" edge="rgba(251,113,133,0.22)" glow="rgba(251,113,133,0.3)" icon={<Tag className="w-4 h-4 text-rose-400" />} sub={<span className="text-rose-300">discounted products</span>} />
                       <KpiTile label="Biggest Discount" value={biggest ? `${biggest}%` : '—'} rail="#f87171" tint="rgba(248,113,113,0.1)" edge="rgba(248,113,113,0.22)" glow="rgba(248,113,113,0.3)" icon={<TrendingUp className="w-4 h-4 text-red-400" />} sub={<span className="text-zinc-400">max saving offered</span>} />
-                      <KpiTile label="Avg Discount" value={avg ? `${avg}%` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<Percent className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all deals</span>} />
+                      <KpiTile label="Avg Discount" value={avg ? `${avg}%` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<Percent className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all deals</span>} />
                       <KpiTile label="Bundle Savings" value={savings ? `Rs ${savings.toLocaleString()}` : '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<DollarSign className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">vs original prices</span>} />
                     </div>
                   )
@@ -3922,7 +3922,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KpiTile label="IPTV Products" value={iptv.length || '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Tv className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-300">live in catalog</span>} />
                       <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#2dd4bf" tint="rgba(45,212,191,0.1)" edge="rgba(45,212,191,0.22)" glow="rgba(45,212,191,0.3)" icon={<Key className="w-4 h-4 text-teal-400" />} sub={<span className="text-zinc-400">instant delivery</span>} />
-                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#fbbf24" tint="rgba(251,191,36,0.1)" edge="rgba(251,191,36,0.22)" glow="rgba(251,191,36,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">per plan</span>} />
+                      <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">per plan</span>} />
                       <KpiTile label="Digital Share" value={`${digitalShare}%`} rail="#38bdf8" tint="rgba(56,189,248,0.1)" edge="rgba(56,189,248,0.22)" glow="rgba(56,189,248,0.3)" icon={<Zap className="w-4 h-4 text-sky-400" />} sub={<span className="text-zinc-400">auto-delivered</span>} />
                     </div>
                   )

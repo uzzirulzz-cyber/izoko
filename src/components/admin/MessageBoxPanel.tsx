@@ -310,7 +310,7 @@ export const MessageBoxPanel: React.FC<MessageBoxPanelProps> = ({ adminStaff, ad
           { label: 'Unread Messages', value: counts?.unread ?? '—', tint: '#fb7185' },
           { label: 'Open Chats', value: counts?.open ?? '—', tint: '#34d399' },
           { label: 'Live Support Threads', value: counts?.live ?? '—', tint: '#a5b4fc' },
-          { label: 'Staff DM Threads', value: counts?.staffDm ?? '—', tint: '#fbbf24' },
+          { label: 'Staff DM Threads', value: counts?.staffDm ?? '—', tint: '#3d7ff7' },
         ].map((kpi) => (
           <div
             key={kpi.label}
