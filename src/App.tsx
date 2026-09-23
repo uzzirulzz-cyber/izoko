@@ -8,6 +8,12 @@ import { LayoutGrid } from 'lucide-react'
 import { SmartProjectorShowcase } from './components/SmartProjectorShowcase'
 import { TrustFeatures } from './components/TrustFeatures'
 import { FAQSection } from './components/FAQSection'
+import {
+  PremiumAccessBanner,
+  StatsBar,
+  WhyChoosePlayBeat,
+  LevelUpCta,
+} from './components/StorefrontShowcaseSections'
 import { QuickViewModal } from './components/QuickViewModal'
 import { CartDrawer } from './components/CartDrawer'
 import { WishlistDrawer } from './components/WishlistDrawer'
@@ -1789,6 +1795,10 @@ export function App() {
                 el?.scrollIntoView({ behavior: 'smooth' })
               }}
               onExploreSubscriptions={() => setSelectedCategory('Subscriptions')}
+              onBrowseCategories={() => {
+                const el = document.getElementById('shop-by-category')
+                el?.scrollIntoView({ behavior: 'smooth' })
+              }}
             />
           )}
 
@@ -1817,12 +1827,15 @@ export function App() {
           {selectedCategory === 'all' && !searchQuery && (
             <section id="popular-products-section" className="w-full py-8 bg-[#050814]">
               <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
-                <div className="flex items-center justify-between gap-4 mb-6">
+                <div className="flex items-center justify-between gap-4 mb-2">
                   <div>
-                    <span className="pb-eyebrow">Popular Products</span>
-                    <h2 className="text-xl sm:text-2xl font-extrabold pb-blue-heading tracking-tight mt-1">
-                      Top Picks for You
+                    <span className="pb-eyebrow">Featured Products</span>
+                    <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1 text-white">
+                      Top Picks <span className="pb-blue-heading">for You</span>
                     </h2>
+                    <p className="text-sm text-slate-400 mt-1.5">
+                      The most loved digital products. Trusted by millions worldwide.
+                    </p>
                   </div>
 
                   <button
@@ -1851,6 +1864,17 @@ export function App() {
                 </div>
               </div>
             </section>
+          )}
+
+          {/* Premium Access banner + Stats bar (design PDF sections) */}
+          {selectedCategory === 'all' && !searchQuery && (
+            <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+              <PremiumAccessBanner onCta={() => {
+                const el = document.getElementById('popular-products-section')
+                el?.scrollIntoView({ behavior: 'smooth' })
+              }} />
+              <StatsBar />
+            </div>
           )}
 
           {/* Main Full Catalog View */}
@@ -1997,6 +2021,20 @@ export function App() {
                   navigatePath(path)
                 }
               }} />
+            )}
+
+            {/* Why Choose PlayBeat + Level-up CTA (design PDF sections) */}
+            {selectedCategory === 'all' && !searchQuery && (
+              <>
+                <WhyChoosePlayBeat onExploreCategories={() => {
+                  const el = document.getElementById('shop-by-category')
+                  el?.scrollIntoView({ behavior: 'smooth' })
+                }} />
+                <LevelUpCta onCta={() => {
+                  const el = document.getElementById('popular-products-section')
+                  el?.scrollIntoView({ behavior: 'smooth' })
+                }} />
+              </>
             )}
 
             {/* Bottom Trust Features Bar (Matching Screenshot 3) */}

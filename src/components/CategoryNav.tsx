@@ -201,7 +201,7 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
     regCount != null ? regCount : products.filter((p) => p.category === name).length
 
   return (
-    <section className="w-full py-10 bg-gradient-to-b from-[#050814] via-[#060B1E] to-[#050814] relative overflow-hidden">
+    <section id="shop-by-category" className="w-full py-10 bg-gradient-to-b from-[#050814] via-[#060B1E] to-[#050814] relative overflow-hidden">
       {/* Ambient premium glow */}
       <div className="absolute -top-24 left-1/4 w-[500px] h-[250px] bg-[radial-gradient(ellipse,_rgba(255,193,7,0.07)_0%,_transparent_70%)] blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-1/4 w-[420px] h-[200px] bg-[radial-gradient(ellipse,_rgba(56,189,248,0.06)_0%,_transparent_70%)] blur-3xl pointer-events-none"></div>
@@ -230,75 +230,55 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
           </button>
         </div>
 
-        {/* Category Cards — premium color-coded tiles (DB registry driven) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* Category quick-strip — single dark card, hairline cell dividers,
+            uniform white icons (design PDF). DB registry still drives items. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px rounded-3xl overflow-hidden border border-white/[0.08] bg-white/[0.06] shadow-[0_0_40px_-14px_rgba(59,130,246,0.35)]">
           {displayCategories.map((cat) => {
-            const acc = CATEGORY_ACCENTS[cat.name] || {
-              icon: Layers,
-              from: 'from-slate-500/20',
-              to: 'to-slate-500/5',
-              ring: 'border-slate-400/60',
-              glow: 'bg-slate-500/40',
-              text: 'text-slate-300',
-              chipBg: 'bg-slate-500/15 text-slate-300 border-slate-400/30',
-            }
+            const acc = CATEGORY_ACCENTS[cat.name] || { icon: Layers }
             const Icon = acc.icon
             const isSelected = selectedCategory === cat.name
             const count = countFor(cat.name, (cat as any).count)
             const catHref = `/${ROUTE_BY_NAME[cat.name] || cat.slug || ''}`
 
             return (
-              <div key={cat.slug} className="relative group">
-                {/* Color glow beneath on hover / active */}
+              <a
+                key={cat.slug}
+                id={`cat-card-${cat.slug.replace(/\s+/g, '-').toLowerCase()}`}
+                href={catHref}
+                onClick={(e) => {
+                  e.preventDefault() // SPA navigation — handleSelectCategory pushes the real URL
+                  onSelectCategory(isSelected ? 'all' : cat.name)
+                }}
+                className={`w-full relative z-10 flex flex-col items-center text-center px-3 pt-5 pb-4 transition-all duration-300 ${
+                  isSelected
+                    ? 'bg-gradient-to-b from-sky-500/15 to-sky-500/[0.03] shadow-[inset_0_0_0_1.5px_rgba(56,189,248,0.55)]'
+                    : 'bg-[#0A101F] hover:bg-[#0C1327]'
+                }`}
+              >
+                {/* Icon */}
                 <div
-                  className={`absolute -bottom-2 inset-x-3 h-4 rounded-full blur-md transition duration-300 ${
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 border transition-all ${
                     isSelected
-                      ? `${acc.glow} opacity-100`
-                      : 'bg-transparent group-hover:opacity-80 opacity-0 group-hover:' + acc.glow.replace('bg-', 'bg-')
-                  }`}
-                ></div>
-
-                <a
-                  id={`cat-card-${cat.slug.replace(/\s+/g, '-').toLowerCase()}`}
-                  href={catHref}
-                  onClick={(e) => {
-                    e.preventDefault() // SPA navigation — handleSelectCategory pushes the real URL
-                    onSelectCategory(isSelected ? 'all' : cat.name)
-                  }}
-                  className={`w-full relative z-10 flex flex-col items-center text-center px-3 pt-5 pb-4 rounded-3xl transition-all duration-300 border ${
-                    isSelected
-                      ? `bg-gradient-to-b ${acc.from} ${acc.to} border-2 ${acc.ring} -translate-y-1 shadow-[0_10px_32px_rgba(0,0,0,0.45)]`
-                      : 'bg-[#0A101F]/80 border-slate-400/12 hover:border-slate-400/25 hover:-translate-y-1 hover:bg-[#0C1327]'
+                      ? 'bg-sky-400/15 text-sky-300 border-sky-400/40'
+                      : 'bg-white/[0.05] text-white/85 border-white/10'
                   }`}
                 >
-                  {/* Icon medallion */}
-                  <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 border transition-all ${
-                      isSelected
-                        ? `bg-white/10 ${acc.text} border-white/20`
-                        : 'bg-sky-400/10 text-sky-300 border-sky-400/20'
-                    }`}
-                    style={!isSelected ? { transition: 'all .3s' } : undefined}
-                  >
-                    <Icon className="w-[22px] h-[22px] stroke-[1.7]" />
-                  </div>
+                  <Icon className="w-[22px] h-[22px] stroke-[1.7]" />
+                </div>
 
-                  <span
-                    className={`text-[13px] font-semibold tracking-tight line-clamp-1 ${
-                      isSelected ? 'text-white' : 'text-slate-200'
-                    }`}
-                  >
-                    {cat.name}
-                  </span>
+                <span
+                  className={`text-[13px] font-semibold tracking-tight line-clamp-1 ${
+                    isSelected ? 'text-sky-200' : 'text-slate-200'
+                  }`}
+                >
+                  {cat.name}
+                </span>
 
-                  {/* Count chip — color coded */}
-                  <span
-                    className={`mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${acc.chipBg}`}
-                  >
-                    {count} items
-                  </span>
-                </a>
-              </div>
+                {/* Count — quiet, DB-accurate */}
+                <span className="mt-1.5 text-[10px] font-mono text-slate-500">
+                  {count} items
+                </span>
+              </a>
             )
           })}
         </div>

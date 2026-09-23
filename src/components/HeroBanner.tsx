@@ -1,10 +1,10 @@
 import React from 'react'
-import { ArrowRight, Zap, ShieldCheck, Star } from 'lucide-react'
-import { PlayBeatHeroVisual } from './BrandLogos'
+import { ArrowRight, ShieldCheck, Zap, Tag, Headphones } from 'lucide-react'
 
 interface HeroBannerProps {
   onExploreProducts: () => void
   onExploreSubscriptions: () => void
+  onBrowseCategories?: () => void
   productsCount?: number
   categoriesCount?: number
 }
@@ -12,62 +12,84 @@ interface HeroBannerProps {
 export const HeroBanner: React.FC<HeroBannerProps> = ({
   onExploreProducts,
   onExploreSubscriptions,
-  productsCount = 178,
-  categoriesCount = 6,
+  onBrowseCategories,
 }) => {
   return (
-    <section className="relative overflow-hidden pt-10 pb-14 bg-[#050814] border-b border-slate-400/10">
-      {/* Premium aurora backdrop — layered gold/blue depth */}
+    <section className="relative overflow-hidden pt-12 pb-20 bg-[#050814] border-b border-slate-400/10">
+      {/* Deep-space backdrop — glowing earth horizon + diagonal streaks (design PDF) */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -left-24 w-[640px] h-[420px] bg-[radial-gradient(ellipse,_rgba(255,193,7,0.10)_0%,_transparent_65%)] blur-3xl"></div>
-        <div className="absolute top-10 right-0 w-[560px] h-[400px] bg-[radial-gradient(ellipse,_rgba(37,99,235,0.16)_0%,_transparent_65%)] blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/3 w-[500px] h-[240px] bg-[radial-gradient(ellipse,_rgba(16,185,129,0.05)_0%,_transparent_70%)] blur-3xl"></div>
-        {/* Fine grid texture */}
+        <div className="absolute top-0 left-0 w-[560px] h-[360px] bg-[radial-gradient(ellipse,_rgba(37,99,235,0.14)_0%,_transparent_65%)] blur-3xl"></div>
+        <div className="absolute top-6 right-0 w-[620px] h-[420px] bg-[radial-gradient(ellipse,_rgba(56,189,248,0.10)_0%,_transparent_65%)] blur-3xl"></div>
+        {/* earth horizon arc glow at the section's bottom edge */}
         <div
-          className="absolute inset-0 opacity-[0.13]"
+          className="absolute -bottom-[420px] left-1/2 -translate-x-1/2 w-[1400px] h-[560px] rounded-[100%] opacity-70"
           style={{
-            backgroundImage:
-              'linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px)',
-            backgroundSize: '44px 44px',
-            maskImage: 'radial-gradient(ellipse 90% 80% at 50% 20%, black 30%, transparent 75%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 90% 80% at 50% 20%, black 30%, transparent 75%)',
+            background:
+              'radial-gradient(ellipse at 50% 0%, rgba(96,165,250,0.38) 0%, rgba(37,99,235,0.22) 30%, rgba(29,78,216,0.10) 55%, transparent 75%)',
+            filter: 'blur(6px)',
           }}
         ></div>
+        <div
+          className="absolute -bottom-[430px] left-1/2 -translate-x-1/2 w-[1300px] h-[520px] rounded-[100%] border-t border-blue-400/40"
+          style={{ boxShadow: '0 -18px 60px -10px rgba(59,130,246,0.45)' }}
+        ></div>
+        {/* diagonal light streaks */}
+        <div className="absolute -top-10 left-1/4 w-px h-[420px] bg-gradient-to-b from-transparent via-sky-300/20 to-transparent rotate-[28deg]"></div>
+        <div className="absolute -top-10 left-2/3 w-px h-[460px] bg-gradient-to-b from-transparent via-blue-400/15 to-transparent rotate-[28deg]"></div>
+        <div className="absolute -top-16 right-1/4 w-px h-[380px] bg-gradient-to-b from-transparent via-slate-200/10 to-transparent rotate-[28deg]"></div>
       </div>
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* Left Narrative */}
-          <div className="lg:col-span-7 space-y-7 text-left">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#081028]/80 backdrop-blur border border-sky-400/25 shadow-[0_0_24px_rgba(56,189,248,0.10)]">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-60"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
-              </span>
-              <span className="text-[11px] font-mono tracking-[0.18em] uppercase text-sky-200/90">
-                Pakistan&rsquo;s Premium Digital Marketplace
-              </span>
-            </div>
-
-            {/* Headline — gradient premium type */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[58px] font-extrabold uppercase tracking-tight leading-[1.08] text-white">
-              Your Digital World.
-              <br />
-              <span className="bg-gradient-to-r from-amber-200 via-[#FFC107] to-amber-400 bg-clip-text text-transparent drop-shadow-[0_0_28px_rgba(255,193,7,0.25)]">
-                One Marketplace.
-              </span>
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base text-slate-300/95 max-w-xl leading-relaxed">
-              Streaming, subscriptions, AI tools, software, gift cards, gaming and smart
-              technology — <span className="text-white font-medium">verified products, instant delivery</span> and
-              secure global payments in one place.
+          <div className="lg:col-span-7 space-y-6 text-left">
+            {/* Eyebrow */}
+            <p className="text-[11px] sm:text-xs font-semibold tracking-[0.26em] uppercase text-slate-200/90">
+              Premium Digital Products &amp; Subscriptions
             </p>
 
+            {/* Headline — all-white bold italic caps (design PDF) */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[58px] font-extrabold uppercase italic tracking-tight leading-[1.06] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">
+              Your World of
+              <br />
+              Digital Possibilities
+            </h1>
+
+            {/* Category bullet line */}
+            <p className="text-base sm:text-lg font-semibold text-white/95 tracking-tight">
+              Movies <span className="text-amber-400 mx-1">•</span> Streaming{' '}
+              <span className="text-amber-400 mx-1">•</span> Software{' '}
+              <span className="text-amber-400 mx-1">•</span> Games{' '}
+              <span className="text-amber-400 mx-1">•</span> Gadgets
+            </p>
+
+            {/* Tagline line */}
+            <p className="text-sm text-slate-400">
+              All in One Place. Genuine Products. Instant Delivery. Best Rates.
+            </p>
+
+            {/* Trust pills — gold circular icons (design PDF) */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {[
+                { icon: ShieldCheck, label: 'Genuine Products' },
+                { icon: Zap, label: 'Instant Delivery' },
+                { icon: Tag, label: 'Best Rates' },
+                { icon: Headphones, label: '24/7 Support' },
+              ].map((chip) => (
+                <span
+                  key={chip.label}
+                  className="inline-flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full border border-white/12 bg-white/[0.03] backdrop-blur-sm"
+                >
+                  <span className="w-8 h-8 rounded-full bg-amber-400/15 border border-amber-400/40 flex items-center justify-center shrink-0">
+                    <chip.icon className="w-4 h-4 text-amber-400" />
+                  </span>
+                  <span className="text-xs font-semibold text-white/90">{chip.label}</span>
+                </span>
+              ))}
+            </div>
+
             {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-4 pt-1">
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 rounded-full blur-md opacity-40 group-hover:opacity-90 transition duration-300 pointer-events-none"></div>
                 <button
@@ -82,45 +104,37 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
               <button
                 id="hero-view-subscriptions-btn"
-                onClick={onExploreSubscriptions}
-                className="px-6 py-3 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-slate-400/20 hover:border-slate-400/40 text-slate-200 hover:text-white text-sm font-semibold transition active:scale-95 backdrop-blur"
+                onClick={onBrowseCategories || onExploreSubscriptions}
+                className="px-6 py-3 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-blue-400/30 hover:border-blue-400/50 text-slate-200 hover:text-white text-sm font-semibold transition active:scale-95 backdrop-blur"
               >
-                View Subscriptions
+                Browse Categories
               </button>
-            </div>
-
-            {/* Live stats strip */}
-            <div className="flex flex-wrap items-center gap-x-7 gap-y-3 pt-3">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-sky-400" />
-                </span>
-                <span className="text-xs text-slate-300">
-                  <span className="font-bold text-white font-mono">{productsCount}+</span> products in stock
-                </span>
-              </div>
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
-                  <Star className="w-4 h-4 text-sky-400" />
-                </span>
-                <span className="text-xs text-slate-300">
-                  <span className="font-bold text-white font-mono">{categoriesCount}</span> curated categories
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-sky-400/10 border border-sky-400/25 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4 text-sky-400" />
-                </span>
-                <span className="text-xs text-slate-300">
-                  <span className="font-bold text-white font-mono">100%</span> genuine &amp; warranted
-                </span>
-              </div>
             </div>
           </div>
 
-          {/* Right 3D Visual */}
-          <div className="lg:col-span-5 flex items-center justify-center relative">
-            <PlayBeatHeroVisual />
+          {/* Right Brand Visual — 3D logo composition (design PDF) */}
+          <div className="lg:col-span-5 flex flex-col items-center justify-center relative text-center">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-[radial-gradient(circle,_rgba(59,130,246,0.20)_0%,_transparent_65%)] blur-3xl pointer-events-none"></div>
+            <img
+              src="/playbeat-logo.png"
+              alt="PlayBeat Digital"
+              className="relative w-44 sm:w-56 h-auto object-contain drop-shadow-[0_10px_40px_rgba(59,130,246,0.45)]"
+            />
+            <div className="relative mt-5">
+              <div className="text-4xl sm:text-5xl font-black italic tracking-tight text-silver-gradient leading-none">
+                PLAY<span className="text-sky-400">BEAT</span>
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-3">
+                <span className="h-px w-10 bg-gradient-to-r from-transparent to-sky-400/70"></span>
+                <span className="text-sm sm:text-base font-bold tracking-[0.42em] text-white/90">
+                  DIGITAL
+                </span>
+                <span className="h-px w-10 bg-gradient-to-l from-transparent to-sky-400/70"></span>
+              </div>
+            </div>
+            <p className="relative mt-5 text-[11px] font-semibold tracking-[0.24em] uppercase text-sky-300/90">
+              The Gateway to Digital Subscriptions
+            </p>
           </div>
         </div>
       </div>

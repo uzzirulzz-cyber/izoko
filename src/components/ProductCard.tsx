@@ -23,16 +23,21 @@ const CAT_CHIP: Record<string, string> = {
   'Smart Projectors': 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30',
 }
 
-// Per-category card glow on hover (mirrors the reference's brand-colored card halos)
+// Electric-blue hover halo used by every card (design PDF: glowing blue borders)
+const BLUE_GLOW =
+  'group-hover:border-blue-400/60 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_26px_-4px_rgba(59,130,246,0.5)]'
+
+// Per-category card glow on hover — uniform electric-blue halo per the design PDF
+// (kept as a map so the lookup contract is unchanged)
 const CAT_GLOW: Record<string, string> = {
-  Streaming: 'group-hover:border-rose-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(244,63,94,0.35)]',
-  Subscriptions: 'group-hover:border-emerald-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(16,185,129,0.35)]',
-  'Gift Cards': 'group-hover:border-amber-400/60 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(250,204,21,0.4)]',
-  Gaming: 'group-hover:border-indigo-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(99,102,241,0.38)]',
-  Software: 'group-hover:border-purple-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(168,85,247,0.38)]',
-  'Smart Projectors': 'group-hover:border-cyan-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_22px_-4px_rgba(34,211,238,0.38)]',
+  Streaming: BLUE_GLOW,
+  Subscriptions: BLUE_GLOW,
+  'Gift Cards': BLUE_GLOW,
+  Gaming: BLUE_GLOW,
+  Software: BLUE_GLOW,
+  'Smart Projectors': BLUE_GLOW,
 }
-const DEFAULT_GLOW = 'group-hover:border-amber-400/50 group-hover:shadow-[0_18px_44px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,193,7,0.18)]'
+const DEFAULT_GLOW = BLUE_GLOW
 
 interface ProductCardProps {
   product: Product
@@ -95,13 +100,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <div className="relative group">
-      {/* Premium lift + gold halo on hover */}
-      <div className="absolute -inset-0.5 rounded-[24px] bg-gradient-to-b from-amber-300/60 via-yellow-400/25 to-transparent opacity-0 group-hover:opacity-100 blur-[6px] transition-all duration-500 pointer-events-none"></div>
+      {/* Electric-blue lift + halo on hover (design PDF) */}
+      <div className="absolute -inset-0.5 rounded-[24px] bg-gradient-to-b from-blue-500/50 via-sky-400/20 to-transparent opacity-0 group-hover:opacity-100 blur-[6px] transition-all duration-500 pointer-events-none"></div>
 
       <div
         id={`product-card-${product.id}`}
         onClick={() => onQuickView(product)}
-        className={`relative flex flex-col h-full rounded-[22px] bg-gradient-to-b from-[#0C1428] to-[#0A101F] border border-white/[0.07] overflow-hidden transition-all duration-300 cursor-pointer group-hover:-translate-y-1 shadow-[0_8px_28px_rgba(0,0,0,0.45)] p-3 ${catGlow}`}
+        className={`relative flex flex-col h-full rounded-[22px] bg-gradient-to-b from-[#0C1428] to-[#0A101F] border border-blue-500/25 overflow-hidden transition-all duration-300 cursor-pointer group-hover:-translate-y-1 shadow-[0_0_0_1px_rgba(59,130,246,0.08),0_8px_28px_rgba(0,0,0,0.45)] p-3 ${catGlow}`}
       >
         {/* Media */}
         <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#060D26]">
