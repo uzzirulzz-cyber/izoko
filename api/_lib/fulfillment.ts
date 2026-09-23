@@ -20,6 +20,7 @@ import { writeAudit } from "./audit.js";
 import { ensureInvoiceForOrder } from "./invoice.js";
 import { sendEmail, orderPaidEmail, isEmailConfigured } from "./email.js";
 import { sendOrderNotification } from "./whatsapp.js";
+import { sendMetaPurchase } from "./metaCapi.js";
 
 function genKey(skuHint: string): string {
   const seg = () => Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -226,6 +227,16 @@ export async function fulfillPaidOrder(
   } catch (waErr: any) {
     whatsappStatus = `failed:${waErr?.message || "exception"}`;
     console.error("fulfillment: whatsapp notification failed:", waErr?.message);
+  }
+
+  // ---- 5c. Meta Conversions API Purchase (server-verified, ad-blocker-proof).
+  // Runs ONCE per order thanks to the fulfillments ledger above — Rapid webhook
+  // retries and dual webhook paths can never double-fire the event. Best-effort:
+  // unconfigured = no-op, failures never bubble into the webhook outcome. ----
+  try {
+    await sendMetaPurchase(freshOrder, `fulfillment:${opts.source}`);
+  } catch (capiErr: any) {
+    console.error("fulfillment: meta purchase event failed:", capiErr?.message);
   }
 
   // ---- 6. Confirmation email (only when a provider is configured) ----

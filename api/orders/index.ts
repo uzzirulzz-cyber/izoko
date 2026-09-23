@@ -20,6 +20,7 @@ import {
 } from "../_lib/coupons.js";
 import { ensureInvoiceForOrder } from "../_lib/invoice.js";
 import { sendOrderNotification } from "../_lib/whatsapp.js";
+import { sendMetaPurchase } from "../_lib/metaCapi.js";
 
 /** Is this DB product stock-tracked (finite) or unlimited (digital default)? */
 function isFiniteStock(doc: any): boolean {
@@ -552,6 +553,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         await sendOrderNotification("order_placed", db, orderDoc);
       } catch (waErr: any) {
         console.error("order_placed whatsapp notification failed:", waErr?.message);
+      }
+
+      // ---- Meta Conversions API Purchase (instant-paid orders only).
+      // Rapid orders fire their Purchase from the payment webhook via
+      // fulfillPaidOrder instead — this keeps exactly one Purchase per order.
+      // Best-effort by design: unconfigured = no-op, failures never fail checkout. ----
+      try {
+        if (!isRapidPayment) await sendMetaPurchase(orderDoc, "order:create");
+      } catch (capiErr: any) {
+        console.error("order:create meta purchase event failed:", capiErr?.message);
       }
 
       // Pending Rapid orders: never echo keys or act like payment happened.

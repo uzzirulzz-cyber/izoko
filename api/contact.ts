@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "./_lib/mongo.js";
 import { handleOptions, jsonOk, jsonError } from "./_lib/auth.js";
+import { sendMetaLead } from "./_lib/metaCapi.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
@@ -20,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const db = await getDb();
     const contactsCol = db.collection("contact_messages");
-    await contactsCol.insertOne({
+    const inserted = await contactsCol.insertOne({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       subject: subject || "Customer Inquiry",
@@ -28,6 +29,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: "new",
       createdAt: new Date(),
     });
+
+    // ---- Meta Conversions API Lead (mirrors the official Lead payload).
+    // Best-effort: unconfigured = no-op, failures never fail the form. ----
+    try {
+      await sendMetaLead({ email, leadId: String(inserted.insertedId), source: "contact_form" });
+    } catch { /* non-blocking */ }
 
     return jsonOk(res, {
       success: true,
