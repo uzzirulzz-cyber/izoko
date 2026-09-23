@@ -6,24 +6,87 @@
 //                 this once-per-order even across Rapid webhook retries)
 //   - Lead      : fired when a customer submits the contact form
 //
-// Config (Vercel environment variables — the token is a SECRET and must never
-// live in the DB, mirroring the trackingConfig.ts policy):
-//   META_CAPI_ACCESS_TOKEN     System-user token from Events Manager (required to send)
+// Config (in priority order — DB config wins, mirroring whatsapp.ts):
+//   META_CAPI_ACCESS_TOKEN     System-user token from Events Manager (SECRET)
 //   META_PIXEL_ID              optional override (default: the live pixel)
 //   META_CAPI_TEST_EVENT_CODE  optional — routes events to Events Manager
 //                              "Test Events" instead of live traffic
-//
-// EVERYTHING here is best-effort: with no token configured every call is a
-// no-op, and any delivery failure is logged to `meta_capi_log` and swallowed —
-// checkout, webhooks and the contact form must NEVER fail because of Meta.
+// Runtime overrides live in the `meta_capi_config` Mongo collection (doc
+// key:"active") — the same DB-secret pattern as whatsapp_config / gateway
+// config. The token is NEVER returned by any public endpoint; only masked.
 import { getDb } from "./mongo.js";
 
 const DEFAULT_PIXEL_ID = "1971402550484565";
 const GRAPH_VERSION = "v19.0";
 const TIMEOUT_MS = 4000;
+const CONFIG_TTL_MS = 30_000;
 
-function pixelId(): string {
-  return (process.env.META_PIXEL_ID || DEFAULT_PIXEL_ID).trim();
+type MetaCapiConfig = {
+  accessToken: string;
+  pixelId: string;
+  testEventCode: string;
+};
+
+type MetaCapiSource = {
+  accessToken: "db" | "env" | "none";
+  pixelId: "db" | "env" | "default";
+  testEventCode: "db" | "env" | "none";
+};
+
+let cfgCache: { value: MetaCapiConfig; source: MetaCapiSource; at: number } | null = null;
+
+export function maskToken(token: string): string {
+  return `${token.slice(0, 6)}…${token.slice(-4)} (${token.length} chars)`;
+}
+
+async function getMetaCapiConfig(force = false): Promise<MetaCapiConfig> {
+  if (!force && cfgCache && Date.now() - cfgCache.at < CONFIG_TTL_MS) {
+    return cfgCache.value;
+  }
+
+  const value: MetaCapiConfig = {
+    accessToken: (process.env.META_CAPI_ACCESS_TOKEN || "").trim(),
+    pixelId: (process.env.META_PIXEL_ID || "").trim() || DEFAULT_PIXEL_ID,
+    testEventCode: (process.env.META_CAPI_TEST_EVENT_CODE || "").trim(),
+  };
+
+  try {
+    const db = await getDb();
+    const dbDoc: any = await db.collection("meta_capi_config").findOne({ key: "active" });
+    if (dbDoc && typeof dbDoc === "object") {
+      for (const key of ["accessToken", "pixelId", "testEventCode"] as const) {
+        const v = dbDoc[key];
+        if (typeof v === "string" && v.trim() !== "") value[key] = v.trim();
+      }
+    }
+  } catch {
+    /* DB unavailable — env-only fallback */
+  }
+
+  cfgCache = { value, source: {} as any, at: Date.now() };
+  return value;
+}
+
+/** Runtime config audit helper (masked — safe for logs/admin). */
+export async function getMetaCapiStatus(): Promise<{
+  configured: boolean;
+  source: string;
+  pixelId: string;
+  testMode: boolean;
+}> {
+  const envToken = (process.env.META_CAPI_ACCESS_TOKEN || "").trim();
+  const { accessToken, pixelId, testEventCode } = await getMetaCapiConfig(true);
+  const source = accessToken
+    ? accessToken === envToken
+      ? "env"
+      : "db"
+    : "none";
+  return {
+    configured: Boolean(accessToken),
+    source,
+    pixelId,
+    testMode: Boolean(testEventCode),
+  };
 }
 
 export function isMetaCapiConfigured(): boolean {
@@ -62,13 +125,12 @@ async function deliver(
   event: MetaEvent,
   ctx: { source: string }
 ): Promise<void> {
-  const token = (process.env.META_CAPI_ACCESS_TOKEN || "").trim();
-  if (!token) return; // unconfigured → silent no-op (zero behavior change)
+  const cfg = await getMetaCapiConfig();
+  if (!cfg.accessToken) return; // unconfigured → silent no-op (zero behavior change)
 
-  const testCode = (process.env.META_CAPI_TEST_EVENT_CODE || "").trim();
-  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${pixelId()}/events?access_token=${encodeURIComponent(token)}`;
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${cfg.pixelId}/events?access_token=${encodeURIComponent(cfg.accessToken)}`;
   const body: Record<string, unknown> = { data: [event] };
-  if (testCode) body.test_event_code = testCode;
+  if (cfg.testEventCode) body.test_event_code = cfg.testEventCode;
 
   let ok = false;
   let status = 0;
@@ -114,7 +176,7 @@ async function deliver(
 // dedupes against this server event in Events Manager.
 export async function sendMetaPurchase(order: any, source: string): Promise<void> {
   try {
-    if (!isMetaCapiConfigured()) return;
+    if (!(await getMetaCapiConfig()).accessToken) return;
     const items = Array.isArray(order?.items) ? order.items : [];
     const contents = items.map((it: any) => ({
       id: String(it.productId || it.id || it.name || "item").slice(0, 64),
@@ -153,7 +215,7 @@ export async function sendMetaLead(input: {
   source?: string;
 }): Promise<void> {
   try {
-    if (!isMetaCapiConfigured()) return;
+    if (!(await getMetaCapiConfig()).accessToken) return;
     const em = normEmail(input.email);
     const event: MetaEvent = {
       event_name: "Lead",
