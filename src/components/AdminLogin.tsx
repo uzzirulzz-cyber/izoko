@@ -180,7 +180,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-[#f0f6ff] border border-blue-100 shadow-lg mb-3">
               <img
-                src="/assets/images/playbeat/playbeat-3d-mark.png"
+                src="/assets/images/playbeat/playbeat-3d-mark-light.png"
                 alt="PlayBeat Digital"
                 className="h-14 w-auto object-contain drop-shadow-[0_0_14px_rgba(61,127,247,0.45)] animate-[adminLogoFloat_5s_ease-in-out_infinite]"
               />
