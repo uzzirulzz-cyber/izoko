@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { ArrowRight, ShieldCheck, Zap, Tag, Headphones } from 'lucide-react'
 
 interface HeroBannerProps {
@@ -14,6 +14,19 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onExploreSubscriptions,
   onBrowseCategories,
 }) => {
+  // Dynamic 3D logo: pointer-parallax tilt (spring-less, rAF-free — cheap and smooth)
+  const tiltRef = useRef<HTMLDivElement>(null)
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0 })
+
+  const handleTilt = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = tiltRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const px = (e.clientX - rect.left) / rect.width - 0.5
+    const py = (e.clientY - rect.top) / rect.height - 0.5
+    setTilt({ rx: -py * 10, ry: px * 12 })
+  }
+
   return (
     <section className="relative overflow-hidden pt-12 pb-20 bg-[#050814] border-b border-slate-400/10">
       {/* Deep-space backdrop — glowing earth horizon + diagonal streaks (design PDF) */}
@@ -112,29 +125,38 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </div>
           </div>
 
-          {/* Right Brand Visual — 3D logo composition (design PDF) */}
+          {/* Right Brand Visual — new 3D logo composition, dynamic (float + glow + shine + tilt) */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center relative text-center">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-[radial-gradient(circle,_rgba(59,130,246,0.20)_0%,_transparent_65%)] blur-3xl pointer-events-none"></div>
-            <img
-              src="/playbeat-logo.png"
-              alt="PlayBeat Digital"
-              className="relative w-44 sm:w-56 h-auto object-contain drop-shadow-[0_10px_40px_rgba(59,130,246,0.45)]"
-            />
-            <div className="relative mt-5">
-              <div className="text-4xl sm:text-5xl font-black italic tracking-tight text-silver-gradient leading-none">
-                PLAY<span className="text-sky-400">BEAT</span>
-              </div>
-              <div className="mt-2 flex items-center justify-center gap-3">
-                <span className="h-px w-10 bg-gradient-to-r from-transparent to-sky-400/70"></span>
-                <span className="text-sm sm:text-base font-bold tracking-[0.42em] text-white/90">
-                  DIGITAL
-                </span>
-                <span className="h-px w-10 bg-gradient-to-l from-transparent to-sky-400/70"></span>
+            {/* breathing glow behind the logo */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[460px] h-[460px] bg-[radial-gradient(circle,_rgba(59,130,246,0.22)_0%,_transparent_65%)] blur-3xl pointer-events-none animate-[logoGlowPulse_5s_ease-in-out_infinite]"></div>
+
+            <div
+              ref={tiltRef}
+              onMouseMove={handleTilt}
+              onMouseLeave={() => setTilt({ rx: 0, ry: 0 })}
+              className="relative [perspective:900px]"
+            >
+              {/* float layer (translateY) and tilt layer (rotateX/Y) are separate so transforms don't fight */}
+              <div className="relative animate-[heroFloat_6s_ease-in-out_infinite] will-change-transform">
+                <div
+                  className="relative transition-transform duration-200 ease-out will-change-transform"
+                  style={{ transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)` }}
+                >
+                  <img
+                    src="/assets/images/playbeat/playbeat-3d-hero.png"
+                    alt="PlayBeat Digital — The Gateway to Digital Subscriptions"
+                    width={795}
+                    height={596}
+                    className="relative w-64 sm:w-80 lg:w-[380px] xl:w-[430px] h-auto object-contain drop-shadow-[0_18px_50px_rgba(59,130,246,0.5)]"
+                  />
+                  {/* shine sweep — masked to the logo pixels only */}
+                  <span
+                    aria-hidden
+                    className="hero-logo-shine pointer-events-none absolute inset-0 animate-[heroShine_4.5s_ease-in-out_infinite]"
+                  ></span>
+                </div>
               </div>
             </div>
-            <p className="relative mt-5 text-[11px] font-semibold tracking-[0.24em] uppercase text-sky-300/90">
-              The Gateway to Digital Subscriptions
-            </p>
           </div>
         </div>
       </div>

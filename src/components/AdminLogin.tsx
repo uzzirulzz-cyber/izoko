@@ -176,13 +176,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
             <X className="w-4 h-4" />
           </button>
 
-          {/* Brand */}
+          {/* Brand — new 3D logo mark, gently floating */}
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-[#f0f6ff] border border-blue-100 shadow-lg mb-3">
               <img
-                src="/playbeat-logo.png"
-                alt="PlayBeat"
-                className="h-10 w-auto object-contain drop-shadow-[0_0_12px_rgba(61,127,247,0.4)]"
+                src="/assets/images/playbeat/playbeat-3d-mark.png"
+                alt="PlayBeat Digital"
+                className="h-14 w-auto object-contain drop-shadow-[0_0_14px_rgba(61,127,247,0.45)] animate-[adminLogoFloat_5s_ease-in-out_infinite]"
               />
             </div>
             <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">

@@ -354,3 +354,51 @@
 .pb-store .btn-gold-gradient {
   background: linear-gradient(135deg, #FDE047 0%, #FACC15 55%, #F59E0B 100%);
 }
+
+/* ── Hero 3D logo dynamics (PlayBeat 3D brand mark) ───────────────────────── */
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+@keyframes logoGlowPulse {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.94); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+}
+
+/* Diagonal light band sweeping across the logo; the PNG itself is used as the
+   mask so the glint only lights up actual logo pixels (chrome, bolt, text). */
+.hero-logo-shine {
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(186, 230, 253, 0.55) 54%,
+    transparent 66%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  background-position: 120% 0;
+  mix-blend-mode: overlay;
+  -webkit-mask-image: url('/assets/images/playbeat/playbeat-3d-hero.png');
+  mask-image: url('/assets/images/playbeat/playbeat-3d-hero.png');
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+@keyframes heroShine {
+  0% { background-position: 130% 0; }
+  55%, 100% { background-position: -80% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-logo-shine { animation: none !important; }
+}
+
+@keyframes adminLogoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
