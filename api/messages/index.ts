@@ -296,6 +296,166 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return jsonOk(res, { items: filtered, total: filtered.length });
     }
 
+    // ─── WHATSAPP SEND — send real WhatsApp message via Cloud API ────
+    if (crmSegs[0] === "whatsapp-send" && req.method === "POST") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const { to, text } = req.body || {};
+      if (!to) return jsonError(res, "Recipient phone number required", 400);
+      if (!text) return jsonError(res, "Message text required", 400);
+
+      // Get WhatsApp config from env + DB
+      let phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
+      let accessToken = process.env.WHATSAPP_ACCESS_TOKEN || "";
+      let graphVersion = process.env.WHATSAPP_GRAPH_VERSION || "v25.0";
+
+      try {
+        const waDoc = await db.collection("whatsapp_config").findOne({});
+        if (waDoc) {
+          if (waDoc.phoneNumberId) phoneNumberId = waDoc.phoneNumberId;
+          if (waDoc.accessToken) accessToken = waDoc.accessToken;
+          if (waDoc.graphVersion) graphVersion = waDoc.graphVersion;
+        }
+      } catch {}
+
+      if (!phoneNumberId || !accessToken) {
+        return jsonError(res, "WhatsApp not configured. Set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN env vars or configure in Admin → WhatsApp Business.", 400);
+      }
+
+      const recipient = String(to).replace(/[^\d]/g, "");
+      if (recipient.length < 8) return jsonError(res, "Invalid phone number", 400);
+
+      const payload = {
+        messaging_product: "whatsapp",
+        to: recipient,
+        type: "text",
+        text: { body: String(text) },
+      };
+
+      try {
+        const waRes = await fetch(
+          `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }
+        );
+        const waBody = await waRes.json().catch(() => ({}));
+
+        // Log the message
+        try {
+          await db.collection("whatsapp_messages").insertOne({
+            at: new Date(), to: recipient, kind: "text", ok: waRes.ok,
+            wamid: waBody?.messages?.[0]?.id || null,
+            error: waRes.ok ? null : (waBody?.error?.message || `HTTP ${waRes.status}`),
+            actor: user.email || "crm",
+            body: String(text),
+            direction: "outbound",
+          });
+        } catch {}
+
+        // Also create/update a conversation for this recipient
+        try {
+          const conv = await convCol.findOne({ customerPhone: recipient, channel: "WHATSAPP" });
+          if (!conv) {
+            await convCol.insertOne({
+              type: "live_support", status: "open", channel: "WHATSAPP",
+              customerName: `WhatsApp ${recipient}`, customerPhone: recipient,
+              customerId: null, lastMessage: String(text),
+              lastMessageAt: new Date(), unreadCount: 0,
+              createdAt: new Date(), updatedAt: new Date(),
+            });
+          } else {
+            await convCol.updateOne({ _id: conv._id }, { $set: { lastMessage: String(text), lastMessageAt: new Date(), updatedAt: new Date() } });
+          }
+          // Add message to chat_messages
+          await msgCol.insertOne({
+            conversationId: conv ? conv._id : null,
+            senderType: "staff", senderId: user.id, senderName: user.name || user.email,
+            senderEmail: user.email, body: String(text), direction: "OUTBOUND",
+            channel: "WHATSAPP", status: waRes.ok ? "SENT" : "FAILED",
+            providerId: waBody?.messages?.[0]?.id || null,
+            createdAt: new Date(),
+          });
+        } catch {}
+
+        if (!waRes.ok) {
+          return jsonError(res, waBody?.error?.message || "WhatsApp send failed", 502);
+        }
+        return jsonOk(res, { success: true, messageId: waBody?.messages?.[0]?.id, response: waBody });
+      } catch (e: any) {
+        return jsonError(res, e?.message || "WhatsApp send error", 500);
+      }
+    }
+
+    // ─── WHATSAPP LOG — fetch sent/received WhatsApp messages ──────
+    if (crmSegs[0] === "whatsapp-log" && req.method === "GET") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const phone = url.searchParams.get("phone");
+      const filter: any = {};
+      if (phone) filter.to = String(phone).replace(/[^\d]/g, "");
+      const messages = await db.collection("whatsapp_messages").find(filter).sort({ at: -1 }).limit(100).toArray();
+      return jsonOk(res, { messages });
+    }
+
+    // ─── WHATSAPP CONVERSATIONS — list WhatsApp-specific threads ───
+    if (crmSegs[0] === "whatsapp-conversations" && req.method === "GET") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      // Get conversations that have WhatsApp messages
+      const conversations = await convCol.find({
+        $or: [{ channel: "WHATSAPP" }, { customerPhone: { $exists: true, $ne: null } }]
+      }).sort({ lastMessageAt: -1 }).limit(100).toArray();
+
+      // Also get unique recipients from whatsapp_messages
+      const waMessages = await db.collection("whatsapp_messages").find({}).sort({ at: -1 }).limit(100).toArray();
+      const waPhones = new Map<string, any>();
+      for (const m of waMessages) {
+        if (!waPhones.has(m.to)) {
+          waPhones.set(m.to, {
+            id: `wa_${m.to}`,
+            name: `WhatsApp ${m.to}`,
+            phone: m.to,
+            lastMessage: m.body || m.kind,
+            lastActivity: m.at,
+            unreadCount: 0,
+            channel: "WHATSAPP",
+            direction: m.direction || "outbound",
+            ok: m.ok,
+          });
+        }
+      }
+
+      // Merge: conversations from chat_conversations + unique WhatsApp recipients
+      const items = [];
+      const seenPhones = new Set<string>();
+      for (const c of conversations) {
+        const phone = c.customerPhone || "";
+        if (phone) seenPhones.add(phone.replace(/[^\d]/g, ""));
+        items.push({
+          id: String(c._id),
+          name: c.customerName || `WhatsApp ${phone}`,
+          phone,
+          email: null,
+          lastMessage: typeof c.lastMessage === "string" ? c.lastMessage : (c.lastMessage?.body || ""),
+          lastActivity: c.lastMessageAt || c.createdAt,
+          unreadCount: c.unreadCount || 0,
+          channel: c.channel || "WHATSAPP",
+          status: c.status || "open",
+        });
+      }
+      // Add WhatsApp-only recipients not in conversations
+      for (const [phone, data] of waPhones) {
+        if (!seenPhones.has(phone.replace(/[^\d]/g, ""))) {
+          items.push(data);
+        }
+      }
+      items.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+      return jsonOk(res, { items, total: items.length });
+    }
+
     return jsonError(res, "CRM route not found", 404);
   }
   // ─── END CRM ROUTES ──────────────────────────────────

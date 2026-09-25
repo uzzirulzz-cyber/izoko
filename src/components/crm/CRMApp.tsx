@@ -250,14 +250,17 @@ function WhatsAppView() {
   const [conversations, setConversations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState<any | null>(null)
-  const [thread, setThread] = useState<any[]>([])
+  const [waLog, setWaLog] = useState<any[]>([])
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [showNewChat, setShowNewChat] = useState(false)
+  const [newPhone, setNewPhone] = useState('')
+  const [newMessage, setNewMessage] = useState('')
 
   async function loadConversations() {
     setLoading(true)
     try {
-      const r = await api('/api/messages/crm/inbox?filter=whatsapp')
+      const r = await api('/api/messages/crm/whatsapp-conversations')
       setConversations(r.items || [])
     } catch {} finally { setLoading(false) }
   }
@@ -265,23 +268,39 @@ function WhatsAppView() {
   async function openConversation(c: any) {
     setActive(c)
     try {
-      // Use the messages API to fetch the thread
-      const r = await api(`/api/messages/conversations/${c.id}`)
-      setThread(r.thread?.messages || [])
-    } catch { setThread([]) }
+      // Fetch WhatsApp message log for this phone number
+      const phone = c.phone || c.id?.replace('wa_', '') || ''
+      const r = await api(`/api/messages/crm/whatsapp-log?phone=${phone}`)
+      setWaLog(r.messages || [])
+    } catch { setWaLog([]) }
   }
 
-  async function sendReply() {
+  async function sendWhatsApp() {
     if (!active || !reply.trim()) return
     setSending(true)
     try {
-      await api(`/api/messages/conversations/${active.id}/reply`, {
-        method: 'POST', body: JSON.stringify({ body: reply })
+      const phone = active.phone || active.id?.replace('wa_', '') || ''
+      await api('/api/messages/crm/whatsapp-send', {
+        method: 'POST', body: JSON.stringify({ to: phone, text: reply })
       })
       setReply('')
-      // Refresh thread
-      const r = await api(`/api/messages/conversations/${active.id}`)
-      setThread(r.thread?.messages || [])
+      // Refresh log
+      const r = await api(`/api/messages/crm/whatsapp-log?phone=${phone}`)
+      setWaLog(r.messages || [])
+      loadConversations()
+    } catch (e: any) { alert(e.message) } finally { setSending(false) }
+  }
+
+  async function startNewChat() {
+    if (!newPhone.trim() || !newMessage.trim()) return
+    setSending(true)
+    try {
+      await api('/api/messages/crm/whatsapp-send', {
+        method: 'POST', body: JSON.stringify({ to: newPhone, text: newMessage })
+      })
+      setNewPhone('')
+      setNewMessage('')
+      setShowNewChat(false)
       loadConversations()
     } catch (e: any) { alert(e.message) } finally { setSending(false) }
   }
@@ -293,8 +312,25 @@ function WhatsAppView() {
       {/* Left — conversation list */}
       <div className={`w-full md:w-80 shrink-0 border-r border-slate-200 flex flex-col ${active ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-slate-200">
-          <h2 className="font-semibold flex items-center gap-2 text-[#0B1220]"><MessageCircle className="w-4 h-4 text-emerald-500" /> WhatsApp</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Customer conversations</p>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold flex items-center gap-2 text-[#0B1220]"><MessageCircle className="w-4 h-4 text-emerald-500" /> WhatsApp</h2>
+            <button onClick={() => setShowNewChat(!showNewChat)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-md font-medium flex items-center gap-1">
+              <Plus className="w-3 h-3" /> New
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">Real WhatsApp Business Cloud API</p>
+          {showNewChat && (
+            <div className="mt-3 space-y-2 bg-slate-50 p-3 rounded-lg">
+              <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="Phone (e.g. +923001234567)"
+                className="w-full text-sm border border-slate-200 rounded-md p-2 focus:outline-none focus:border-emerald-500" />
+              <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="First message…" rows={2}
+                className="w-full text-sm border border-slate-200 rounded-md p-2 resize-none focus:outline-none focus:border-emerald-500" />
+              <button onClick={startNewChat} disabled={sending || !newPhone.trim() || !newMessage.trim()}
+                className="w-full bg-emerald-500 text-white text-sm py-1.5 rounded-md font-medium disabled:opacity-40">
+                {sending ? 'Sending…' : 'Send via WhatsApp'}
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {loading && <div className="p-6 text-center text-sm text-slate-500">Loading…</div>}
@@ -302,7 +338,7 @@ function WhatsAppView() {
             <div className="p-6 text-center text-sm text-slate-500">
               <MessageCircle className="w-10 h-10 mx-auto opacity-30 mb-2" />
               No conversations yet.<br />
-              <span className="text-xs">Inbound messages from the storefront chat appear here.</span>
+              <span className="text-xs">Click "New" to start a WhatsApp chat with any number.</span>
             </div>
           )}
           {conversations.map((c) => (
@@ -318,7 +354,9 @@ function WhatsAppView() {
                     {c.lastActivity && <span className="text-xs text-slate-400 shrink-0">{new Date(c.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>}
                   </div>
                   <div className="flex justify-between gap-2 mt-0.5">
-                    <span className="text-xs text-slate-500 truncate">{typeof c.lastMessage === 'string' ? c.lastMessage : (c.lastMessage?.body || c.lastMessage || '—')}</span>
+                    <span className="text-xs text-slate-500 truncate">
+                      {typeof c.lastMessage === 'string' ? c.lastMessage : (c.lastMessage?.body || c.direction === 'outbound' ? 'Sent' : '—')}
+                    </span>
                     {c.unreadCount > 0 && <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{c.unreadCount}</span>}
                   </div>
                 </div>
@@ -339,27 +377,31 @@ function WhatsAppView() {
               </div>
               <div>
                 <div className="font-medium text-sm text-[#0B1220]">{active.name || active.phone}</div>
-                <div className="text-xs text-slate-500">{active.phone || active.email}</div>
+                <div className="text-xs text-slate-500">{active.phone}</div>
+              </div>
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">WhatsApp Cloud API</span>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50">
-              {thread.length === 0 && <div className="text-sm text-slate-500 text-center py-8">No messages yet.</div>}
-              {thread.map((m) => (
-                <div key={m.id || m._id} className={`flex ${m.senderType === 'staff' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm ${m.senderType === 'staff' ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-200'}`}>
-                    <div className="whitespace-pre-wrap">{m.body}</div>
-                    <div className={`text-[10px] mt-0.5 ${m.senderType === 'staff' ? 'text-emerald-100' : 'text-slate-400'}`}>
-                      {m.senderName} · {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}
+              {waLog.length === 0 && <div className="text-sm text-slate-500 text-center py-8">No messages yet. Send the first message below.</div>}
+              {waLog.map((m, i) => (
+                <div key={i} className={`flex ${(m.direction === 'outbound' || m.actor) ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm ${(m.direction === 'outbound' || m.actor) ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-200'}`}>
+                    <div className="whitespace-pre-wrap">{m.body || m.kind || 'Message'}</div>
+                    <div className={`text-[10px] mt-0.5 ${(m.direction === 'outbound' || m.actor) ? 'text-emerald-100' : 'text-slate-400'}`}>
+                      {m.direction === 'outbound' || m.actor ? `Sent by ${m.actor || 'You'}` : 'Received'} · {m.at ? new Date(m.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}
+                      {m.ok === false && ' · FAILED'}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             <div className="border-t border-slate-200 p-3 bg-white flex gap-2">
-              <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type a reply…" rows={1}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+              <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type a WhatsApp message…" rows={1}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWhatsApp() } }}
                 className="flex-1 text-sm border border-slate-200 rounded-lg p-2 resize-none focus:outline-none focus:border-emerald-500" />
-              <button onClick={sendReply} disabled={sending || !reply.trim()}
+              <button onClick={sendWhatsApp} disabled={sending || !reply.trim()}
                 className="px-4 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-40 flex items-center gap-1">
                 <Send className="w-3.5 h-3.5" /> Send
               </button>
@@ -369,7 +411,8 @@ function WhatsAppView() {
           <div className="flex-1 flex items-center justify-center text-slate-400">
             <div className="text-center">
               <MessageCircle className="w-12 h-12 mx-auto opacity-30" />
-              <p className="text-sm mt-2">Select a conversation to view messages</p>
+              <p className="text-sm mt-2">Select a conversation or start a new one</p>
+              <p className="text-xs mt-1">Messages are sent via WhatsApp Business Cloud API</p>
             </div>
           </div>
         )}
