@@ -132,6 +132,14 @@
       "destination": "/api/admin"
     },
     {
+      "source": "/api/calls/:path*",
+      "destination": "/api/calls"
+    },
+    {
+      "source": "/api/crm/:path*",
+      "destination": "/api/crm"
+    },
+    {
       "source": "/api/orders/:path*",
       "destination": "/api/orders"
     },
@@ -225,6 +233,14 @@
     },
     {
       "source": "/admin/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/crm",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/crm/:path*",
       "destination": "/index.html"
     },
     {
@@ -417,6 +433,32 @@
     },
     {
       "source": "/admin/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/crm",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/crm/(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",

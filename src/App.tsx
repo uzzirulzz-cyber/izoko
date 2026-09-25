@@ -44,6 +44,7 @@ import { AppDownloadSection } from './components/app/AppDownloadSection'
 import { InstallPwaChip } from './components/app/InstallPwaChip'
 import { InvoicePage } from './components/InvoicePage'
 import { CmsHomepageSections } from './components/CmsHomepageSections'
+import { CRMApp } from './components/crm/CRMApp'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -143,6 +144,7 @@ type Route =
   | 'storefront'
   | 'admin-login'
   | 'admin'
+  | 'crm'
   | 'privacy'
   | 'terms'
   | 'refund-policy'
@@ -327,6 +329,7 @@ function parseRoute(): Route {
   if (path === 'storefront') return 'storefront' // legacy /storefront still works
   if (path === 'admin/login' || path.startsWith('admin/login/')) return 'admin-login'
   if (path === 'admin' || path.startsWith('admin/')) return 'admin'
+  if (path === 'crm' || path.startsWith('crm/')) return 'crm'
   if (path === 'account' || path.startsWith('account/')) return 'account'
   if (path === 'checkout') return 'checkout'
   if (path === 'download' || path.startsWith('download/')) return 'download'
@@ -355,6 +358,7 @@ function parseRoute(): Route {
 
 function routeToPath(route: Route): string {
   if (route === 'admin') return '/admin'
+  if (route === 'crm') return '/crm'
   if (route === 'admin-login') return '/admin/login'
   if (route === 'storefront') return '/'
   // Order result page keeps its /order/:orderNumber URL — the number is read
@@ -1523,6 +1527,25 @@ export function App() {
           onSuccess={() => {
             setAdminAuthed(true)
             navigate('admin')
+          }}
+          onCancel={() => navigate('storefront')}
+        />
+      )}
+
+      {/* ============================================
+          CRM — Communication Center (/crm)
+          Requires admin auth (same session as admin)
+          ============================================ */}
+      {route === 'crm' && adminAuthed && (
+        <CRMApp
+          onExit={() => navigate('storefront')}
+        />
+      )}
+      {route === 'crm' && !adminAuthed && (
+        <AdminLogin
+          onSuccess={() => {
+            setAdminAuthed(true)
+            navigate('crm')
           }}
           onCancel={() => navigate('storefront')}
         />

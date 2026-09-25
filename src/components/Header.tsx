@@ -273,6 +273,12 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Support
           </button>
+          <button
+            onClick={() => onNavigate('/crm')}
+            className="transition hover:text-yellow-400 font-semibold"
+          >
+            CRM
+          </button>
         </nav>
 
         {/* Live Search Input (Matching Search Bar with Hotkey) */}
