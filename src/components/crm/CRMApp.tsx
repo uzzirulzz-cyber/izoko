@@ -230,7 +230,7 @@ function InboxView() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-2"><span className="font-medium text-sm truncate">{item.name}</span>
                     <span className="text-xs text-slate-400">{item.lastActivity ? new Date(item.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}</span></div>
-                  <div className="text-xs text-slate-500 truncate">{item.lastMessage}</div>
+                  <div className="text-xs text-slate-500 truncate">{typeof item.lastMessage === 'string' ? item.lastMessage : (item.lastMessage?.body || '—')}</div>
                   {item.unreadCount > 0 && <span className="inline-block mt-1 bg-[#F4C542] text-[#0B1220] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{item.unreadCount}</span>}
                 </div>
               </div>
@@ -318,7 +318,7 @@ function WhatsAppView() {
                     {c.lastActivity && <span className="text-xs text-slate-400 shrink-0">{new Date(c.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>}
                   </div>
                   <div className="flex justify-between gap-2 mt-0.5">
-                    <span className="text-xs text-slate-500 truncate">{c.lastMessage || '—'}</span>
+                    <span className="text-xs text-slate-500 truncate">{typeof c.lastMessage === 'string' ? c.lastMessage : (c.lastMessage?.body || c.lastMessage || '—')}</span>
                     {c.unreadCount > 0 && <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{c.unreadCount}</span>}
                   </div>
                 </div>
