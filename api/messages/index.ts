@@ -111,6 +111,195 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   const convCol = db.collection("chat_conversations");
   const msgCol = db.collection("chat_messages");
 
+  // ===========================================================================
+  // CRM ROUTES — calls, notes, tasks, followups, timeline, employees, inbox
+  // Routed under /api/messages/crm/* to stay within Vercel Hobby 12-function limit
+  // ===========================================================================
+  if (pathSegments[0] === "crm") {
+    const crmPath = pathSegments.slice(1).join("/").toLowerCase();
+    const crmSegs = crmPath.split("/").filter(Boolean);
+
+    // CALLS: list
+    if (crmSegs[0] === "calls" && crmSegs.length === 1 && req.method === "GET") {
+      const filter: any = {};
+      if (url.searchParams.get("direction")) filter.direction = url.searchParams.get("direction");
+      if (url.searchParams.get("status")) filter.status = url.searchParams.get("status");
+      const calls = await db.collection("crm_calls").find(filter).sort({ startedAt: -1 }).limit(200).toArray();
+      const all = await db.collection("crm_calls").countDocuments();
+      const incoming = await db.collection("crm_calls").countDocuments({ direction: "INBOUND" });
+      const outgoing = await db.collection("crm_calls").countDocuments({ direction: "OUTBOUND" });
+      const missed = await db.collection("crm_calls").countDocuments({ status: "MISSED" });
+      return jsonOk(res, { calls, counts: { all, incoming, outgoing, missed, voicemail: 0 } });
+    }
+    // CALLS: initiate
+    if (crmSegs[0] === "calls" && crmSegs.length === 1 && req.method === "POST") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const { to, leadId, leadName, leadPhone } = req.body || {};
+      if (!to) return jsonError(res, "to required", 400);
+      const call = { leadId: leadId||null, leadName: leadName||null, leadPhone: leadPhone||null, employeeId: user.id, employeeName: user.name||user.email, direction: "OUTBOUND", status: "INITIATING", phone: to, channel: "TELEPHONY", durationSec: 0, outcome: null, outcomeNotes: null, provider: "mock", providerCallId: null, startedAt: new Date(), connectedAt: null, endedAt: null, createdAt: new Date() };
+      const result = await db.collection("crm_calls").insertOne(call);
+      const callId = String(result.insertedId);
+      setTimeout(async () => { try { await db.collection("crm_calls").updateOne({ _id: result.insertedId }, { $set: { status: "RINGING" } }) } catch {} }, 1000);
+      setTimeout(async () => { try { const c = await db.collection("crm_calls").findOne({ _id: result.insertedId }); if (c?.status === "RINGING") await db.collection("crm_calls").updateOne({ _id: result.insertedId }, { $set: { status: "CONNECTED", connectedAt: new Date() } }) } catch {} }, 3000);
+      return jsonOk(res, { callId, providerCallId: `mock_${callId}`, provider: "mock" });
+    }
+    // CALLS: get single
+    if (crmSegs[0] === "calls" && crmSegs.length === 2 && req.method === "GET") {
+      const call = await db.collection("crm_calls").findOne({ _id: new ObjectId(crmSegs[1]) });
+      if (!call) return jsonError(res, "Call not found", 404);
+      return jsonOk(res, { call });
+    }
+    // CALLS: end
+    if (crmSegs[0] === "calls" && crmSegs.length === 3 && crmSegs[2] === "end" && req.method === "POST") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const call = await db.collection("crm_calls").findOne({ _id: new ObjectId(crmSegs[1]) });
+      if (!call) return jsonError(res, "Call not found", 404);
+      const endedAt = new Date();
+      const durationSec = call.connectedAt ? Math.floor((endedAt.getTime() - new Date(call.connectedAt as any).getTime()) / 1000) : 0;
+      const { outcome, notes, nextFollowupAt } = req.body || {};
+      await db.collection("crm_calls").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: { status: "ENDED", endedAt, durationSec, outcome: outcome||null, outcomeNotes: notes||null, nextFollowupAt: nextFollowupAt ? new Date(nextFollowupAt) : null } });
+      if (nextFollowupAt && call.leadId) { await db.collection("crm_followups").insertOne({ leadId: call.leadId, leadName: call.leadName, employeeId: call.employeeId, employeeName: call.employeeName, scheduledAt: new Date(nextFollowupAt), channel: "CALL", status: "SCHEDULED", notes: notes||`Follow-up (${outcome||"none"})`, callId: String(call._id), createdAt: new Date(), updatedAt: new Date() }) }
+      return jsonOk(res, { ok: true, durationSec });
+    }
+    // CALLS: patch
+    if (crmSegs[0] === "calls" && crmSegs.length === 2 && req.method === "PATCH") {
+      const user = await verifyUser(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const update: any = {};
+      for (const k of ["status","outcome","outcomeNotes"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
+      if (Object.keys(update).length) await db.collection("crm_calls").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
+      return jsonOk(res, { ok: true });
+    }
+
+    // NOTES
+    if (crmSegs[0] === "notes") {
+      if (req.method === "GET") {
+        const leadId = url.searchParams.get("leadId"); if (!leadId) return jsonError(res, "leadId required", 400);
+        const notes = await db.collection("crm_notes").find({ leadId }).sort({ createdAt: -1 }).limit(100).toArray();
+        return jsonOk(res, { notes });
+      }
+      if (req.method === "POST") {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const { leadId, body: noteBody } = req.body || {}; if (!leadId || !noteBody) return jsonError(res, "leadId and body required", 400);
+        const note = { leadId, body: noteBody, employeeId: user.id, employeeName: user.name||user.email, createdAt: new Date(), updatedAt: new Date() };
+        const result = await db.collection("crm_notes").insertOne(note);
+        return jsonOk(res, { note: { ...note, _id: result.insertedId } });
+      }
+    }
+
+    // TASKS
+    if (crmSegs[0] === "tasks") {
+      if (req.method === "GET") {
+        const filter: any = {}; const leadId = url.searchParams.get("leadId"); const status = url.searchParams.get("status");
+        if (leadId) filter.leadId = leadId; if (status) filter.status = status;
+        const tasks = await db.collection("crm_tasks").find(filter).sort({ dueDate: 1, createdAt: -1 }).limit(200).toArray();
+        return jsonOk(res, { tasks });
+      }
+      if (req.method === "POST") {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const { title, description, leadId, dueDate, priority } = req.body || {}; if (!title) return jsonError(res, "title required", 400);
+        const task = { title, description: description||null, leadId: leadId||null, employeeId: user.id, employeeName: user.name||user.email, dueDate: dueDate ? new Date(dueDate) : null, priority: priority||"NORMAL", status: "OPEN", createdAt: new Date(), updatedAt: new Date() };
+        const result = await db.collection("crm_tasks").insertOne(task);
+        return jsonOk(res, { task: { ...task, _id: result.insertedId } });
+      }
+      if (req.method === "PUT" && crmSegs[1]) {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const update: any = { updatedAt: new Date() };
+        for (const k of ["title","description","status","priority"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
+        if ((req.body||{}).dueDate !== undefined) update.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
+        await db.collection("crm_tasks").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
+        return jsonOk(res, { ok: true });
+      }
+      if (req.method === "DELETE" && crmSegs[1]) {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        await db.collection("crm_tasks").deleteOne({ _id: new ObjectId(crmSegs[1]) });
+        return jsonOk(res, { ok: true });
+      }
+    }
+
+    // FOLLOWUPS
+    if (crmSegs[0] === "followups") {
+      if (req.method === "GET") {
+        const filter: any = {}; const leadId = url.searchParams.get("leadId"); const status = url.searchParams.get("status"); const upcoming = url.searchParams.get("upcoming") === "true";
+        if (leadId) filter.leadId = leadId; if (status) filter.status = status;
+        if (upcoming) { filter.status = "SCHEDULED"; filter.scheduledAt = { $gte: new Date() } }
+        const followups = await db.collection("crm_followups").find(filter).sort({ scheduledAt: 1 }).limit(200).toArray();
+        return jsonOk(res, { followups });
+      }
+      if (req.method === "POST") {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const { leadId, leadName, scheduledAt, channel, notes } = req.body || {}; if (!leadId || !scheduledAt) return jsonError(res, "leadId and scheduledAt required", 400);
+        const followup = { leadId, leadName: leadName||null, employeeId: user.id, employeeName: user.name||user.email, scheduledAt: new Date(scheduledAt), channel: channel||"WHATSAPP", status: "SCHEDULED", notes: notes||null, createdAt: new Date(), updatedAt: new Date() };
+        const result = await db.collection("crm_followups").insertOne(followup);
+        return jsonOk(res, { followup: { ...followup, _id: result.insertedId } });
+      }
+      if (req.method === "PUT" && crmSegs[1]) {
+        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const update: any = { updatedAt: new Date() };
+        for (const k of ["status","notes","channel"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
+        if ((req.body||{}).scheduledAt !== undefined) update.scheduledAt = req.body.scheduledAt ? new Date(req.body.scheduledAt) : null;
+        await db.collection("crm_followups").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
+        return jsonOk(res, { ok: true });
+      }
+    }
+
+    // TIMELINE
+    if (crmSegs[0] === "timeline" && crmSegs[1]) {
+      const leadId = crmSegs[1];
+      const [messages, calls, notes, tasks, followups] = await Promise.all([
+        db.collection("chat_messages").find({ leadId }).sort({ createdAt: 1 }).limit(100).toArray().catch(() => []),
+        db.collection("crm_calls").find({ leadId }).sort({ startedAt: 1 }).limit(100).toArray().catch(() => []),
+        db.collection("crm_notes").find({ leadId }).sort({ createdAt: 1 }).limit(100).toArray().catch(() => []),
+        db.collection("crm_tasks").find({ leadId }).sort({ createdAt: 1 }).limit(100).toArray().catch(() => []),
+        db.collection("crm_followups").find({ leadId }).sort({ scheduledAt: 1 }).limit(100).toArray().catch(() => []),
+      ]);
+      const events: any[] = [];
+      for (const m of messages) events.push({ id: `msg_${m._id}`, type: m.direction === "INBOUND" ? "MESSAGE_RECEIVED" : "MESSAGE_SENT", timestamp: m.createdAt, title: `Message ${m.direction === "INBOUND" ? "received" : "sent"}`, description: m.body });
+      for (const c of calls) events.push({ id: `call_${c._id}`, type: "CALL", timestamp: c.startedAt, title: `${c.direction === "INBOUND" ? "Incoming" : "Outbound"} call`, description: `Duration: ${c.durationSec||0}s` });
+      for (const n of notes) events.push({ id: `note_${n._id}`, type: "NOTE", timestamp: n.createdAt, title: `Note by ${n.employeeName}`, description: n.body });
+      for (const t of tasks) events.push({ id: `task_${t._id}`, type: "TASK", timestamp: t.createdAt, title: t.title, description: t.description });
+      for (const f of followups) events.push({ id: `followup_${f._id}`, type: "FOLLOWUP", timestamp: f.scheduledAt, title: `Follow-up (${f.channel})`, description: f.notes });
+      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const grouped: any[] = [];
+      for (const ev of events) { const dayKey = new Date(ev.timestamp).toISOString().slice(0, 10); let group = grouped.find(g => g.date === dayKey); if (!group) { group = { date: dayKey, events: [] }; grouped.push(group) } group.events.push(ev) }
+      return jsonOk(res, { timeline: grouped, totalCount: events.length });
+    }
+
+    // EMPLOYEES
+    if (crmSegs[0] === "employees" && req.method === "GET") {
+      const users = await db.collection("users").find({ active: true }).sort({ name: 1 }).toArray();
+      const employees = await Promise.all(users.map(async (u: any) => {
+        const [callsMade, messagesSent, followupsScheduled, activeTasks] = await Promise.all([
+          db.collection("crm_calls").countDocuments({ employeeId: String(u._id), direction: "OUTBOUND" }),
+          db.collection("chat_messages").countDocuments({ senderType: "staff" }),
+          db.collection("crm_followups").countDocuments({ employeeId: String(u._id) }),
+          db.collection("crm_tasks").countDocuments({ employeeId: String(u._id), status: { $in: ["OPEN", "IN_PROGRESS"] } }),
+        ]);
+        return { id: String(u._id), email: u.email, name: u.name, role: u.role, title: u.title, availability: u.availability || "OFFLINE", stats: { callsMade, messagesSent, followupsScheduled, activeTasks } };
+      }));
+      return jsonOk(res, { employees });
+    }
+
+    // INBOX
+    if (crmSegs[0] === "inbox" && req.method === "GET") {
+      const filter = url.searchParams.get("filter") || "all";
+      const search = url.searchParams.get("search") || "";
+      const conversations = await convCol.find({}).sort({ lastMessageAt: -1 }).limit(100).toArray();
+      const items = conversations.map((c: any) => ({ kind: "conversation", id: String(c._id), leadId: c.customerId, name: c.customerName || c.customerPhone || "Unknown", phone: c.customerPhone, lastMessage: c.lastMessage || "", lastActivity: c.lastMessageAt || c.createdAt, unreadCount: c.unreadCount || 0, channel: c.channel || "WHATSAPP", status: c.status || "ACTIVE" }));
+      let filtered = items;
+      if (filter === "unread") filtered = items.filter(i => i.unreadCount > 0);
+      if (filter === "whatsapp") filtered = items.filter(i => i.channel === "WHATSAPP");
+      if (search) { const s = search.toLowerCase(); filtered = filtered.filter(i => (i.name || "").toLowerCase().includes(s)) }
+      filtered.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+      return jsonOk(res, { items: filtered, total: filtered.length });
+    }
+
+    return jsonError(res, "CRM route not found", 404);
+  }
+  // ─── END CRM ROUTES ──────────────────────────────────
+
   // Helper: identify the storefront caller (signed-in user OR returning visitor)
   const caller = (req: AuthenticatedRequest) => {
     const user = verifyUser(req); // customer cookie/bearer token
