@@ -927,12 +927,19 @@ export function App() {
   >('profile')
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  // Persist Products Catalog
+  // Persist Products Catalog (wrapped in try-catch — localStorage quota can
+  // be exceeded on some browsers, which would crash the entire app)
   useEffect(() => {
-    localStorage.removeItem('playbeat_products_catalog_v4')
-    localStorage.removeItem('playbeat_products_catalog_v5')
-    localStorage.removeItem('playbeat_products_catalog_v6')
-    localStorage.setItem('playbeat_products_catalog_v7', JSON.stringify(products))
+    try {
+      localStorage.removeItem('playbeat_products_catalog_v4')
+      localStorage.removeItem('playbeat_products_catalog_v5')
+      localStorage.removeItem('playbeat_products_catalog_v6')
+      localStorage.setItem('playbeat_products_catalog_v7', JSON.stringify(products))
+    } catch (e) {
+      // QuotaExceededError — clear old catalog and skip caching
+      console.warn('Could not persist product catalog to localStorage:', e)
+      try { localStorage.removeItem('playbeat_products_catalog_v7') } catch {}
+    }
   }, [products])
 
   // Hydrate the catalog from MongoDB (server is source of truth when reachable).
