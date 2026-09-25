@@ -132,10 +132,6 @@
       "destination": "/api/admin"
     },
     {
-      "source": "/api/calls/:path*",
-      "destination": "/api/calls"
-    },
-    {
       "source": "/api/crm/:path*",
       "destination": "/api/crm"
     },

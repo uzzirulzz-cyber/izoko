@@ -162,7 +162,7 @@ function DashboardView() {
   const [stats, setStats] = useState<any>(null)
   useEffect(() => {
     api('/api/analytics').then(setStats).catch(() => {})
-    api('/api/calls?').then((r: any) => {
+    api('/api/crm/calls?').then((r: any) => {
       setStats((s: any) => ({ ...s, calls: r.counts }))
     }).catch(() => {})
   }, [])
@@ -267,7 +267,7 @@ function CallsView() {
   useEffect(() => {
     setLoading(true)
     const qs = tab === 'incoming' ? '?direction=INBOUND' : tab === 'outgoing' ? '?direction=OUTBOUND' : tab === 'missed' ? '?status=MISSED' : ''
-    api(`/api/calls${qs}`).then((r: any) => { setCalls(r.calls || []); setCounts(r.counts || {}) }).catch(() => {}).finally(() => setLoading(false))
+    api(`/api/crm/calls${qs}`).then((r: any) => { setCalls(r.calls || []); setCounts(r.counts || {}) }).catch(() => {}).finally(() => setLoading(false))
   }, [tab])
   return (
     <div className="p-6 space-y-4">
@@ -316,13 +316,13 @@ function DialerView() {
   async function startCall() {
     if (!number) return
     try {
-      const r = await api('/api/calls', { method: 'POST', body: JSON.stringify({ to: number }) })
+      const r = await api('/api/crm/calls', { method: 'POST', body: JSON.stringify({ to: number }) })
       setCall(r); setCallStatus('CALLING')
     } catch (e: any) { alert(e.message) }
   }
   async function endCall() {
     if (!call?.callId) return
-    try { await api(`/api/calls/${call.callId}/end`, { method: 'POST', body: JSON.stringify({}) }) } catch {}
+    try { await api(`/api/crm/calls/${call.callId}/end`, { method: 'POST', body: JSON.stringify({}) }) } catch {}
     setCallStatus('ENDED'); setCall(null); setCallStatus('IDLE')
   }
   useEffect(() => {
@@ -333,7 +333,7 @@ function DialerView() {
   useEffect(() => {
     if (!call?.callId || callStatus === 'IDLE') return
     const t = setInterval(async () => {
-      try { const r = await api(`/api/calls/${call.callId}`); if (r.call.status === 'RINGING') setCallStatus('RINGING'); if (r.call.status === 'CONNECTED') setCallStatus('CONNECTED'); if (r.call.status === 'ENDED') { setCallStatus('IDLE'); setCall(null) } } catch {}
+      try { const r = await api(`/api/crm/calls/${call.callId}`); if (r.call.status === 'RINGING') setCallStatus('RINGING'); if (r.call.status === 'CONNECTED') setCallStatus('CONNECTED'); if (r.call.status === 'ENDED') { setCallStatus('IDLE'); setCall(null) } } catch {}
     }, 1000)
     return () => clearInterval(t)
   }, [call?.callId, callStatus])
