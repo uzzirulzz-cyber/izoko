@@ -348,6 +348,30 @@
       "destination": "/index.html"
     },
     {
+      "source": "/streaming/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/subscriptions/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/gift-cards/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/gaming/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/software/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/smart-projectors/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/category/:path*",
       "destination": "/index.html"
     }

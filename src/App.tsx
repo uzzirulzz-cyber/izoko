@@ -339,6 +339,19 @@ function parseRoute(): Route {
   // Product deep links — /product/:slug opens the storefront catalog with that
   // product's quick view (every product has its own unique, indexable slug URL)
   if (path.startsWith('product/') && path.split('/').length >= 2) return 'product'
+  // SEO-friendly category-based product URLs: /streaming/netflix-1-month, /software/windows-11, etc.
+  // These are 2-segment paths where the first segment is a known category slug
+  // and the second segment is the product slug.
+  const pathParts = path.split('/')
+  if (pathParts.length === 2) {
+    const catSlug = pathParts[0]
+    const prodSlug = pathParts[1]
+    const CATEGORY_SLUGS_SET = new Set(['streaming', 'subscriptions', 'gift-cards', 'gaming', 'software', 'smart-projectors'])
+    if (CATEGORY_SLUGS_SET.has(catSlug) && prodSlug) {
+      // Treat as a product deep link — the storefront will match the slug
+      return 'product'
+    }
+  }
   // /category/:slug renders the storefront filtered to that category
   if (path.startsWith('category/') && path.split('/').length >= 2) return 'category'
   // /policy is a friendly alias of /privacy — renders the privacy policy while
@@ -444,7 +457,15 @@ export function App() {
         p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
       )
       setProductSlugParam(
-        p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+        (() => {
+          if (p.toLowerCase().startsWith('/product/')) return decodeURIComponent(p.split('/')[2] || '')
+          const parts = p.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
+          if (parts.length === 2) {
+            const catSlugs = new Set(['streaming', 'subscriptions', 'gift-cards', 'gaming', 'software', 'smart-projectors'])
+            if (catSlugs.has(parts[0])) return decodeURIComponent(parts[1] || '')
+          }
+          return ''
+        })()
       )
       setCategorySlugParam(
         p.toLowerCase().startsWith('/category/') ? decodeURIComponent(p.split('/')[2] || '') : ''
@@ -545,12 +566,20 @@ export function App() {
     return p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
   })
 
-  // Product deep-link slug — /product/:slug. Read from the address bar so the
-  // URL survives reloads and is shareable (every product has a unique slug).
+  // Product deep-link slug — /product/:slug OR /{category}/:slug (SEO-friendly).
+  // Read from the address bar so the URL survives reloads and is shareable.
   const [productSlugParam, setProductSlugParam] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
     const p = window.location.pathname
-    return p.toLowerCase().startsWith('/product/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+    // /product/:slug format
+    if (p.toLowerCase().startsWith('/product/')) return decodeURIComponent(p.split('/')[2] || '')
+    // /{category}/:slug format (SEO-friendly: /streaming/netflix-1-month)
+    const parts = p.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
+    if (parts.length === 2) {
+      const catSlugs = new Set(['streaming', 'subscriptions', 'gift-cards', 'gaming', 'software', 'smart-projectors'])
+      if (catSlugs.has(parts[0])) return decodeURIComponent(parts[1] || '')
+    }
+    return ''
   })
 
   // /category/:slug deep-link slug + /invoice/:orderNumber param — read from

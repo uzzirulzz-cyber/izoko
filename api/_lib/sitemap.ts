@@ -177,19 +177,32 @@ export async function buildProductsSitemap(db: any): Promise<{ xml: string; coun
   const docs = await db
     .collection("products")
     .find({ active: { $ne: false }, consolidatedParentId: { $exists: false } })
-    .project({ slug: 1, name: 1, title: 1, sku: 1, updatedAt: 1, createdAt: 1 })
+    .project({ slug: 1, name: 1, title: 1, sku: 1, category: 1, updatedAt: 1, createdAt: 1 })
     .toArray();
+
+  // Category → URL slug mapping for SEO-friendly product URLs
+  const CATEGORY_SLUGS: Record<string, string> = {
+    'Streaming': 'streaming',
+    'Subscriptions': 'subscriptions',
+    'AI Tools': 'subscriptions',
+    'Gift Cards': 'gift-cards',
+    'Gaming': 'gaming',
+    'Software': 'software',
+    'Smart Projectors': 'smart-projectors',
+  };
 
   const urls: SitemapUrl[] = [];
   let lastmod: Date | null = null;
   for (const d of docs) {
     const name = d.name || d.title;
-    if (!name) continue; // unnamed records cannot render a real product page
+    if (!name) continue;
     const slug = String(d.slug || "").trim() || slugifySafe(name);
     if (!slug) continue;
     const lm = toDate(d.updatedAt) || toDate(d.createdAt);
     if (lm && (!lastmod || lm > lastmod)) lastmod = lm;
-    urls.push({ loc: `${SITE}/product/${slug}`, lastmod: lm, changefreq: "weekly", priority: "0.8" });
+    // Use SEO-friendly category-based URL: /{category}/{product-slug}
+    const catSlug = CATEGORY_SLUGS[d.category] || slugifySafe(d.category || '') || 'product';
+    urls.push({ loc: `${SITE}/${catSlug}/${slug}`, lastmod: lm, changefreq: "weekly", priority: "0.8" });
   }
   return { xml: renderUrlSet(urls), count: urls.length, lastmod };
 }

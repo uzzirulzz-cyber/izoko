@@ -20,11 +20,17 @@ Disallow: /forgot-password
 
 # Indexable key sections (clarity only — Allow: / already covers them)
 Allow: /streaming
+Allow: /streaming/
 Allow: /subscriptions
+Allow: /subscriptions/
 Allow: /gift-cards
+Allow: /gift-cards/
 Allow: /gaming
+Allow: /gaming/
 Allow: /software
+Allow: /software/
 Allow: /smart-projectors
+Allow: /smart-projectors/
 Allow: /smart-4k-projectors
 Allow: /ai-subscriptions
 Allow: /steam-game-keys
