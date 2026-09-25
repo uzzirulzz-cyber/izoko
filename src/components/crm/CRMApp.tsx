@@ -52,14 +52,14 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
   return (
     <div className="flex h-screen bg-[#F8FAFC]">
       {/* Sidebar — enterprise navy */}
-      <aside className="w-60 shrink-0 flex flex-col bg-[#0B1220] text-[#CBD5E1] border-r border-[#1a2332]">
-        <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[#1a2332]">
-          <div className="w-8 h-8 rounded-lg bg-[#F4C542] flex items-center justify-center shrink-0">
-            <PhoneCall className="w-4 h-4 text-[#0B1220]" />
+      <aside className="w-60 shrink-0 flex flex-col bg-[#070B12] text-[#AAB4C3] border-r border-[rgba(255,255,255,0.08)]">
+        <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[rgba(255,255,255,0.08)]">
+          <div className="w-8 h-8 rounded-lg bg-[#F5C542] flex items-center justify-center shrink-0">
+            <PhoneCall className="w-4 h-4 text-[#070B12]" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-white">PlayBeat CRM</span>
-            <span className="text-[10px] text-[#94A3B8] -mt-0.5">Communication Center</span>
+            <span className="text-[10px] text-[#6B7689] -mt-0.5">Communication Center</span>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
@@ -68,7 +68,7 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
             return (
               <button key={n.key} onClick={() => setView(n.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
-                  view === n.key ? 'bg-[#F4C542] text-[#0B1220] font-semibold' : 'text-[#CBD5E1] hover:bg-[#1a2332] hover:text-white'
+                  view === n.key ? 'bg-[#F5C542] text-[#070B12] font-semibold' : 'text-[#AAB4C3] hover:bg-[#0D131D] hover:text-white'
                 }`}>
                 <Icon className="w-4 h-4 shrink-0" />
                 <span>{n.label}</span>
@@ -76,8 +76,8 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
             )
           })}
         </nav>
-        <div className="border-t border-[#1a2332] p-3">
-          <button onClick={onExit} className="flex items-center gap-2 text-xs text-[#94A3B8] hover:text-white px-2 py-1.5">
+        <div className="border-t border-[rgba(255,255,255,0.08)] p-3">
+          <button onClick={onExit} className="flex items-center gap-2 text-xs text-[#6B7689] hover:text-white px-2 py-1.5">
             <ArrowLeft className="w-3 h-3" /> Back to Storefront
           </button>
         </div>
@@ -99,7 +99,7 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
             <button className="relative h-9 w-9 flex items-center justify-center rounded-md hover:bg-slate-100">
               <Bell className="w-4 h-4" />
             </button>
-            <div className="w-8 h-8 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-xs font-semibold">A</div>
+            <div className="w-8 h-8 rounded-full bg-[#070B12] text-white flex items-center justify-center text-xs font-semibold">A</div>
           </div>
         </header>
 
@@ -122,7 +122,7 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
             const item = NAV.find(n => n.key === v)!
             const Icon = item.icon
             return <button key={v} onClick={() => setView(v as CRMView)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md ${view === v ? 'text-[#0B1220]' : 'text-slate-500'}`}>
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md ${view === v ? 'text-[#070B12]' : 'text-slate-500'}`}>
               <Icon className="w-5 h-5" /><span className="text-[10px]">{item.label}</span>
             </button>
           })}
@@ -136,8 +136,8 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
       {mobileNavOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileNavOpen(false)} />
-          <aside className="relative w-64 bg-[#0B1220] text-[#CBD5E1] flex flex-col">
-            <div className="h-14 px-4 flex items-center justify-between border-b border-[#1a2332]">
+          <aside className="relative w-64 bg-[#070B12] text-[#AAB4C3] flex flex-col">
+            <div className="h-14 px-4 flex items-center justify-between border-b border-[rgba(255,255,255,0.08)]">
               <span className="text-sm font-semibold text-white">PlayBeat CRM</span>
               <button onClick={() => setMobileNavOpen(false)}><X className="w-4 h-4" /></button>
             </div>
@@ -145,7 +145,7 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
               {NAV.map((n) => {
                 const Icon = n.icon
                 return <button key={n.key} onClick={() => { setView(n.key); setMobileNavOpen(false) }}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm ${view === n.key ? 'bg-[#F4C542] text-[#0B1220]' : 'text-[#CBD5E1] hover:bg-[#1a2332]'}`}>
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm ${view === n.key ? 'bg-[#F5C542] text-[#070B12]' : 'text-[#AAB4C3] hover:bg-[#0D131D]'}`}>
                   <Icon className="w-4 h-4" /> {n.label}
                 </button>
               })}
@@ -169,15 +169,15 @@ function DashboardView() {
   if (!stats) return <div className="p-8 text-slate-400">Loading dashboard…</div>
   const t = stats.totals || {}
   const cards = [
-    { label: 'Total Leads', value: t.totalLeads || 0, icon: Users, color: 'text-[#0B1220]' },
-    { label: 'Calls Today', value: t.callsToday || 0, icon: PhoneCall, color: 'text-[#0B1220]' },
-    { label: 'Messages', value: t.totalMessages || 0, icon: MessageCircle, color: 'text-[#0B1220]' },
-    { label: 'Active Campaigns', value: t.activeCampaigns || 0, icon: BarChart3, color: 'text-[#0B1220]' },
+    { label: 'Total Leads', value: t.totalLeads || 0, icon: Users, color: 'text-[#070B12]' },
+    { label: 'Calls Today', value: t.callsToday || 0, icon: PhoneCall, color: 'text-[#070B12]' },
+    { label: 'Messages', value: t.totalMessages || 0, icon: MessageCircle, color: 'text-[#070B12]' },
+    { label: 'Active Campaigns', value: t.activeCampaigns || 0, icon: BarChart3, color: 'text-[#070B12]' },
   ]
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#0B1220]">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-[#070B12]">Dashboard</h1>
         <p className="text-sm text-slate-500">One workspace. Every customer conversation.</p>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -186,7 +186,7 @@ function DashboardView() {
           return (
             <div key={c.label} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
               <div className="flex items-center justify-between mb-1"><span className="text-xs text-slate-500">{c.label}</span><Icon className={`w-3.5 h-3.5 ${c.color}`} /></div>
-              <div className="text-2xl font-bold text-[#0B1220]">{c.value}</div>
+              <div className="text-2xl font-bold text-[#070B12]">{c.value}</div>
             </div>
           )
         })}
@@ -208,11 +208,11 @@ function InboxView() {
     <div className="flex h-full">
       <div className="w-full md:w-96 shrink-0 border-r border-slate-200 flex flex-col bg-white">
         <div className="p-4 border-b border-slate-200">
-          <h1 className="text-xl font-semibold text-[#0B1220] mb-3">Inbox</h1>
+          <h1 className="text-xl font-semibold text-[#070B12] mb-3">Inbox</h1>
           <div className="flex gap-1.5 flex-wrap">
             {['all', 'unread', 'whatsapp'].map(f => (
               <button key={f} onClick={() => setFilter(f)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium ${filter === f ? 'bg-[#0B1220] text-white' : 'bg-slate-100 text-slate-600'}`}>
+                className={`px-2.5 py-1 rounded-full text-xs font-medium ${filter === f ? 'bg-[#070B12] text-white' : 'bg-[#0D131D] text-[#AAB4C3]'}`}>
                 {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
             ))}
@@ -224,14 +224,14 @@ function InboxView() {
           {items.map((item) => (
             <div key={item.id} className="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#070B12] text-white flex items-center justify-center text-sm font-semibold shrink-0">
                   {(item.name || '?').charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-2"><span className="font-medium text-sm truncate">{item.name}</span>
                     <span className="text-xs text-slate-400">{item.lastActivity ? new Date(item.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}</span></div>
                   <div className="text-xs text-slate-500 truncate">{typeof item.lastMessage === 'string' ? item.lastMessage : (item.lastMessage?.body || '—')}</div>
-                  {item.unreadCount > 0 && <span className="inline-block mt-1 bg-[#F4C542] text-[#0B1220] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{item.unreadCount}</span>}
+                  {item.unreadCount > 0 && <span className="inline-block mt-1 bg-[#F5C542] text-[#070B12] text-[10px] font-bold px-1.5 py-0.5 rounded-full">{item.unreadCount}</span>}
                 </div>
               </div>
             </div>
@@ -313,7 +313,7 @@ function WhatsAppView() {
       <div className={`w-full md:w-80 shrink-0 border-r border-slate-200 flex flex-col ${active ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-slate-200">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold flex items-center gap-2 text-[#0B1220]"><MessageCircle className="w-4 h-4 text-emerald-500" /> WhatsApp</h2>
+            <h2 className="font-semibold flex items-center gap-2 text-[#070B12]"><MessageCircle className="w-4 h-4 text-emerald-500" /> WhatsApp</h2>
             <button onClick={() => setShowNewChat(!showNewChat)} className="text-xs bg-emerald-500 text-white px-2.5 py-1 rounded-md font-medium flex items-center gap-1">
               <Plus className="w-3 h-3" /> New
             </button>
@@ -350,7 +350,7 @@ function WhatsAppView() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between gap-2">
-                    <span className="font-medium text-sm truncate text-[#0B1220]">{c.name || c.phone}</span>
+                    <span className="font-medium text-sm truncate text-[#070B12]">{c.name || c.phone}</span>
                     {c.lastActivity && <span className="text-xs text-slate-400 shrink-0">{new Date(c.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>}
                   </div>
                   <div className="flex justify-between gap-2 mt-0.5">
@@ -376,7 +376,7 @@ function WhatsAppView() {
                 {(active.name || active.phone || '?').charAt(0)}
               </div>
               <div>
-                <div className="font-medium text-sm text-[#0B1220]">{active.name || active.phone}</div>
+                <div className="font-medium text-sm text-[#070B12]">{active.name || active.phone}</div>
                 <div className="text-xs text-slate-500">{active.phone}</div>
               </div>
               <div className="ml-auto flex items-center gap-1.5">
@@ -434,11 +434,11 @@ function CallsView() {
   }, [tab])
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><PhoneCall className="w-5 h-5" /> Calls</h1>
+      <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><PhoneCall className="w-5 h-5" /> Calls</h1>
       <div className="flex gap-2">
         {['all','incoming','outgoing','missed'].map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize ${tab === t ? 'bg-[#0B1220] text-white' : 'bg-slate-100 text-slate-600'}`}>
+            className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize ${tab === t ? 'bg-[#070B12] text-white' : 'bg-[#0D131D] text-[#AAB4C3]'}`}>
             {t} ({counts[t] || 0})
           </button>
         ))}
@@ -453,7 +453,7 @@ function CallsView() {
             {!loading && calls.length === 0 && <tr><td colSpan={6} className="text-center py-12 text-slate-500">No calls yet.</td></tr>}
             {calls.map((c) => (
               <tr key={c._id} className="hover:bg-slate-50">
-                <td className="px-3 py-2.5">{c.direction === 'INBOUND' ? <span className="text-blue-600 flex items-center gap-1"><PhoneIncoming className="w-3.5 h-3.5" /> In</span> : <span className="text-[#0B1220] flex items-center gap-1"><PhoneOutgoing className="w-3.5 h-3.5" /> Out</span>}</td>
+                <td className="px-3 py-2.5">{c.direction === 'INBOUND' ? <span className="text-blue-600 flex items-center gap-1"><PhoneIncoming className="w-3.5 h-3.5" /> In</span> : <span className="text-[#070B12] flex items-center gap-1"><PhoneOutgoing className="w-3.5 h-3.5" /> Out</span>}</td>
                 <td className="px-3 py-2.5 font-medium">{c.leadName || 'Unknown'}</td>
                 <td className="px-3 py-2.5 font-mono text-xs">{c.phone}</td>
                 <td className="px-3 py-2.5 font-mono text-xs">{String(Math.floor((c.durationSec||0)/60)).padStart(2,'0')}:{String((c.durationSec||0)%60).padStart(2,'0')}</td>
@@ -504,31 +504,31 @@ function DialerView() {
   const KEYS = [{d:'1',s:''},{d:'2',s:'ABC'},{d:'3',s:'DEF'},{d:'4',s:'GHI'},{d:'5',s:'JKL'},{d:'6',s:'MNO'},{d:'7',s:'PQRS'},{d:'8',s:'TUV'},{d:'9',s:'WXYZ'},{d:'*',s:''},{d:'0',s:'+'},{d:'#',s:''}]
 
   return (
-    <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#0B1220] to-[#111827]">
+    <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#070B12] to-[#0D131D]">
       <div className="w-full max-w-sm space-y-5 p-6">
-        <div className="text-center"><div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#F4C542] mb-2"><Phone className="w-6 h-6 text-[#0B1220]" /></div>
+        <div className="text-center"><div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#F5C542] mb-2"><Phone className="w-6 h-6 text-[#070B12]" /></div>
           <h1 className="text-2xl font-bold text-white">Phone Dialer</h1></div>
         <input value={number} onChange={e => setNumber(e.target.value)} placeholder="Enter phone number"
-          className="w-full bg-[#1a2332] border border-[#CBD5E1]/20 text-white text-lg font-mono text-center rounded-md py-2.5 focus:outline-none focus:border-[#F4C542]" />
+          className="w-full bg-[#0D131D] border border-[rgba(255,255,255,0.08)] text-white text-lg font-mono text-center rounded-md py-2.5 focus:outline-none focus:border-[#F4C542]" />
         <div className="grid grid-cols-3 gap-2.5">
           {KEYS.map(k => (
             <button key={k.d} onClick={() => setNumber(n => n + k.d)}
-              className="h-16 rounded-xl bg-gradient-to-br from-[#1a2332] to-[#0B1220] border border-[#CBD5E1]/15 flex flex-col items-center justify-center text-white hover:border-[#F4C542]/40 active:scale-95 transition-all">
-              <span className="text-2xl font-semibold">{k.d}</span>{k.s && <span className="text-[10px] text-[#94A3B8]">{k.s}</span>}
+              className="h-16 rounded-xl bg-gradient-to-br from-[#0D131D] to-[#070B12] border border-[rgba(255,255,255,0.06)] flex flex-col items-center justify-center text-white hover:border-[#F4C542]/40 active:scale-95 transition-all">
+              <span className="text-2xl font-semibold">{k.d}</span>{k.s && <span className="text-[10px] text-[#6B7689]">{k.s}</span>}
             </button>
           ))}
         </div>
         <div className="grid grid-cols-4 gap-2.5">
-          <button className="h-12 rounded-xl bg-[#1a2332] border border-[#CBD5E1]/15 flex items-center justify-center text-[#CBD5E1]"><Users className="w-5 h-5" /></button>
+          <button className="h-12 rounded-xl bg-[#0D131D] border border-[rgba(255,255,255,0.06)] flex items-center justify-center text-[#AAB4C3]"><Users className="w-5 h-5" /></button>
           <button onClick={startCall} disabled={callStatus !== 'IDLE'}
-            className={`h-12 rounded-xl flex items-center justify-center text-white font-medium ${callStatus !== 'IDLE' ? 'bg-slate-600 opacity-50' : 'bg-[#F4C542] text-[#0B1220] hover:opacity-90'}`}>
+            className={`h-12 rounded-xl flex items-center justify-center text-white font-medium ${callStatus !== 'IDLE' ? 'bg-slate-600 opacity-50' : 'bg-[#F5C542] text-[#070B12] hover:opacity-90'}`}>
             <PhoneCall className="w-5 h-5 mr-1.5" /><span className="text-sm">Call</span>
           </button>
           <button className="h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white"><MessageCircle className="w-5 h-5" /></button>
-          <button onClick={() => setNumber(n => n.slice(0,-1))} className="h-12 rounded-xl bg-[#1a2332] border border-[#CBD5E1]/15 flex items-center justify-center text-[#CBD5E1]"><ChevronLeft className="w-5 h-5" /></button>
+          <button onClick={() => setNumber(n => n.slice(0,-1))} className="h-12 rounded-xl bg-[#0D131D] border border-[rgba(255,255,255,0.06)] flex items-center justify-center text-[#AAB4C3]"><ChevronLeft className="w-5 h-5" /></button>
         </div>
         {call && callStatus !== 'IDLE' && (
-          <div className="bg-[#1a2332] rounded-xl p-4 text-center text-white">
+          <div className="bg-[#0D131D] rounded-xl p-4 text-center text-white">
             <div className="text-sm font-medium">{callStatus === 'CALLING' ? 'Calling…' : callStatus === 'RINGING' ? 'Ringing…' : callStatus === 'CONNECTED' ? `${String(Math.floor(timer/60)).padStart(2,'0')}:${String(timer%60).padStart(2,'0')}` : ''}</div>
             {callStatus === 'CONNECTED' && <button onClick={endCall} className="mt-3 bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-medium"><Square className="w-3 h-3 inline mr-1" /> End Call</button>}
           </div>
@@ -606,7 +606,7 @@ function LeadsView() {
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><Users className="w-5 h-5" /> Leads</h1>
+          <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><Users className="w-5 h-5" /> Leads</h1>
           <p className="text-sm text-slate-500">{leads.length} leads from customers and orders</p>
         </div>
         <div className="relative w-64">
@@ -634,7 +634,7 @@ function LeadsView() {
             {!loading && filtered.length === 0 && <tr><td colSpan={8} className="text-center py-12 text-slate-500">No leads yet.</td></tr>}
             {filtered.map((l) => (
               <tr key={l.id} className="hover:bg-slate-50">
-                <td className="px-3 py-2.5 font-medium text-[#0B1220]">{l.name}</td>
+                <td className="px-3 py-2.5 font-medium text-[#070B12]">{l.name}</td>
                 <td className="px-3 py-2.5 text-slate-600">{l.email || '—'}</td>
                 <td className="px-3 py-2.5 text-slate-600">{l.phone || l.whatsapp || '—'}</td>
                 <td className="px-3 py-2.5 tabular-nums">{l.totalOrders}</td>
@@ -643,7 +643,7 @@ function LeadsView() {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     l.status === 'CONVERTED' ? 'bg-emerald-100 text-emerald-700' :
                     l.status === 'CONTACTED' ? 'bg-blue-100 text-blue-700' :
-                    'bg-slate-100 text-slate-600'
+                    'bg-[#0D131D] text-[#AAB4C3]'
                   }`}>{l.status}</span>
                 </td>
                 <td className="px-3 py-2.5 tabular-nums font-semibold">{l.score}</td>
@@ -723,7 +723,7 @@ function CustomersView() {
       {/* Left — customer list */}
       <div className="w-full lg:w-80 shrink-0 border-r border-slate-200 bg-white flex flex-col">
         <div className="p-4 border-b border-slate-200">
-          <h1 className="text-xl font-semibold text-[#0B1220] mb-3">Customers</h1>
+          <h1 className="text-xl font-semibold text-[#070B12] mb-3">Customers</h1>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type="text" placeholder="Search customers…" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -737,11 +737,11 @@ function CustomersView() {
             <button key={c.id} onClick={() => openCustomer(c)}
               className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${selected?.id === c.id ? 'bg-amber-50' : ''}`}>
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#070B12] text-white flex items-center justify-center text-sm font-semibold shrink-0">
                   {(c.name || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate text-[#0B1220]">{c.name}</div>
+                  <div className="font-medium text-sm truncate text-[#070B12]">{c.name}</div>
                   <div className="text-xs text-slate-500 truncate">{c.email}</div>
                   <div className="text-xs text-slate-400 mt-0.5">{c.totalOrders} orders · Rs {c.totalSpent.toLocaleString()}</div>
                 </div>
@@ -757,16 +757,16 @@ function CustomersView() {
           {/* Header */}
           <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-lg font-semibold">
+              <div className="w-12 h-12 rounded-full bg-[#070B12] text-white flex items-center justify-center text-lg font-semibold">
                 {(selected.name || '?').charAt(0).toUpperCase()}
               </div>
               <div>
-                <div className="font-semibold text-[#0B1220]">{selected.name}</div>
+                <div className="font-semibold text-[#070B12]">{selected.name}</div>
                 <div className="text-xs text-slate-500">{selected.email} · {selected.phone || 'No phone'}</div>
               </div>
             </div>
             <div className="flex gap-1.5">
-              <button className="text-xs px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[#0B1220] font-medium flex items-center gap-1">
+              <button className="text-xs px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[#070B12] font-medium flex items-center gap-1">
                 <PhoneCall className="w-3.5 h-3.5" /> Call
               </button>
               <button className="text-xs px-3 py-1.5 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-medium flex items-center gap-1">
@@ -779,7 +779,7 @@ function CustomersView() {
           <div className="border-b border-slate-200 px-4 flex gap-1">
             {['timeline', 'notes', 'orders'].map(t => (
               <button key={t} onClick={() => setTab(t as any)}
-                className={`px-3 py-2 text-sm font-medium capitalize border-b-2 ${tab === t ? 'border-[#F4C542] text-[#0B1220]' : 'border-transparent text-slate-500'}`}>
+                className={`px-3 py-2 text-sm font-medium capitalize border-b-2 ${tab === t ? 'border-[#F4C542] text-[#070B12]' : 'border-transparent text-slate-500'}`}>
                 {t}
               </button>
             ))}
@@ -803,7 +803,7 @@ function CustomersView() {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between">
-                              <span className="text-sm font-medium text-[#0B1220]">{ev.title}</span>
+                              <span className="text-sm font-medium text-[#070B12]">{ev.title}</span>
                               <span className="text-xs text-slate-400">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                             {ev.description && <p className="text-xs text-slate-500 mt-0.5">{ev.description}</p>}
@@ -819,7 +819,7 @@ function CustomersView() {
                 <div className="flex gap-2">
                   <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add an internal note…" rows={2}
                     className="flex-1 text-sm border border-slate-200 rounded-md p-2 resize-none focus:outline-none focus:border-[#0B1220]" />
-                  <button onClick={addNote} disabled={!newNote.trim()} className="px-3 rounded-md bg-[#0B1220] text-white text-sm font-medium disabled:opacity-40">Add</button>
+                  <button onClick={addNote} disabled={!newNote.trim()} className="px-3 rounded-md bg-[#070B12] text-white text-sm font-medium disabled:opacity-40">Add</button>
                 </div>
                 {notes.length === 0 ? <div className="text-center py-8 text-slate-400 text-sm">No notes yet.</div> :
                   notes.map((n) => (
@@ -836,10 +836,10 @@ function CustomersView() {
                   selected.orders.map((o: any) => (
                     <div key={o._id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between">
                       <div>
-                        <div className="font-mono text-xs text-[#0B1220]">{o.orderNumber}</div>
+                        <div className="font-mono text-xs text-[#070B12]">{o.orderNumber}</div>
                         <div className="text-xs text-slate-500">{new Date(o.createdAt).toLocaleDateString()} · {o.paymentStatus}</div>
                       </div>
-                      <div className="font-semibold text-[#0B1220]">Rs {o.total?.toLocaleString()}</div>
+                      <div className="font-semibold text-[#070B12]">Rs {o.total?.toLocaleString()}</div>
                     </div>
                   ))}
               </div>
@@ -862,12 +862,12 @@ function TasksView() {
   useEffect(() => { api('/api/messages/crm/tasks?status=OPEN').then((r:any) => setTasks(r.tasks||[])).catch(() => {}) }, [])
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><CheckSquare className="w-5 h-5" /> Tasks</h1>
+      <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><CheckSquare className="w-5 h-5" /> Tasks</h1>
       {tasks.length === 0 ? <div className="text-center py-12 text-slate-400"><CheckSquare className="w-10 h-10 mx-auto opacity-30 mb-2" /><p className="text-sm">No open tasks.</p></div> :
         <div className="space-y-2">{tasks.map(t => (
           <div key={t._id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3">
             <div className="w-4 h-4 rounded border-2 border-slate-300" />
-            <div className="flex-1"><div className="font-medium text-sm text-[#0B1220]">{t.title}</div><div className="text-xs text-slate-500">{t.priority} • {t.employeeName}</div></div>
+            <div className="flex-1"><div className="font-medium text-sm text-[#070B12]">{t.title}</div><div className="text-xs text-slate-500">{t.priority} • {t.employeeName}</div></div>
           </div>
         ))}</div>}
     </div>
@@ -878,12 +878,12 @@ function FollowupsView() {
   useEffect(() => { api('/api/messages/crm/followups?upcoming=true').then((r:any) => setFollowups(r.followups||[])).catch(() => {}) }, [])
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><CalendarClock className="w-5 h-5" /> Follow-ups</h1>
+      <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><CalendarClock className="w-5 h-5" /> Follow-ups</h1>
       {followups.length === 0 ? <div className="text-center py-12 text-slate-400"><CalendarClock className="w-10 h-10 mx-auto opacity-30 mb-2" /><p className="text-sm">No upcoming follow-ups.</p></div> :
         <div className="space-y-2">{followups.map(f => (
           <div key={f._id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3">
             <CalendarClock className="w-5 h-5 text-[#F4C542]" />
-            <div className="flex-1"><div className="font-medium text-sm text-[#0B1220]">{f.leadName || 'Unknown'}</div><div className="text-xs text-slate-500">{f.scheduledAt ? new Date(f.scheduledAt).toLocaleString() : ''} • {f.channel}</div></div>
+            <div className="flex-1"><div className="font-medium text-sm text-[#070B12]">{f.leadName || 'Unknown'}</div><div className="text-xs text-slate-500">{f.scheduledAt ? new Date(f.scheduledAt).toLocaleString() : ''} • {f.channel}</div></div>
           </div>
         ))}</div>}
     </div>
@@ -894,13 +894,13 @@ function EmployeesView() {
   useEffect(() => { api('/api/messages/crm/employees').then((r:any) => setEmployees(r.employees||[])).catch(() => {}) }, [])
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><IdCard className="w-5 h-5" /> Employees</h1>
+      <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><IdCard className="w-5 h-5" /> Employees</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {employees.map(e => (
           <div key={e.id} className="bg-white border border-slate-200 rounded-lg p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#0B1220] text-white flex items-center justify-center font-semibold">{e.name?.charAt(0)}</div>
-              <div><div className="font-medium text-sm text-[#0B1220]">{e.name}</div><div className="text-xs text-slate-500">{e.title || e.role}</div></div>
+              <div className="w-10 h-10 rounded-full bg-[#070B12] text-white flex items-center justify-center font-semibold">{e.name?.charAt(0)}</div>
+              <div><div className="font-medium text-sm text-[#070B12]">{e.name}</div><div className="text-xs text-slate-500">{e.title || e.role}</div></div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="bg-slate-50 rounded p-1.5"><div className="text-slate-500 uppercase text-[10px]">Calls</div><div className="font-semibold">{e.stats?.callsMade || 0}</div></div>
@@ -918,7 +918,7 @@ function EmployeesView() {
 function PlaceholderView({ icon: Icon, title, desc }: any) {
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-semibold text-[#0B1220] mb-2">{title}</h1>
+      <h1 className="text-2xl font-semibold text-[#070B12] mb-2">{title}</h1>
       <p className="text-sm text-slate-500 mb-8">{desc}</p>
       <div className="bg-white border border-slate-200 rounded-lg p-12 text-center text-slate-400">
         <Icon className="w-12 h-12 mx-auto opacity-30 mb-3" />

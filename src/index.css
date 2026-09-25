@@ -3,9 +3,11 @@
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #050814;
-    color: #E2E8F0;
+    background-color: #070B12;
+    color: #F5F7FA;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   
   .font-serif {
@@ -22,25 +24,42 @@
 }
 
 /* =========================================================
-   PLAYBEAT FUTURISTIC DESIGN SYSTEM (Silver + Navy + Gold)
+   PLAYBEAT DIGITAL — PREMIUM UI/UX UPGRADE v2.0
+   Dark premium foundation · Enterprise-grade · Conversion-focused
    ========================================================= */
 
 :root {
-  --navy-deep: #050814;
-  --navy-surface: #0a1128;
-  --navy-card: #0d1738;
-  --navy-border: rgba(148, 163, 184, 0.15);
-  --silver-glow: rgba(226, 232, 240, 0.25);
-  --gold-primary: #FACC15;
-  --gold-glow: rgba(250, 204, 21, 0.35);
+  /* Premium dark palette (per UI upgrade spec) */
+  --navy-deep: #070B12;
+  --navy-surface: #0D131D;
+  --navy-card: #121A26;
+  --navy-elevated: #16202E;
+  --navy-border: rgba(255, 255, 255, 0.08);
+  --navy-border-hover: rgba(255, 255, 255, 0.14);
+  
+  /* Text */
+  --text-primary: #F5F7FA;
+  --text-secondary: #AAB4C3;
+  --text-muted: #6B7689;
+  
+  /* Accents */
+  --gold-primary: #F5C542;
+  --gold-light: #FFD968;
+  --gold-dark: #D4A532;
+  --gold-glow: rgba(245, 197, 66, 0.25);
+  
   --electric-blue: #3B82F6;
-  --electric-sky: #38BDF8;
+  --electric-sky: #60A5FA;
+  --blue-glow: rgba(59, 130, 246, 0.2);
+  
+  /* Legacy compat */
+  --silver-glow: rgba(226, 232, 240, 0.25);
   --water-blue-glow: rgba(56, 189, 248, 0.2);
 }
 
-/* Deep Navy Radiant Background */
+/* Deep Navy Radiant Background — premium v2.0 */
 .bg-midnight-canvas {
-  background: radial-gradient(ellipse at 50% -20%, #122254 0%, #081026 40%, #040711 100%);
+  background: radial-gradient(ellipse at 50% -20%, #0D131D 0%, #070B12 40%, #050810 100%);
   background-attachment: fixed;
 }
 
@@ -401,4 +420,348 @@
 @keyframes adminLogoFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
+}
+
+/* =========================================================
+   PREMIUM UI v2.0 — COMPONENT SYSTEM
+   Buttons, cards, inputs, badges, tables, micro-interactions
+   ========================================================= */
+
+/* Premium glass effect (selective use only) */
+.pb-glass {
+  background: rgba(13, 19, 29, 0.75);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--navy-border);
+}
+
+/* Premium elevated surface */
+.pb-surface {
+  background: var(--navy-card);
+  border: 1px solid var(--navy-border);
+  border-radius: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.pb-surface:hover {
+  border-color: var(--navy-border-hover);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Premium primary button (gold) */
+.pb-btn-primary {
+  background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
+  color: #070B12;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px var(--gold-glow);
+}
+.pb-btn-primary:hover {
+  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold-primary) 100%);
+  box-shadow: 0 6px 20px var(--gold-glow);
+  transform: translateY(-1px);
+}
+.pb-btn-primary:active {
+  transform: translateY(0);
+}
+.pb-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Premium secondary button */
+.pb-btn-secondary {
+  background: var(--navy-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+  border: 1px solid var(--navy-border-hover);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pb-btn-secondary:hover {
+  background: var(--navy-card);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px var(--blue-glow);
+}
+
+/* Premium ghost button */
+.pb-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pb-btn-ghost:hover {
+  background: var(--navy-elevated);
+  color: var(--text-primary);
+  border-color: var(--navy-border);
+}
+
+/* Premium danger button */
+.pb-btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  font-weight: 600;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pb-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Premium input */
+.pb-input {
+  background: var(--navy-surface);
+  border: 1px solid var(--navy-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.pb-input:focus {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+.pb-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Premium badge */
+.pb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.pb-badge-gold { background: rgba(245, 197, 66, 0.15); color: var(--gold-primary); border: 1px solid rgba(245, 197, 66, 0.3); }
+.pb-badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--electric-sky); border: 1px solid rgba(59, 130, 246, 0.3); }
+.pb-badge-green { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.pb-badge-red { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.pb-badge-silver { background: rgba(170, 180, 195, 0.15); color: var(--text-secondary); border: 1px solid var(--navy-border-hover); }
+
+/* Premium table */
+.pb-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.pb-table thead th {
+  background: var(--navy-surface);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--navy-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.pb-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s ease;
+}
+.pb-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.pb-table tbody td {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Premium card hover (for product cards) */
+.pb-card-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pb-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--navy-border-hover);
+}
+
+/* Premium skeleton loader */
+@keyframes pb-shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.pb-skeleton {
+  background: linear-gradient(90deg, var(--navy-surface) 0%, var(--navy-elevated) 50%, var(--navy-surface) 100%);
+  background-size: 1000px 100%;
+  animation: pb-shimmer 2s infinite linear;
+  border-radius: 8px;
+}
+
+/* Premium focus ring (accessibility) */
+*:focus-visible {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
+
+/* Premium scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Premium toast animation */
+@keyframes pb-toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pb-toast {
+  animation: pb-toast-in 0.25s ease-out;
+}
+
+/* Premium modal entrance */
+@keyframes pb-modal-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pb-modal {
+  animation: pb-modal-in 0.2s ease-out;
+}
+
+/* Premium tab transition */
+.pb-tab-content {
+  animation: pb-fade-in 0.2s ease-out;
+}
+@keyframes pb-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Premium empty state */
+.pb-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.pb-empty-state svg {
+  opacity: 0.3;
+  margin-bottom: 12px;
+}
+
+/* Premium status indicator */
+.pb-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.pb-status-online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+.pb-status-away { background: #f59e0b; }
+.pb-status-busy { background: #ef4444; }
+.pb-status-offline { background: #6b7689; }
+
+/* Premium loading spinner */
+@keyframes pb-spin {
+  to { transform: rotate(360deg); }
+}
+.pb-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--navy-border);
+  border-top-color: var(--gold-primary);
+  border-radius: 50%;
+  animation: pb-spin 0.6s linear infinite;
+}
+
+/* Premium header glass */
+.pb-header-glass {
+  background: rgba(7, 11, 18, 0.8);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border-bottom: 1px solid var(--navy-border);
+}
+
+/* Premium product image container */
+.pb-product-image {
+  overflow: hidden;
+  border-radius: 10px 10px 0 0;
+}
+.pb-product-image img,
+.pb-product-image svg {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pb-card-hover:hover .pb-product-image img,
+.pb-card-hover:hover .pb-product-image svg {
+  transform: scale(1.05);
+}
+
+/* Premium nav active state */
+.pb-nav-active {
+  color: var(--gold-primary);
+  position: relative;
+}
+.pb-nav-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gold-primary);
+  border-radius: 1px;
+}
+
+/* Premium glow accent (sparingly) */
+.pb-glow-gold {
+  box-shadow: 0 0 20px var(--gold-glow);
+}
+.pb-glow-blue {
+  box-shadow: 0 0 20px var(--blue-glow);
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  .pb-btn-primary, .pb-btn-secondary, .pb-btn-ghost, .pb-btn-danger {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .pb-input {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
 }

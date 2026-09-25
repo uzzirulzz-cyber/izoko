@@ -1482,7 +1482,7 @@ export function App() {
   }
 
   return (
-    <div className="pb-store min-h-screen bg-[#050814] text-slate-100 font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
+    <div className="pb-store min-h-screen bg-[#070B12] text-[#F5F7FA] font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-[#091330] border border-yellow-400/50 shadow-2xl text-xs font-semibold text-white animate-in slide-in-from-bottom-5">
@@ -1693,7 +1693,7 @@ export function App() {
 
       {/* COMPARE PAGE — dedicated projector comparison (not on main storefront) */}
       {route === 'compare' && (
-        <div className="pb-store min-h-screen bg-[#050814] text-slate-100 font-sans">
+        <div className="pb-store min-h-screen bg-[#070B12] text-[#F5F7FA] font-sans">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-3">
@@ -1855,7 +1855,7 @@ export function App() {
 
           {/* Popular Products Row (Matching Screenshot 3 & 2) */}
           {selectedCategory === 'all' && !searchQuery && (
-            <section id="popular-products-section" className="w-full py-8 bg-[#050814]">
+            <section id="popular-products-section" className="w-full py-8 bg-[#070B12]">
               <div className="max-w-[1600px] mx-auto px-4 sm:px-6">
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <div>
