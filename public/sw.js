@@ -11,7 +11,7 @@
  * Bumping CACHE_VERSION clears every old cache on activate, so stale assets
  * from a previous deploy are never served after an update.
  */
-const CACHE_VERSION = 'playbeat-pwa-v1';
+const CACHE_VERSION = 'playbeat-pwa-v2'; // bumped from v1 to force cache clear
 const OFFLINE_URL = '/offline.html';
 
 const PRECACHE_URLS = [
@@ -70,21 +70,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Immutable build assets → cache-first
+  // Immutable build assets → network-first (was cache-first, but stale caches caused blank screens)
   const isImmutableAsset = url.pathname.startsWith('/assets/');
   const isStaticPwa = url.pathname.startsWith('/pwa/') || url.pathname === '/manifest.webmanifest';
 
   if (isImmutableAsset || isStaticPwa) {
     event.respondWith(
       (async () => {
-        const cache = await caches.open(CACHE_VERSION);
-        const hit = await cache.match(req);
-        if (hit) return hit;
         try {
           const fresh = await fetch(req);
-          if (fresh.ok) cache.put(req, fresh.clone());
+          if (fresh.ok) {
+            const cache = await caches.open(CACHE_VERSION);
+            cache.put(req, fresh.clone());
+          }
           return fresh;
         } catch {
+          const cache = await caches.open(CACHE_VERSION);
+          const hit = await cache.match(req);
           return hit || Response.error();
         }
       })()
