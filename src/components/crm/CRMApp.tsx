@@ -247,12 +247,132 @@ function InboxView() {
 
 // ─── WhatsApp ────────────────────────────────────────────────────────────
 function WhatsAppView() {
+  const [conversations, setConversations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [active, setActive] = useState<any | null>(null)
+  const [thread, setThread] = useState<any[]>([])
+  const [reply, setReply] = useState('')
+  const [sending, setSending] = useState(false)
+
+  async function loadConversations() {
+    setLoading(true)
+    try {
+      const r = await api('/api/messages/crm/inbox?filter=whatsapp')
+      setConversations(r.items || [])
+    } catch {} finally { setLoading(false) }
+  }
+
+  async function openConversation(c: any) {
+    setActive(c)
+    try {
+      // Use the messages API to fetch the thread
+      const r = await api(`/api/messages/conversations/${c.id}`)
+      setThread(r.thread?.messages || [])
+    } catch { setThread([]) }
+  }
+
+  async function sendReply() {
+    if (!active || !reply.trim()) return
+    setSending(true)
+    try {
+      await api(`/api/messages/conversations/${active.id}/reply`, {
+        method: 'POST', body: JSON.stringify({ body: reply })
+      })
+      setReply('')
+      // Refresh thread
+      const r = await api(`/api/messages/conversations/${active.id}`)
+      setThread(r.thread?.messages || [])
+      loadConversations()
+    } catch (e: any) { alert(e.message) } finally { setSending(false) }
+  }
+
+  useEffect(() => { loadConversations() }, [])
+
   return (
-    <div className="flex h-full bg-white items-center justify-center">
-      <div className="text-center text-slate-400 space-y-2">
-        <MessageCircle className="w-12 h-12 mx-auto opacity-30" />
-        <p className="text-sm">WhatsApp conversations load from the Inbox.</p>
-        <p className="text-xs">Inbound messages appear here when the webhook is configured.</p>
+    <div className="flex h-full bg-white">
+      {/* Left — conversation list */}
+      <div className={`w-full md:w-80 shrink-0 border-r border-slate-200 flex flex-col ${active ? 'hidden md:flex' : 'flex'}`}>
+        <div className="p-4 border-b border-slate-200">
+          <h2 className="font-semibold flex items-center gap-2 text-[#0B1220]"><MessageCircle className="w-4 h-4 text-emerald-500" /> WhatsApp</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Customer conversations</p>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {loading && <div className="p-6 text-center text-sm text-slate-500">Loading…</div>}
+          {!loading && conversations.length === 0 && (
+            <div className="p-6 text-center text-sm text-slate-500">
+              <MessageCircle className="w-10 h-10 mx-auto opacity-30 mb-2" />
+              No conversations yet.<br />
+              <span className="text-xs">Inbound messages from the storefront chat appear here.</span>
+            </div>
+          )}
+          {conversations.map((c) => (
+            <button key={c.id} onClick={() => openConversation(c)}
+              className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 ${active?.id === c.id ? 'bg-emerald-50' : ''}`}>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center text-sm font-semibold shrink-0">
+                  {(c.name || c.phone || '?').charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium text-sm truncate text-[#0B1220]">{c.name || c.phone}</span>
+                    {c.lastActivity && <span className="text-xs text-slate-400 shrink-0">{new Date(c.lastActivity).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>}
+                  </div>
+                  <div className="flex justify-between gap-2 mt-0.5">
+                    <span className="text-xs text-slate-500 truncate">{c.lastMessage || '—'}</span>
+                    {c.unreadCount > 0 && <span className="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{c.unreadCount}</span>}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Center — conversation view */}
+      <div className={`flex-1 flex flex-col min-w-0 ${active ? 'flex' : 'hidden md:flex'}`}>
+        {active ? (
+          <>
+            <div className="p-4 border-b border-slate-200 flex items-center gap-3">
+              <button className="md:hidden text-slate-500" onClick={() => setActive(null)}>←</button>
+              <div className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center text-sm font-semibold">
+                {(active.name || active.phone || '?').charAt(0)}
+              </div>
+              <div>
+                <div className="font-medium text-sm text-[#0B1220]">{active.name || active.phone}</div>
+                <div className="text-xs text-slate-500">{active.phone || active.email}</div>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50">
+              {thread.length === 0 && <div className="text-sm text-slate-500 text-center py-8">No messages yet.</div>}
+              {thread.map((m) => (
+                <div key={m.id || m._id} className={`flex ${m.senderType === 'staff' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] rounded-2xl px-3 py-2 text-sm ${m.senderType === 'staff' ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-200'}`}>
+                    <div className="whitespace-pre-wrap">{m.body}</div>
+                    <div className={`text-[10px] mt-0.5 ${m.senderType === 'staff' ? 'text-emerald-100' : 'text-slate-400'}`}>
+                      {m.senderName} · {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-slate-200 p-3 bg-white flex gap-2">
+              <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Type a reply…" rows={1}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+                className="flex-1 text-sm border border-slate-200 rounded-lg p-2 resize-none focus:outline-none focus:border-emerald-500" />
+              <button onClick={sendReply} disabled={sending || !reply.trim()}
+                className="px-4 rounded-lg bg-emerald-500 text-white text-sm font-medium disabled:opacity-40 flex items-center gap-1">
+                <Send className="w-3.5 h-3.5" /> Send
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-slate-400">
+            <div className="text-center">
+              <MessageCircle className="w-12 h-12 mx-auto opacity-30" />
+              <p className="text-sm mt-2">Select a conversation to view messages</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -377,10 +497,322 @@ function DialerView() {
 
 // ─── Leads ───────────────────────────────────────────────────────────────
 function LeadsView() {
-  return <PlaceholderView icon={Users} title="Leads" desc="Lead management with CRM assignment, scoring, and status tracking." />
+  const [leads, setLeads] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    // Fetch customers from admin users API + orders for lead data
+    Promise.all([
+      api('/api/admin/users').catch(() => ({ users: [] })),
+      api('/api/admin/orders').catch(() => ({ orders: [] })),
+    ]).then(([usersRes, ordersRes]: any) => {
+      const users = usersRes.users || []
+      const orders = ordersRes.orders || []
+      // Build leads from users who have orders or conversations
+      const leadsMap = new Map<string, any>()
+      for (const u of users) {
+        const userOrders = orders.filter((o: any) => o.customerEmail === u.email || o.customerId === String(u._id))
+        leadsMap.set(u.email || String(u._id), {
+          id: String(u._id),
+          name: u.name || u.email || 'Unknown',
+          email: u.email || '',
+          phone: u.phone || '',
+          whatsapp: u.whatsapp || '',
+          city: u.city || '',
+          country: u.country || '',
+          status: userOrders.length > 0 ? 'CONVERTED' : 'NEW',
+          score: userOrders.length * 10,
+          totalOrders: userOrders.length,
+          totalSpent: userOrders.reduce((s: number, o: any) => s + (o.total || 0), 0),
+          lastOrder: userOrders[0]?.createdAt || u.createdAt,
+          createdAt: u.createdAt,
+        })
+      }
+      // Also add customers from orders that don't have user accounts
+      for (const o of orders) {
+        const key = o.customerEmail || o.customerName
+        if (key && !leadsMap.has(key)) {
+          leadsMap.set(key, {
+            id: o._id,
+            name: o.customerName || 'Unknown',
+            email: o.customerEmail || '',
+            phone: o.customerPhone || '',
+            whatsapp: o.customerWhatsapp || '',
+            city: '', country: '',
+            status: 'CONTACTED',
+            score: 5,
+            totalOrders: 1,
+            totalSpent: o.total || 0,
+            lastOrder: o.createdAt,
+            createdAt: o.createdAt,
+          })
+        }
+      }
+      setLeads(Array.from(leadsMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const filtered = leads.filter(l =>
+    !search || (l.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.email || '').toLowerCase().includes(search.toLowerCase()) ||
+    (l.phone || '').includes(search)
+  )
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0B1220] flex items-center gap-2"><Users className="w-5 h-5" /> Leads</h1>
+          <p className="text-sm text-slate-500">{leads.length} leads from customers and orders</p>
+        </div>
+        <div className="relative w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input type="text" placeholder="Search leads…" value={search} onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-[#0B1220]" />
+        </div>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+            <tr>
+              <th className="text-left font-medium px-3 py-2.5">Name</th>
+              <th className="text-left font-medium px-3 py-2.5">Email</th>
+              <th className="text-left font-medium px-3 py-2.5">Phone</th>
+              <th className="text-left font-medium px-3 py-2.5">Orders</th>
+              <th className="text-left font-medium px-3 py-2.5">Total Spent</th>
+              <th className="text-left font-medium px-3 py-2.5">Status</th>
+              <th className="text-left font-medium px-3 py-2.5">Score</th>
+              <th className="text-left font-medium px-3 py-2.5">Joined</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading && <tr><td colSpan={8} className="text-center py-8 text-slate-500">Loading…</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={8} className="text-center py-12 text-slate-500">No leads yet.</td></tr>}
+            {filtered.map((l) => (
+              <tr key={l.id} className="hover:bg-slate-50">
+                <td className="px-3 py-2.5 font-medium text-[#0B1220]">{l.name}</td>
+                <td className="px-3 py-2.5 text-slate-600">{l.email || '—'}</td>
+                <td className="px-3 py-2.5 text-slate-600">{l.phone || l.whatsapp || '—'}</td>
+                <td className="px-3 py-2.5 tabular-nums">{l.totalOrders}</td>
+                <td className="px-3 py-2.5 font-medium">Rs {l.totalSpent.toLocaleString()}</td>
+                <td className="px-3 py-2.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    l.status === 'CONVERTED' ? 'bg-emerald-100 text-emerald-700' :
+                    l.status === 'CONTACTED' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-600'
+                  }`}>{l.status}</span>
+                </td>
+                <td className="px-3 py-2.5 tabular-nums font-semibold">{l.score}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-500">{l.createdAt ? new Date(l.createdAt).toLocaleDateString() : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }
+
+// ─── Customers ───────────────────────────────────────────────────────────
 function CustomersView() {
-  return <PlaceholderView icon={UserCircle2} title="Customers" desc="Customer workspace with timeline, notes, tasks, and follow-ups." />
+  const [customers, setCustomers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<any | null>(null)
+  const [timeline, setTimeline] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [newNote, setNewNote] = useState('')
+  const [tab, setTab] = useState<'timeline' | 'notes' | 'orders'>('timeline')
+
+  useEffect(() => {
+    Promise.all([
+      api('/api/admin/users').catch(() => ({ users: [] })),
+      api('/api/admin/orders').catch(() => ({ orders: [] })),
+    ]).then(([usersRes, ordersRes]: any) => {
+      const users = usersRes.users || []
+      const orders = ordersRes.orders || []
+      const list = users.map((u: any) => {
+        const userOrders = orders.filter((o: any) => o.customerEmail === u.email || o.customerId === String(u._id))
+        return {
+          id: String(u._id), name: u.name || u.email, email: u.email || '',
+          phone: u.phone || '', whatsapp: u.whatsapp || '',
+          totalOrders: userOrders.length,
+          totalSpent: userOrders.reduce((s: number, o: any) => s + (o.total || 0), 0),
+          orders: userOrders,
+          createdAt: u.createdAt, lastLogin: u.lastLogin,
+        }
+      })
+      setCustomers(list)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  async function openCustomer(c: any) {
+    setSelected(c)
+    setTab('timeline')
+    // Fetch timeline and notes
+    try {
+      const [tl, nt] = await Promise.all([
+        api(`/api/messages/crm/timeline/${c.id}`).catch(() => ({ timeline: [] })),
+        api(`/api/messages/crm/notes?leadId=${c.id}`).catch(() => ({ notes: [] })),
+      ])
+      setTimeline(tl.timeline || [])
+      setNotes(nt.notes || [])
+    } catch {}
+  }
+
+  async function addNote() {
+    if (!newNote.trim() || !selected) return
+    try {
+      await api('/api/messages/crm/notes', { method: 'POST', body: JSON.stringify({ leadId: selected.id, body: newNote }) })
+      setNewNote('')
+      const nt = await api(`/api/messages/crm/notes?leadId=${selected.id}`)
+      setNotes(nt.notes || [])
+    } catch (e: any) { alert(e.message) }
+  }
+
+  const filtered = customers.filter(c =>
+    !search || (c.name || '').toLowerCase().includes(search.toLowerCase()) || (c.email || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="flex h-full">
+      {/* Left — customer list */}
+      <div className="w-full lg:w-80 shrink-0 border-r border-slate-200 bg-white flex flex-col">
+        <div className="p-4 border-b border-slate-200">
+          <h1 className="text-xl font-semibold text-[#0B1220] mb-3">Customers</h1>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" placeholder="Search customers…" value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:border-[#0B1220]" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {loading && <div className="p-6 text-center text-sm text-slate-500">Loading…</div>}
+          {!loading && filtered.length === 0 && <div className="p-6 text-center text-sm text-slate-500">No customers.</div>}
+          {filtered.map((c) => (
+            <button key={c.id} onClick={() => openCustomer(c)}
+              className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition ${selected?.id === c.id ? 'bg-amber-50' : ''}`}>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                  {(c.name || '?').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate text-[#0B1220]">{c.name}</div>
+                  <div className="text-xs text-slate-500 truncate">{c.email}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{c.totalOrders} orders · Rs {c.totalSpent.toLocaleString()}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Right — customer detail */}
+      {selected ? (
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#0B1220] text-white flex items-center justify-center text-lg font-semibold">
+                {(selected.name || '?').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="font-semibold text-[#0B1220]">{selected.name}</div>
+                <div className="text-xs text-slate-500">{selected.email} · {selected.phone || 'No phone'}</div>
+              </div>
+            </div>
+            <div className="flex gap-1.5">
+              <button className="text-xs px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[#0B1220] font-medium flex items-center gap-1">
+                <PhoneCall className="w-3.5 h-3.5" /> Call
+              </button>
+              <button className="text-xs px-3 py-1.5 rounded-md bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-medium flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="border-b border-slate-200 px-4 flex gap-1">
+            {['timeline', 'notes', 'orders'].map(t => (
+              <button key={t} onClick={() => setTab(t as any)}
+                className={`px-3 py-2 text-sm font-medium capitalize border-b-2 ${tab === t ? 'border-[#F4C542] text-[#0B1220]' : 'border-transparent text-slate-500'}`}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {tab === 'timeline' && (
+              <div className="space-y-3">
+                {timeline.length === 0 ? <div className="text-center py-8 text-slate-400 text-sm">No activity yet.</div> :
+                  timeline.map((group: any) => (
+                    <div key={group.date}>
+                      <div className="text-xs font-semibold text-slate-400 uppercase mb-2">{new Date(group.date).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+                      {group.events.map((ev: any) => (
+                        <div key={ev.id} className="flex items-start gap-2.5 mb-2">
+                          <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                            {ev.type.includes('CALL') ? <PhoneCall className="w-3.5 h-3.5 text-slate-500" /> :
+                             ev.type.includes('MESSAGE') ? <MessageCircle className="w-3.5 h-3.5 text-slate-500" /> :
+                             ev.type === 'NOTE' ? <StickyNote className="w-3.5 h-3.5 text-slate-500" /> :
+                             <CheckSquare className="w-3.5 h-3.5 text-slate-500" />}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-[#0B1220]">{ev.title}</span>
+                              <span className="text-xs text-slate-400">{new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            {ev.description && <p className="text-xs text-slate-500 mt-0.5">{ev.description}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+              </div>
+            )}
+            {tab === 'notes' && (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add an internal note…" rows={2}
+                    className="flex-1 text-sm border border-slate-200 rounded-md p-2 resize-none focus:outline-none focus:border-[#0B1220]" />
+                  <button onClick={addNote} disabled={!newNote.trim()} className="px-3 rounded-md bg-[#0B1220] text-white text-sm font-medium disabled:opacity-40">Add</button>
+                </div>
+                {notes.length === 0 ? <div className="text-center py-8 text-slate-400 text-sm">No notes yet.</div> :
+                  notes.map((n) => (
+                    <div key={n._id} className="bg-white border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs text-slate-500 mb-1">{n.employeeName} · {new Date(n.createdAt).toLocaleString()}</div>
+                      <div className="text-sm">{n.body}</div>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {tab === 'orders' && (
+              <div className="space-y-2">
+                {selected.orders.length === 0 ? <div className="text-center py-8 text-slate-400 text-sm">No orders.</div> :
+                  selected.orders.map((o: any) => (
+                    <div key={o._id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between">
+                      <div>
+                        <div className="font-mono text-xs text-[#0B1220]">{o.orderNumber}</div>
+                        <div className="text-xs text-slate-500">{new Date(o.createdAt).toLocaleDateString()} · {o.paymentStatus}</div>
+                      </div>
+                      <div className="font-semibold text-[#0B1220]">Rs {o.total?.toLocaleString()}</div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="hidden lg:flex flex-1 items-center justify-center bg-slate-50">
+          <div className="text-center text-slate-400">
+            <UserCircle2 className="w-12 h-12 mx-auto opacity-30" />
+            <p className="text-sm mt-2">Select a customer to view their profile</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 function TasksView() {
   const [tasks, setTasks] = useState<any[]>([])
