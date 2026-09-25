@@ -111,6 +111,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   const convCol = db.collection("chat_conversations");
   const msgCol = db.collection("chat_messages");
 
+  // Helper: verify admin OR user token for CRM routes
+  const verifyCrmAuth = (req: AuthenticatedRequest) => {
+    const admin = verifyAdmin(req);
+    if (admin) return admin;
+    return verifyUser(req);
+  };
+
   // ===========================================================================
   // CRM ROUTES — calls, notes, tasks, followups, timeline, employees, inbox
   // Routed under /api/messages/crm/* to stay within Vercel Hobby 12-function limit
@@ -133,7 +140,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
     // CALLS: initiate
     if (crmSegs[0] === "calls" && crmSegs.length === 1 && req.method === "POST") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       const { to, leadId, leadName, leadPhone } = req.body || {};
       if (!to) return jsonError(res, "to required", 400);
@@ -152,7 +159,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
     // CALLS: end
     if (crmSegs[0] === "calls" && crmSegs.length === 3 && crmSegs[2] === "end" && req.method === "POST") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       const call = await db.collection("crm_calls").findOne({ _id: new ObjectId(crmSegs[1]) });
       if (!call) return jsonError(res, "Call not found", 404);
@@ -165,7 +172,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
     // CALLS: patch
     if (crmSegs[0] === "calls" && crmSegs.length === 2 && req.method === "PATCH") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       const update: any = {};
       for (const k of ["status","outcome","outcomeNotes"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
@@ -181,7 +188,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonOk(res, { notes });
       }
       if (req.method === "POST") {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         const { leadId, body: noteBody } = req.body || {}; if (!leadId || !noteBody) return jsonError(res, "leadId and body required", 400);
         const note = { leadId, body: noteBody, employeeId: user.id, employeeName: user.name||user.email, createdAt: new Date(), updatedAt: new Date() };
         const result = await db.collection("crm_notes").insertOne(note);
@@ -198,14 +205,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonOk(res, { tasks });
       }
       if (req.method === "POST") {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         const { title, description, leadId, dueDate, priority } = req.body || {}; if (!title) return jsonError(res, "title required", 400);
         const task = { title, description: description||null, leadId: leadId||null, employeeId: user.id, employeeName: user.name||user.email, dueDate: dueDate ? new Date(dueDate) : null, priority: priority||"NORMAL", status: "OPEN", createdAt: new Date(), updatedAt: new Date() };
         const result = await db.collection("crm_tasks").insertOne(task);
         return jsonOk(res, { task: { ...task, _id: result.insertedId } });
       }
       if (req.method === "PUT" && crmSegs[1]) {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         const update: any = { updatedAt: new Date() };
         for (const k of ["title","description","status","priority"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
         if ((req.body||{}).dueDate !== undefined) update.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
@@ -213,7 +220,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonOk(res, { ok: true });
       }
       if (req.method === "DELETE" && crmSegs[1]) {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         await db.collection("crm_tasks").deleteOne({ _id: new ObjectId(crmSegs[1]) });
         return jsonOk(res, { ok: true });
       }
@@ -229,14 +236,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonOk(res, { followups });
       }
       if (req.method === "POST") {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         const { leadId, leadName, scheduledAt, channel, notes } = req.body || {}; if (!leadId || !scheduledAt) return jsonError(res, "leadId and scheduledAt required", 400);
         const followup = { leadId, leadName: leadName||null, employeeId: user.id, employeeName: user.name||user.email, scheduledAt: new Date(scheduledAt), channel: channel||"WHATSAPP", status: "SCHEDULED", notes: notes||null, createdAt: new Date(), updatedAt: new Date() };
         const result = await db.collection("crm_followups").insertOne(followup);
         return jsonOk(res, { followup: { ...followup, _id: result.insertedId } });
       }
       if (req.method === "PUT" && crmSegs[1]) {
-        const user = await verifyUser(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
         const update: any = { updatedAt: new Date() };
         for (const k of ["status","notes","channel"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
         if ((req.body||{}).scheduledAt !== undefined) update.scheduledAt = req.body.scheduledAt ? new Date(req.body.scheduledAt) : null;
@@ -298,7 +305,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
     // ─── WHATSAPP SEND — send real WhatsApp message via Cloud API ────
     if (crmSegs[0] === "whatsapp-send" && req.method === "POST") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       const { to, text } = req.body || {};
       if (!to) return jsonError(res, "Recipient phone number required", 400);
@@ -391,7 +398,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
     // ─── WHATSAPP LOG — fetch sent/received WhatsApp messages ──────
     if (crmSegs[0] === "whatsapp-log" && req.method === "GET") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       const phone = url.searchParams.get("phone");
       const filter: any = {};
@@ -402,7 +409,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
     // ─── WHATSAPP CONVERSATIONS — list WhatsApp-specific threads ───
     if (crmSegs[0] === "whatsapp-conversations" && req.method === "GET") {
-      const user = await verifyUser(req);
+      const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       // Get conversations that have WhatsApp messages
       const conversations = await convCol.find({
