@@ -274,10 +274,38 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
   // Admin profile dropdown (header avatar button)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [notifConversations, setNotifConversations] = useState<any[]>([])
+  const notifPanelRef = useRef<HTMLDivElement>(null)
   const [profileFocus, setProfileFocus] = useState<
     'identity' | 'security' | 'activity' | null
   >(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
+
+  // Fetch recent conversations for the notification preview panel
+  const fetchNotifPreview = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/messages/conversations?type=live_support&limit=5`, {
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data?.success && data?.conversations) {
+        setNotifConversations(data.conversations.slice(0, 5))
+      }
+    } catch { /* silent */ }
+  }, [])
+
+  // Click-outside handler for notification panel
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifPanelRef.current && !notifPanelRef.current.contains(e.target as Node)) {
+        setShowNotifPanel(false)
+      }
+    }
+    if (showNotifPanel) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showNotifPanel])
 
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 
@@ -1680,24 +1708,100 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <Mail className="w-4 h-4" />
               </button>
 
-              {/* Notification Bell — real pending order count */}
-              <button
-                onClick={() =>
-                  triggerToast(
-                    (adminHealth?.alerts?.pendingOrders || 0) > 0
-                      ? `${adminHealth.alerts.pendingOrders} order(s) pending/processing — check the Customer Orders Log`
-                      : 'No pending orders — all fulfillments are complete'
-                  )
-                }
-                className="relative pa-iconbtn p-2"
-              >
-                <Bell className="w-4 h-4" />
-                {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono shadow-[0_0_10px_rgba(61,127,247,0.6)]">
-                    {adminHealth.alerts.pendingOrders}
-                  </span>
+              {/* Notification Bell — opens preview panel with messages + alerts */}
+              <div className="relative" ref={notifPanelRef}>
+                <button
+                  onClick={() => {
+                    setShowNotifPanel((v) => !v)
+                    if (!showNotifPanel) fetchNotifPreview()
+                  }}
+                  className="relative pa-iconbtn p-2"
+                  title="Notifications — click to preview"
+                >
+                  <Bell className="w-4 h-4" />
+                  {(msgUnreadCount + (adminHealth?.alerts?.pendingOrders || 0) + supportNewCount) > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center font-mono shadow-[0_0_10px_rgba(61,127,247,0.6)]">
+                      {msgUnreadCount + (adminHealth?.alerts?.pendingOrders || 0) + supportNewCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notification Preview Panel */}
+                {showNotifPanel && (
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[#0A0E1A] border border-white/10 shadow-2xl z-50 overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">Notifications</span>
+                      <button onClick={() => { setShowNotifPanel(false); setActiveNav('messages') }} className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold uppercase tracking-wide">
+                        View All →
+                      </button>
+                    </div>
+
+                    {/* Summary badges */}
+                    <div className="px-4 py-3 grid grid-cols-3 gap-2 border-b border-white/5">
+                      <div className="text-center p-2 rounded-lg bg-white/5">
+                        <div className="text-lg font-bold text-amber-400">{msgUnreadCount}</div>
+                        <div className="text-[9px] text-zinc-400 uppercase">Unread Chats</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-white/5">
+                        <div className="text-lg font-bold text-blue-400">{adminHealth?.alerts?.pendingOrders || 0}</div>
+                        <div className="text-[9px] text-zinc-400 uppercase">Pending Orders</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-white/5">
+                        <div className="text-lg font-bold text-rose-400">{supportNewCount}</div>
+                        <div className="text-[9px] text-zinc-400 uppercase">New Tickets</div>
+                      </div>
+                    </div>
+
+                    {/* Recent live chat conversations */}
+                    <div className="max-h-64 overflow-y-auto custom-scroll">
+                      <div className="px-4 py-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Recent Live Chats</div>
+                      {notifConversations.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-zinc-500">No recent conversations</div>
+                      ) : (
+                        notifConversations.map((c: any) => (
+                          <button
+                            key={c.id}
+                            onClick={() => { setShowNotifPanel(false); setActiveNav('messages') }}
+                            className="w-full text-left px-4 py-2.5 hover:bg-white/5 transition flex items-start gap-2.5 border-b border-white/5"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-amber-400/20 text-amber-400 flex items-center justify-center text-xs font-bold shrink-0">
+                              {(c.customer?.name || c.customer?.email || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-white truncate">{c.customer?.name || c.customer?.email || 'Unknown'}</span>
+                                {(c.unreadForStaff || 0) > 0 && (
+                                  <span className="bg-rose-500/20 text-rose-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{c.unreadForStaff}</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                                {c.lastMessage?.body || 'No messages yet'}
+                              </p>
+                              <span className="text-[9px] text-zinc-500">
+                                {c.lastMessage?.at ? new Date(c.lastMessage.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Footer — quick links */}
+                    <div className="px-4 py-2.5 border-t border-white/5 flex items-center justify-between">
+                      <button onClick={() => { setShowNotifPanel(false); setActiveNav('messages') }} className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold flex items-center gap-1">
+                        <MessagesSquare className="w-3 h-3" /> Message Box
+                      </button>
+                      <button onClick={() => { setShowNotifPanel(false); setActiveNav('orders') }} className="text-[10px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1">
+                        <ShoppingCart className="w-3 h-3" /> Orders
+                      </button>
+                      <button onClick={() => { setShowNotifPanel(false); setActiveNav('support') }} className="text-[10px] text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1">
+                        <Headphones className="w-3 h-3" /> Support
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Admin Profile Button + Dropdown (fully functional) */}
               <div className="relative flex items-center gap-2.5 pl-2 border-l border-white/5" ref={profileMenuRef}>
@@ -2767,14 +2871,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <ChevronDown className="w-3 h-3" />
                       </button>
 
-                      <div className="relative p-2 rounded-xl pa-well text-zinc-300">
+                      <button
+                        onClick={() => { setShowNotifPanel((v) => !v); if (!showNotifPanel) fetchNotifPreview() }}
+                        className="relative p-2 rounded-xl pa-well text-zinc-300 hover:text-amber-400 transition"
+                        title="Click to preview notifications"
+                      >
                         <Bell className="w-3.5 h-3.5" />
-                        {(adminHealth?.alerts?.pendingOrders || 0) > 0 && (
+                        {(msgUnreadCount + (adminHealth?.alerts?.pendingOrders || 0) + supportNewCount) > 0 && (
                           <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-mono font-black text-[9px] flex items-center justify-center">
-                            {adminHealth.alerts.pendingOrders}
+                            {msgUnreadCount + (adminHealth?.alerts?.pendingOrders || 0) + supportNewCount}
                           </span>
                         )}
-                      </div>
+                      </button>
                     </div>
 
                     {/* 6 Action Shortcut Buttons (2 Columns x 3 Rows) */}
