@@ -88,22 +88,6 @@
   ],
   "rewrites": [
     {
-      "source": "/metacrm",
-      "destination": "https://playbeat-leadpulse.vercel.app/metacrm"
-    },
-    {
-      "source": "/metacrm/:path*",
-      "destination": "https://playbeat-leadpulse.vercel.app/metacrm/:path*"
-    },
-    {
-      "source": "/api/lp/:path*",
-      "destination": "https://playbeat-leadpulse.vercel.app/api/lp/:path*"
-    },
-    {
-      "source": "/_next/:path*",
-      "destination": "https://playbeat-leadpulse.vercel.app/_next/:path*"
-    },
-    {
       "source": "/sitemap.xml",
       "destination": "/api/products?pbSitemap=index"
     },
@@ -374,6 +358,22 @@
     {
       "source": "/category/:path*",
       "destination": "/index.html"
+    },
+    {
+      "source": "/metacrm",
+      "destination": "https://playbeat-leadpulse.vercel.app/metacrm"
+    },
+    {
+      "source": "/metacrm/:path*",
+      "destination": "https://playbeat-leadpulse.vercel.app/metacrm/:path*"
+    },
+    {
+      "source": "/api/lp/:path*",
+      "destination": "https://playbeat-leadpulse.vercel.app/api/lp/:path*"
+    },
+    {
+      "source": "/_next/:path*",
+      "destination": "https://playbeat-leadpulse.vercel.app/_next/:path*"
     }
   ],
   "headers": [
