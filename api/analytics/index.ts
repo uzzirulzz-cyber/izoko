@@ -66,12 +66,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const db = await getDb();
       const col = db.collection("analytics_events");
 
-      const [totalEvents, pageViews, uniqueSessions, productViews, signups] = await Promise.all([
+      const [totalEvents, pageViews, uniqueSessions, productViews, signups, addToCart, checkouts] = await Promise.all([
         col.countDocuments({ createdAt: { $gte: startDate } }),
         col.countDocuments({ type: "page_view", createdAt: { $gte: startDate } }),
         col.distinct("sessionId", { type: "page_view", createdAt: { $gte: startDate } }),
         col.countDocuments({ type: "product_view", createdAt: { $gte: startDate } }),
         col.countDocuments({ type: "signup", createdAt: { $gte: startDate } }),
+        col.countDocuments({ type: "add_to_cart", createdAt: { $gte: startDate } }),
+        col.countDocuments({ type: "checkout", createdAt: { $gte: startDate } }),
       ]);
 
       const dailyAgg = await col
@@ -169,6 +171,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           uniqueVisitors: uniqueSessions.length,
           productViews,
           signups,
+          addToCart,
+          checkout: checkouts,
           series,
           topPages: topPages.map((p: any) => ({ path: p._id, views: p.views })),
           topProducts: topProducts.map((p: any) => ({ id: p._id, name: p.name || p._id, views: p.views })),

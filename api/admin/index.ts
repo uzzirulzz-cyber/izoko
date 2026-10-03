@@ -2027,6 +2027,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           bio: staffUser.bio || "",
           avatarColor: staffUser.avatarColor || "amber",
           notificationPrefs: staffUser.notificationPrefs || null,
+          preferences: staffUser.preferences || null,
           provider: staffUser.provider || "local",
           active: staffUser.active !== false,
           createdAt: staffUser.createdAt || null,
@@ -2050,6 +2051,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           bio: doc?.bio || "",
           avatarColor: doc?.avatarColor || "amber",
           notificationPrefs: doc?.notificationPrefs || null,
+          preferences: doc?.preferences || null,
           provider: "env-credentials",
           active: true,
           createdAt: doc?.createdAt || null,
@@ -2113,6 +2115,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         bio,
         avatarColor,
         notificationPrefs,
+        preferences,
       } = req.body || {};
 
       const usersCol = db.collection("users");
@@ -2129,6 +2132,22 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (notificationPrefs !== undefined && (typeof notificationPrefs !== "object" || notificationPrefs === null || Array.isArray(notificationPrefs))) {
         return jsonError(res, "notificationPrefs must be an object of boolean flags.", 400);
       }
+      if (preferences !== undefined && (typeof preferences !== "object" || preferences === null || Array.isArray(preferences))) {
+        return jsonError(res, "preferences must be an object.", 400);
+      }
+      // Whitelist preference keys — theme/density/dashboard widget layout only.
+      let cleanPreferences: any;
+      if (preferences !== undefined) {
+        cleanPreferences = {};
+        if (typeof (preferences as any).theme === "string") cleanPreferences.theme = String((preferences as any).theme).slice(0, 40);
+        if (typeof (preferences as any).density === "string") cleanPreferences.density = String((preferences as any).density).slice(0, 20);
+        if ((preferences as any).widgets && typeof (preferences as any).widgets === "object" && !Array.isArray((preferences as any).widgets)) {
+          cleanPreferences.widgets = {};
+          for (const [k, v] of Object.entries((preferences as any).widgets)) {
+            if (typeof v === "boolean") cleanPreferences.widgets[String(k).slice(0, 40)] = v;
+          }
+        }
+      }
 
       let updatedName: string;
 
@@ -2144,6 +2163,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         if (bio !== undefined) update.bio = String(bio).trim().slice(0, 400);
         if (avatarColor !== undefined) update.avatarColor = String(avatarColor);
         if (notificationPrefs !== undefined) update.notificationPrefs = notificationPrefs;
+        if (cleanPreferences !== undefined) update.preferences = cleanPreferences;
         if (email !== undefined) {
           const cleanEmail = String(email).toLowerCase().trim();
           if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
@@ -2181,6 +2201,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         if (bio !== undefined) set.bio = String(bio).trim().slice(0, 400);
         if (avatarColor !== undefined) set.avatarColor = String(avatarColor);
         if (notificationPrefs !== undefined) set.notificationPrefs = notificationPrefs;
+        if (cleanPreferences !== undefined) set.preferences = cleanPreferences;
         if (!existing) set.createdAt = new Date();
         await profilesCol.updateOne({ email: keyEmail }, { $set: set }, { upsert: true });
         updatedName = set.name || existing?.name || admin.name || "PlayBeat Super Administrator";

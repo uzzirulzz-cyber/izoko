@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   LayoutDashboard,
   Globe,
@@ -70,6 +70,18 @@ import { formatPrice } from '../lib/currency'
 // SB Admin 2 (Bootstrap 4.6) scoped to the admin shell — MUST load before admin-theme.css
 import '../admin/sb2-scoped.css'
 import '../admin-theme.css'
+import '../admin/themes.css'
+import {
+  useAdminPrefs, prefsToRootProps, adminToast, AdminToastHost,
+  CommandPalette, ThemePicker, QuickActionsFAB, MetricCard, Funnel, RangeChips,
+  SkeletonKPIs, EmptyState, ErrorState, StatusBadge, exportCsv,
+  type CmdkAction, type QuickAction,
+  LayoutDashboard as KitDashboard, Package as KitPackage, ShoppingBag as KitOrders,
+  Users as KitUsers, Tag as KitTag, BarChart3 as KitChart, LayoutTemplate as KitCms,
+  UserCog as KitStaff, Plus as KitPlus, FileSpreadsheet as KitCsv, Key as KitKey,
+  Megaphone as KitMega, Minimize2 as KitMin, Maximize2 as KitMax,
+  MousePointerClick as KitPointer,
+} from '../admin/AdminThemeKit'
 import { NeonCart, NeonShield, NeonBolt, NeonBrain, ViewHeader, KpiTile } from './admin/enterprise'
 import { CsvImporterModal } from './CsvImporterModal'
 import { ProductEditorModal } from './admin/ProductEditorModal'
@@ -748,16 +760,91 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   }, [activeNav])
 
   const triggerToast = (msg: string) => {
-    setToastMessage(msg)
-    setTimeout(() => setToastMessage(null), 3500)
+    adminToast(msg, 'info')
   }
+
+  // ===== Premium UI kit — theme/density prefs, command palette, quick actions =====
+  const { prefs, update: updatePrefs } = useAdminPrefs()
+  const [cmdkOpen, setCmdkOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [analyticsRange, setAnalyticsRange] = useState('14 Days')
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+  const toggleFullscreen = () => {
+    try {
+      if (document.fullscreenElement) void document.exitFullscreen()
+      else void document.documentElement.requestFullscreen()
+    } catch { /* unsupported — silent */ }
+  }
+  const NAV_TITLE_MAP: Record<string, string> = {
+    dashboard: 'Dashboard', products: 'Products', orders: 'Orders', customers: 'Customers',
+    analytics: 'Analytics & Traffic', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
+    gateway: 'Payment Gateway', backup: 'Backup & Vault', messages: 'Messages', support: 'Support',
+    'orders-log': 'Orders Log', inventory: 'Inventory', coupons: 'Coupons', campaigns: 'Campaigns',
+    profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
+  }
+  const pageTitle = NAV_TITLE_MAP[activeNav] || activeNav.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+  // Revenue sparkline + period delta — from the live /api/admin/revenue-chart series
+  const revSeries: number[] = useMemo(() => {
+    const c: any = adminRevenueChart
+    const arr: any[] = Array.isArray(c) ? c : (c?.series || c?.points || c?.data || [])
+    return (arr || [])
+      .map((p: any) => Number(p?.revenue ?? p?.total ?? p?.value ?? p?.amount ?? 0))
+      .filter((n: number) => !isNaN(n))
+      .slice(-14)
+  }, [adminRevenueChart])
+  const revDelta: number | null = useMemo(() => {
+    if (revSeries.length < 4) return null
+    const half = Math.floor(revSeries.length / 2)
+    const prev = revSeries.slice(0, half).reduce((a, b) => a + b, 0)
+    const curr = revSeries.slice(half).reduce((a, b) => a + b, 0)
+    if (prev <= 0) return curr > 0 ? 100 : null
+    return ((curr - prev) / prev) * 100
+  }, [revSeries])
+  const cmdkActions: CmdkAction[] = useMemo(() => {
+    const nav = (id: string, label: string, icon: React.ReactNode, group = 'Navigate'): CmdkAction =>
+      ({ id, label, icon, group, run: () => setActiveNav(id) })
+    const productActs: CmdkAction[] = (products as any[]).map((p) => ({
+      id: `p-${p.id || p._id}`, label: `Edit — ${String(p.name || '').slice(0, 64)}`,
+      icon: <KitPackage className="w-4 h-4" />, group: 'Products', keywords: p.sku || '',
+      run: () => goAdminRef.current(`/admin/products/${p.id || p._id}/edit`),
+    }))
+    return [
+      nav('dashboard', 'Dashboard', <KitDashboard className="w-4 h-4" />),
+      nav('products', 'Products', <KitPackage className="w-4 h-4" />),
+      nav('orders', 'Orders', <KitOrders className="w-4 h-4" />),
+      nav('customers', 'Customers', <KitUsers className="w-4 h-4" />),
+      nav('coupons', 'Coupons', <KitTag className="w-4 h-4" />),
+      nav('analytics', 'Analytics', <KitChart className="w-4 h-4" />),
+      nav('cms', 'CMS — Homepage & Banners', <KitCms className="w-4 h-4" />),
+      nav('seo', 'SEO Control Center', <Globe className="w-4 h-4" />),
+      nav('staff', 'Staff & Roles', <KitStaff className="w-4 h-4" />),
+      nav('profile', 'Settings — Profile', <Settings className="w-4 h-4" />),
+      { id: 'add-product', label: 'Add New Product', icon: <KitPlus className="w-4 h-4" />, group: 'Quick Actions', hint: 'Alt+N', run: () => goAdminRef.current('/admin/products/new') },
+      { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCsvImporterModal(true) },
+      { id: 'issue-key', label: 'Issue License Key', icon: <KitKey className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowLicenseKeyModal(true) },
+      { id: 'campaign', label: 'Launch Campaign', icon: <KitMega className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCampaignModal(true) },
+      ...productActs,
+    ]
+  }, [products])
+  const fabActions: QuickAction[] = [
+    { id: 'add-product', label: 'Add Product', icon: <KitPlus className="w-4 h-4" />, run: () => goAdminRef.current('/admin/products/new') },
+    { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, run: () => setShowCsvImporterModal(true) },
+    { id: 'issue-key', label: 'Issue License Key', icon: <KitKey className="w-4 h-4" />, run: () => setShowLicenseKeyModal(true) },
+    { id: 'campaign', label: 'Launch Campaign', icon: <KitMega className="w-4 h-4" />, run: () => setShowCampaignModal(true) },
+    { id: 'customers', label: 'View Customers', icon: <KitUsers className="w-4 h-4" />, run: () => setActiveNav('customers') },
+  ]
 
   // Keyboard shortcuts — Ctrl/Cmd+K focus search, Alt+N new product, Esc closes menus
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        document.getElementById('admin-search-input')?.focus()
+        setCmdkOpen(true)
       } else if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         goAdminRef.current('/admin/products/new')
@@ -836,17 +923,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   })
 
   return (
-    <div className="pbadmin min-h-screen pa-ambient text-zinc-100 font-sans flex flex-col antialiased selection:bg-[#3d7ff7] selection:text-white">
+    <div {...prefsToRootProps(prefs)} data-sidebar-open={mobileNavOpen ? 'true' : 'false'} className="pbadmin min-h-screen pa-ambient text-zinc-100 font-sans flex flex-col antialiased selection:bg-[#3d7ff7] selection:text-white">
       {/* Ambient enterprise grid canvas */}
       <div className="pa-grid-overlay" aria-hidden="true"></div>
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="pa-toast fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-amber-300 animate-in slide-in-from-bottom duration-300">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-mono">{toastMessage}</span>
-        </div>
-      )}
+      {/* Mobile off-canvas sidebar backdrop */}
+      {mobileNavOpen && <div className="pb-backdrop" onClick={() => setMobileNavOpen(false)} aria-hidden="true" />}
+
+      {/* Toast stack + command palette + quick actions (premium kit) */}
+      <AdminToastHost />
+      <CommandPalette open={cmdkOpen} onClose={() => setCmdkOpen(false)} actions={cmdkActions} />
+      <QuickActionsFAB actions={fabActions} />
 
       {/* Main Container with Sidebar + Content */}
       <div className="flex flex-1 min-h-screen overflow-hidden">
@@ -1636,14 +1723,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         <div className="flex-1 flex flex-col overflow-y-auto max-h-screen">
           {/* Top Bar Header */}
           <header className="pa-topbar sticky top-0 z-20 px-6 py-3.5 flex items-center justify-between gap-4">
-            {/* Greeting — reference-style header (xl+ screens, pure presentation) */}
-            <div className="hidden xl:block shrink-0 mr-2">
-              <p className="text-sm font-bold text-white leading-tight">
+            {/* Breadcrumb + page context (command center header) */}
+            <div className="hidden xl:block shrink-0 mr-2 min-w-0">
+              <div className="pb-crumb">
+                <span>Admin</span>
+                <ChevronRight className="w-3 h-3 pb-crumb-sep" />
+                <span className="pb-crumb-here">{pageTitle}</span>
+              </div>
+              <p className="text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--pa-ink)' }}>
                 Welcome back, {(adminName || 'Admin').split(' ')[0]}
-              </p>
-              <p className="text-[10px] text-zinc-500 font-mono flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Store operations · live data
               </p>
             </div>
 
@@ -1665,6 +1753,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* Right Action Icons & Controls */}
             <div className="flex items-center gap-3">
+              {/* Mobile nav opener */}
+              <button className="pa-iconbtn p-2 lg:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation menu">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              {/* Theme & density picker */}
+              <ThemePicker prefs={prefs} onChange={updatePrefs} />
+
+              {/* Fullscreen */}
+              <button className="pa-iconbtn p-2 hidden sm:flex" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                {isFullscreen ? <KitMin className="w-4 h-4" /> : <KitMax className="w-4 h-4" />}
+              </button>
+
               {/* Back to Live Storefront */}
               <button
                 id="admin-storefront-btn"
@@ -3620,43 +3721,75 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'analytics' && (
               <div className="space-y-6">
-                {/* Sales KPIs — live from /api/admin/stats */}
-                {adminStats && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <DollarSign className="w-4 h-4 text-amber-400" />
-                        <TrendingUp className="w-3 h-3 text-emerald-400" />
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Revenue</div>
-                      <div className="text-xl font-bold text-white">PKR {Number(adminStats.totalRevenue || 0).toLocaleString()}</div>
+                {/* Premium KPI strip — live from /api/admin/stats + revenue-chart */}
+                {analyticsLoading && !adminStats ? (
+                  <SkeletonKPIs count={4} />
+                ) : adminStats && prefs.widgets.kpi ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <RangeChips
+                        options={['7 Days', '14 Days', '30 Days']}
+                        value={analyticsRange}
+                        onChange={(v) => { setAnalyticsRange(v); fetchAdminAnalytics(v === '7 Days' ? 7 : v === '30 Days' ? 30 : 14) }}
+                      />
                     </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <ShoppingCart className="w-4 h-4 text-emerald-400" />
-                        <TrendingUp className="w-3 h-3 text-emerald-400" />
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Total Orders</div>
-                      <div className="text-xl font-bold text-white">{adminStats.totalOrders || 0}</div>
-                    </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Package className="w-4 h-4 text-blue-400" />
-                        <Activity className="w-3 h-3 text-emerald-400" />
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Active Products</div>
-                      <div className="text-xl font-bold text-white">{adminStats.activeProducts || 0}</div>
-                    </div>
-                    <div className="rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Boxes className="w-4 h-4 text-purple-400" />
-                        <Activity className="w-3 h-3 text-emerald-400" />
-                      </div>
-                      <div className="text-[10px] text-zinc-400 font-mono uppercase">Catalog Total</div>
-                      <div className="text-xl font-bold text-white">{adminStats.totalProducts || 0}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                      <MetricCard
+                        label="Total Revenue" value={`PKR ${Number(adminStats.totalRevenue || 0).toLocaleString()}`}
+                        icon={<DollarSign className="w-4 h-4" />} spark={revSeries} deltaPct={revDelta}
+                        compareLabel="vs previous period" onClick={() => setActiveNav('orders')}
+                      />
+                      <MetricCard
+                        label="Total Orders" value={String(adminStats.totalOrders || 0)}
+                        icon={<ShoppingCart className="w-4 h-4" />}
+                        compareLabel={`${adminStats.recentOrders || 0} in last 7 days`} onClick={() => setActiveNav('orders')}
+                      />
+                      <MetricCard
+                        label="Active Products" value={String(adminStats.activeProducts || 0)}
+                        icon={<Package className="w-4 h-4" />}
+                        compareLabel={`${adminStats.totalProducts || 0} in catalog`} onClick={() => setActiveNav('products')}
+                      />
+                      <MetricCard
+                        label="Inventory Alerts" value={String(adminStats.lowStock || 0)}
+                        icon={<Boxes className="w-4 h-4" />}
+                        compareLabel="items low on stock" onClick={() => setActiveNav('inventory')}
+                      />
                     </div>
                   </div>
-                )}
+                ) : null}
+
+                {/* Conversion funnel — real storefront events via /api/analytics */}
+                {prefs.widgets.funnel && (() => {
+                  const a: any = adminAnalytics || {}
+                  const pv = Number(a.pageViews ?? a.summary?.pageViews ?? 0)
+                  const pr = Number(a.productViews ?? a.summary?.productViews ?? 0)
+                  const ac = Number(a.addToCart ?? a.summary?.addToCart ?? 0)
+                  const co = Number(a.checkout ?? a.summary?.checkout ?? 0)
+                  const po = Number(adminStats?.recentOrders || 0)
+                  if (!pv) return null
+                  return (
+                    <div className="pa-card pa-card--sky pa-card--hover p-5">
+                      <div className="flex items-center gap-2.5 pb-3 mb-4 border-b border-white/5">
+                        <span className="pa-chip pa-chip--sky"><KitPointer className="w-4 h-4" /></span>
+                        <div>
+                          <h2 className="text-xs font-extrabold uppercase tracking-wider font-mono" style={{ color: 'var(--pa-ink)' }}>
+                            CONVERSION FUNNEL
+                          </h2>
+                          <p className="text-[10px]" style={{ color: 'var(--pa-muted)' }}>
+                            Visitors → Product View → Cart → Checkout → Purchase
+                          </p>
+                        </div>
+                      </div>
+                      <Funnel stages={[
+                        { label: 'Visitors', count: pv },
+                        { label: 'Product View', count: pr },
+                        { label: 'Add to Cart', count: ac },
+                        { label: 'Checkout', count: co },
+                        { label: 'Purchase', count: po },
+                      ]} />
+                    </div>
+                  )
+                })()}
 
                 {/* Real traffic analytics — recorded by the storefront via /api/analytics */}
                 <AnalyticsPanel
