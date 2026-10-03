@@ -85,7 +85,7 @@ contains "redirects-list includes entry" "$RDLIST" "/cms-old-url-$TS"
 echo "=== 8. Merchant feed ==="
 FEED=$(curl -s "$BASE/api/products?pbFeed=google")
 contains "merchant feed is RSS" "$FEED" 'xmlns:g="http://base.google.com/ns/1.0"'
-contains "feed contains published product" "$FEED" "CMS Test Product $TS"
+contains "feed contains published product (SKU g:id)" "$FEED" "CMS-$TS"
 if echo "$FEED" | grep -q "CMS Draft $TS"; then bad "draft LEAKED into merchant feed"; else ok "draft excluded from merchant feed"; fi
 
 echo "=== 9. Media upload (image pipeline) ==="

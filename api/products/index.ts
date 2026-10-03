@@ -321,7 +321,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       ].join("\n");
       res.status(200);
       res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
-      res.setHeader("Cache-Control", "public, max-age=900");
+      // NEVER edge-cache the feed: "public, max-age" lets Vercel's CDN serve a
+      // 15-minute-stale response, hiding newly published products from the
+      // Merchant pipeline. The feed is cheap to build — always live instead.
+      res.setHeader("Cache-Control", "no-store");
       return res.send(feed);
     }
 
