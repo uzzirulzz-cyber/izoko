@@ -242,7 +242,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // so this single read-only route is exempt from the admin gate. It only ever
   // returns stored image bytes — no secrets, no user data beyond the picture.
   const isPublicAvatarGet = route === "avatar" && req.method === "GET";
-  if (!isPublicAvatarGet && !requireAdmin(req, res)) return;
+  // PUBLIC: product media bytes (GET /api/admin/media?id=<assetId>) — same
+  // reasoning as the avatar: storefront <img> tags need anonymous access to
+  // images uploaded through POST /api/admin/media. Read-only, bytes only.
+  const isPublicMediaGet = route === "media" && req.method === "GET";
+  if (!isPublicAvatarGet && !isPublicMediaGet && !requireAdmin(req, res)) return;
 
   // IT-scope enforcement: accounts with the "it" power authority may ONLY use
   // the payment-gateway routes (and their own profile / the public avatar).
@@ -2034,12 +2038,64 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     return;
   }
 
+  // ============ GET /api/admin/media?id=<assetId> (PUBLIC image bytes) ============
+  // Serves one stored asset from `media_assets` for <img> tags across the
+  // storefront and admin. Kept INSIDE this consolidated router because the
+  // Hobby plan caps deployments at 12 serverless functions — a standalone
+  // api/media/[id].ts would be the 13th and break every deploy.
+  if (isPublicMediaGet) {
+    const mediaUrl = new URL(req.url || "", "http://localhost");
+    const mediaId = String(mediaUrl.searchParams.get("id") || "").trim();
+    if (!ObjectId.isValid(mediaId)) {
+      return jsonError(res, "Media not found.", 404);
+    }
+    try {
+      const mediaDoc = await db
+        .collection("media_assets")
+        .findOne({ _id: new ObjectId(mediaId) });
+      if (!mediaDoc) return jsonError(res, "Media not found.", 404);
+      const stored: any = mediaDoc.bytes;
+      let mediaBytes: Buffer;
+      if (Buffer.isBuffer(stored)) {
+        mediaBytes = stored;
+      } else if (stored && Buffer.isBuffer(stored.buffer)) {
+        mediaBytes = stored.buffer.subarray(0, stored.position || stored.buffer.length);
+      } else if (stored && stored.buffer instanceof ArrayBuffer) {
+        mediaBytes = Buffer.from(
+          new Uint8Array(stored.buffer, 0, stored.position || stored.buffer.byteLength)
+        );
+      } else if (stored instanceof Uint8Array) {
+        mediaBytes = Buffer.from(stored);
+      } else {
+        mediaBytes = Buffer.from(String(stored || ""), "base64");
+      }
+      if (!mediaBytes || mediaBytes.length === 0) {
+        return jsonError(res, "Stored media is unreadable.", 500);
+      }
+      // Raw Node response API — the VercelResponse helper does not reliably
+      // transmit binary bodies in this runtime (see avatar endpoint note).
+      res.writeHead(200, {
+        "Content-Type": String(mediaDoc.mime || "application/octet-stream"),
+        // Assets are immutable: re-uploads create new ids, so a year of
+        // immutable caching is safe for the storefront.
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Length": String(mediaBytes.length),
+      });
+      res.end(mediaBytes);
+    } catch (err: any) {
+      console.error("GET /api/admin/media error:", err);
+      return jsonError(res, "Failed to serve media.", 500);
+    }
+    return;
+  }
+
   // ============ POST /api/admin/media (product image upload) ============
   // Stores ONE compressed image (base64 data URL) into the `media_assets`
-  // collection and returns its public URL "/api/media/<id>". Product save
-  // payloads must only ever reference these URLs — embedding base64 image
-  // data inside product JSON blew past Vercel's ~4.5MB serverless body cap
-  // (HTTP 413) and made Add/Edit Product unusable.
+  // collection and returns its public URL "/api/admin/media?id=<id>".
+  // Product save payloads must only ever reference these URLs — embedding
+  // base64 image data inside product JSON blew past Vercel's ~4.5MB
+  // serverless body cap (HTTP 413) and made Add/Edit Product unusable.
   if (route === "media" && req.method === "POST") {
     if (!requireAuthority(req, res, "manager")) return;
     try {
@@ -2103,7 +2159,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return jsonOk(res, {
         success: true,
         message: "Image uploaded successfully",
-        url: `/api/media/${insertResult.insertedId.toString()}`,
+        url: `/api/admin/media?id=${insertResult.insertedId.toString()}`,
         publicId: insertResult.insertedId.toString(),
         size: bytes.length,
         mime: sniffed,
