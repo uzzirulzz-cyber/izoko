@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Header } from './components/Header'
 import { HeroBanner } from './components/HeroBanner'
+import { HeroHeaderStage } from './components/HeroHeaderStage'
+import { AdminLoginPage } from './components/AdminLoginPage'
 import { CategoryNav } from './components/CategoryNav'
 import { ProductCard } from './components/ProductCard'
 import { ProjectorSpecMatrix } from './components/ProjectorSpecMatrix'
@@ -531,6 +533,13 @@ export function App() {
     CATEGORY_ROUTE_KEYS.includes(route) ||
     SUBCATEGORY_ROUTE_KEYS.includes(route)
 
+  // Home hero: the image-based header+hero stage (design v2) owns the top of
+  // the storefront — header nav slides in fixed once the stage scrolls away.
+  // (isStorefrontHome + the scroll effect are defined below, after
+  // selectedCategory is declared.)
+  const heroStageRef = useRef<HTMLDivElement>(null)
+  const [showFloatedHeader, setShowFloatedHeader] = useState(false)
+
   // When navigating to admin, check if a stored admin session is still valid.
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
   useEffect(() => {
@@ -543,8 +552,8 @@ export function App() {
           if (ok) {
             setAdminAuthed(true)
           } else {
+            // Not signed in — /admin itself is the login landing page now
             clearAdminSession()
-            navigate('admin-login', true)
           }
         })
         .finally(() => {
@@ -846,6 +855,34 @@ export function App() {
     return () => clearTimeout(t)
   }, [searchQuery])
   const [selectedCategory, setSelectedCategory] = useState('all')
+
+  // Home hero flag — after selectedCategory is declared (stage scroll effect below reads it)
+  const isStorefrontHome = route === 'storefront' && selectedCategory === 'all'
+
+  // Slide the fixed header in once the image stage has scrolled past the viewport top
+  useEffect(() => {
+    if (!isStorefrontHome) {
+      setShowFloatedHeader(false)
+      return
+    }
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const el = heroStageRef.current
+        if (!el) return
+        setShowFloatedHeader(el.getBoundingClientRect().bottom < 72)
+      })
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [isStorefrontHome])
   const [priceFilter, setPriceFilter] = useState<'all' | 'under1000' | '1000to5000' | 'above5000'>('all')
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating' | 'discount'>('featured')
 
@@ -1514,6 +1551,40 @@ export function App() {
     }
   }
 
+  // Hero stage hotspot handlers (mirror the Header's wiring; real URLs)
+  const onStageNavigate = (path: string) => {
+    if (path === '/') {
+      setSearchQuery('')
+      setSelectedCategory('all')
+      navigate('storefront')
+      return
+    }
+    const slug = path.replace(/^\//, '')
+    if (
+      POLICY_ROUTES.includes(slug as Route) ||
+      CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+      SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+    ) {
+      navigate(slug as Route)
+    } else {
+      navigatePath(path)
+    }
+  }
+  const onStageOffers = () => {
+    setSortBy('discount')
+    setSelectedCategory('all')
+    setSearchQuery('')
+    document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+    showToast('Showing the biggest discounts first — Offers')
+  }
+  const onStageBestValue = () => {
+    setSortBy('rating')
+    setSelectedCategory('all')
+    setSearchQuery('')
+    document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+    showToast('Showing top-rated products first — Best Value')
+  }
+
   // Cart open must require auth (no guest checkout)
   const handleOpenCart = () => {
     if (!user) {
@@ -1587,17 +1658,27 @@ export function App() {
       )}
 
       {route === 'admin' && !adminAuthed && (
-        // Verifying or being redirected to admin-login — show a small loader
-        <div className="min-h-screen flex items-center justify-center bg-[#07090E] text-zinc-300">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-mono">Verifying administrative session…</span>
+        // Verifying session, or showing the admin login landing page (design:
+        // "PlayBeat Digital — Admin Login") — obtain username + password to enter
+        adminChecking ? (
+          <div className="min-h-screen flex items-center justify-center bg-[#07090E] text-zinc-300">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-mono">Verifying administrative session…</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <AdminLoginPage
+            onSuccess={() => {
+              setAdminAuthed(true)
+            }}
+            onCancel={() => navigate('storefront')}
+          />
+        )
       )}
 
       {route === 'admin-login' && (
-        <AdminLogin
+        <AdminLoginPage
           onSuccess={() => {
             setAdminAuthed(true)
             navigate('admin')
@@ -1833,6 +1914,55 @@ export function App() {
             </div>
           )}
 
+          {/* HERO HEADER STAGE — "PlayBeat Digital — Hero Header (2)" design:
+              the whole header + hero as one pixel-perfect artwork with real
+              search / category / hotspot interactions. Home only — the CSS
+              Header below floats in (fixed) once the stage scrolls away. */}
+          {isStorefrontHome && (
+            <HeroHeaderStage
+              ref={heroStageRef}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onNavigate={onStageNavigate}
+              onNavigateHome={() => {
+                setSearchQuery('')
+                setSelectedCategory('all')
+                setPriceFilter('all')
+                navigate('storefront')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              onSelectCategory={handleSelectCategory}
+              onOpenCart={handleOpenCart}
+              onOpenWishlist={() => {
+                if (!user) {
+                  setIsAuthOpen(true)
+                  showToast('Please sign in to view your wishlist')
+                  return
+                }
+                setIsWishlistOpen(true)
+              }}
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenAccountTab={handleOpenAccountTab}
+              user={user}
+              onOpenOffers={onStageOffers}
+              onOpenTrending={() => {
+                document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              onOpenBestValue={onStageBestValue}
+              onSearchSubmit={() => {
+                document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              onExploreProducts={() => {
+                document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              onBrowseCategories={() => {
+                document.getElementById('shop-by-category')?.scrollIntoView({ behavior: 'smooth' })
+              }}
+              cartCount={cartCount}
+              wishlistCount={wishlist.length}
+            />
+          )}
+
           {/* Main App Header — NO admin link exposed to public users */}
           <Header
             searchQuery={searchQuery}
@@ -1887,6 +2017,8 @@ export function App() {
               document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
               showToast('Showing top-rated products first — Best Value')
             }}
+            floating={isStorefrontHome}
+            floatedVisible={showFloatedHeader}
             onNavigate={(path) => {
               // Header links use real indexable URLs; map them to SPA routes
               if (path === '/') {
@@ -1908,22 +2040,7 @@ export function App() {
             }}
           />
 
-          {/* Hero Section (Matching Screenshot 1) */}
-          {selectedCategory === 'all' && !searchQuery && (
-            <HeroBanner
-              productsCount={visibleProducts.length}
-              categoriesCount={6}
-              onExploreProducts={() => {
-                const el = document.getElementById('popular-products-section')
-                el?.scrollIntoView({ behavior: 'smooth' })
-              }}
-              onExploreSubscriptions={() => setSelectedCategory('Subscriptions')}
-              onBrowseCategories={() => {
-                const el = document.getElementById('shop-by-category')
-                el?.scrollIntoView({ behavior: 'smooth' })
-              }}
-            />
-          )}
+          {/* Hero Section — replaced by the HeroHeaderStage (design v2) on home */}
 
           {/* Browse Top Categories (Matching Screenshot 1) */}
           {selectedCategory === 'all' && !searchQuery && (

@@ -882,3 +882,280 @@
   .pb-tile { animation: none; }
   .pb-stage { transition: none; }
 }
+
+/* ============================================================
+   Hero Header Stage v2 — image-based header+hero with hotspots
+   ("PlayBeat Digital — Hero Header (2)" artifact; 1926×817 grid,
+   container-query units so overlays scale with the artwork)
+   ============================================================ */
+.pbhs-stage {
+  position: relative;
+  min-width: 1000px;
+  max-width: 2400px;
+  margin: auto;
+  aspect-ratio: 1926 / 817;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  container-type: inline-size;
+}
+.pbhs-h {
+  position: absolute;
+  display: block;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.pbhs-h:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 1.4cqw rgba(61, 139, 255, 0.4);
+}
+.pbhs-h:focus-visible {
+  outline: 2px solid #12d3ff;
+}
+.pbhs-s {
+  position: absolute;
+  left: 25.805%;
+  top: 10.771%;
+  width: 26.532%;
+  height: 4.406%;
+}
+.pbhs-s input {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font: 500 0.8cqw Montserrat, system-ui, sans-serif;
+}
+.pbhs-s input::placeholder {
+  color: #8095c4;
+  opacity: 1;
+}
+.pbhs-sb {
+  position: absolute;
+  left: 63.24%;
+  top: 8.568%;
+  width: 4.673%;
+  height: 8.446%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 0 40px 40px 0;
+  transition: 0.2s;
+  display: grid;
+  place-items: center;
+}
+.pbhs-sb:hover {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 1.4cqw rgba(31, 134, 255, 0.67);
+}
+.pbhs-c {
+  position: absolute;
+  left: 52.752%;
+  top: 10.282%;
+  width: 9.553%;
+  height: 5.141%;
+  border-radius: 14px;
+}
+.pbhs-c span {
+  position: absolute;
+  left: 13.59%;
+  top: 50%;
+  translate: 0 -50%;
+  font: 600 0.83cqw Montserrat, system-ui, sans-serif;
+  color: #fff;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pbhs-c select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px;
+}
+.pbhs-c:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.pbhs-badge {
+  position: absolute;
+  translate: -50% -50%;
+  min-width: 2.1cqw;
+  height: 2.1cqw;
+  padding: 0 0.45cqw;
+  border-radius: 999px;
+  background: #ff2d2d;
+  color: #fff;
+  font: 800 1.05cqw/2.1cqw Montserrat, system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 0 0.8cqw rgba(255, 45, 45, 0.53);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Admin Login page — image stage with functional overlays
+   ("PlayBeat Digital — Admin Login" artifact; 1536×1024 grid)
+   ============================================================ */
+.pb-al-min {
+  color-scheme: dark;
+}
+.pb-al-stage {
+  position: relative;
+  width: 100%;
+  max-width: 2200px;
+  margin: auto;
+  aspect-ratio: 1536 / 1024;
+  min-height: 100vh;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  container-type: inline-size;
+}
+.pb-al-fld {
+  position: absolute;
+  left: 12.76%;
+  width: 29.62%;
+  border-radius: 1cqw;
+  transition: box-shadow 0.2s;
+}
+.pb-al-fld:focus-within {
+  box-shadow: 0 0 0 0.2cqw #12d3ff, 0 0 1.8cqw rgba(18, 211, 255, 0.67);
+}
+.pb-al-err {
+  box-shadow: 0 0 0 0.2cqw #ff5a6e, 0 0 1.4cqw rgba(255, 90, 110, 0.53) !important;
+}
+.pb-al-u {
+  top: 51.66%;
+  height: 5.86%;
+}
+.pb-al-p {
+  top: 59.47%;
+  height: 5.57%;
+}
+.pb-al-fld input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: 500 1.3cqw Montserrat, system-ui, sans-serif;
+  padding: 0 6cqw 0 4.3cqw;
+  border-radius: 1cqw;
+}
+.pb-al-fld input::placeholder {
+  color: #8fb0e6;
+}
+.pb-al-eye {
+  position: absolute;
+  right: 0.4cqw;
+  top: 50%;
+  translate: 0 -50%;
+  width: 3cqw;
+  height: 3cqw;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: #5aa6ff;
+  display: grid;
+  place-items: center;
+}
+.pb-al-eye svg {
+  width: 1.7cqw;
+  height: 1.7cqw;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pb-al-eye:hover {
+  color: #12d3ff;
+}
+.pb-al-msg {
+  position: absolute;
+  left: 12.76%;
+  top: 65.1%;
+  width: 29.62%;
+  height: 2.6%;
+  font-size: 0.88cqw;
+  color: #ff8896;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.pb-al-msg-ok {
+  color: #5be3a8;
+}
+.pb-al-go {
+  position: absolute;
+  left: 12.76%;
+  top: 67.97%;
+  width: 29.62%;
+  height: 6.25%;
+  border: 0;
+  border-radius: 1cqw;
+  background: transparent;
+  cursor: pointer;
+  transition: 0.2s;
+  color: #fff;
+  font: 600 1.25cqw Montserrat, system-ui, sans-serif;
+}
+.pb-al-go:hover {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 2cqw rgba(58, 123, 255, 0.8);
+}
+.pb-al-go:active {
+  translate: 0 0.1cqw;
+  background: rgba(0, 0, 0, 0.13);
+}
+.pb-al-go-ld {
+  background: linear-gradient(180deg, #2b5bff, #0f2fd8);
+  cursor: wait;
+  display: flex;
+  gap: 0.9cqw;
+  align-items: center;
+  justify-content: center;
+}
+.pb-al-go i {
+  display: none;
+  width: 1.3cqw;
+  height: 1.3cqw;
+  border: 0.22cqw solid rgba(255, 255, 255, 0.33);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: pb-al-spin 0.8s linear infinite;
+}
+.pb-al-go-ld i {
+  display: block;
+}
+@keyframes pb-al-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.pb-al-lnk {
+  position: absolute;
+  left: 5.8%;
+  top: 88.9%;
+  width: 15%;
+  height: 3.6%;
+  border: 0;
+  background: transparent;
+  border-radius: 0.5cqw;
+  cursor: pointer;
+}
+.pb-al-lnk:hover {
+  background: rgba(31, 107, 255, 0.13);
+}
+/* Mobile: design spec — widen the stage and pan horizontally */
+@media (max-width: 760px) {
+  .pb-al-stage {
+    width: 205vw;
+    max-width: none;
+    min-height: 0;
+  }
+}

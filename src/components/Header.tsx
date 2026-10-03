@@ -66,6 +66,10 @@ interface HeaderProps {
   onOpenTrending?: () => void
   /** "Best Value" nav pill → sort by rating (App wires setSortBy + scroll) */
   onOpenBestValue?: () => void
+  /** Home hero mode: header is fixed and slides in only when the image stage
+      has scrolled away (HeroHeaderStage owns the top of the page) */
+  floating?: boolean
+  floatedVisible?: boolean
 }
 
 // Main category links (SEO-friendly URL slugs)
@@ -123,6 +127,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchSubmit,
   onOpenTrending,
   onOpenBestValue,
+  floating = false,
+  floatedVisible = true,
 }) => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
@@ -197,7 +203,15 @@ export const Header: React.FC<HeaderProps> = ({
   const homeActive = selectedCategory === 'all' && !searchQuery
 
   return (
-    <header className="pb-mont sticky top-0 z-40 w-full bg-[#040a1c]/97 backdrop-blur-2xl border-b border-[#172a57] shadow-2xl transition-all">
+    <header
+      className={`pb-mont z-40 w-full bg-[#040a1c]/97 backdrop-blur-2xl border-b border-[#172a57] shadow-2xl transition-all ${
+        floating
+          ? `fixed inset-x-0 top-0 transition-transform duration-300 ${
+              floatedVisible ? 'translate-y-0' : '-translate-y-full pointer-events-none'
+            }`
+          : 'sticky top-0'
+      }`}
+    >
       {/* ============ Row 0 — Utility top bar (collapses on scroll) ============ */}
       <div
         className={`overflow-hidden transition-all duration-300 bg-[#030816] border-b border-[#172a57] ${
