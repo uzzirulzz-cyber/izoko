@@ -1,9 +1,48 @@
 # robots.txt — PlayBeat Digital (https://playbeat.digital)
 # Storefront pages are public and indexable. Admin, account, checkout and
 # payment infrastructure are private (meta/X-Robots-Tag noindex also applies).
+#
+# GOOGLE MERCHANT CENTER NOTE: Google's Shopping quality & policy check
+# disapproves every feed item when its crawlers cannot fetch the product
+# images. Those bytes live under /api/ (product image routes), so a blanket
+# "Disallow: /api/" reads as "missing product images" to Merchant Center.
+# robots.txt uses LONGEST-PREFIX-MATCH: the Allow: lines below are longer
+# than "Disallow: /api/", so crawlers can reach exactly these public routes
+# and nothing else under /api/.
 
 User-agent: *
 Allow: /
+# Public catalog bytes that Merchant Center must be able to fetch:
+Allow: /api/products/images/
+Allow: /api/admin/media
+
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /webhooks/
+Disallow: /account
+Disallow: /account/
+Disallow: /checkout
+Disallow: /order/
+Disallow: /invoice/
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+
+# Explicit Google crawler groups (Merchant Center's fix instruction names
+# "Googlebot" and "Googlebot-Image"). Each group must be self-contained —
+# rules never merge across groups. /api/products is opened so the Web
+# Rendering Service can fetch the catalog JSON that product pages hydrate
+# from (public data only; orders/admin/payments remain blocked).
+
+User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Google-Shopping-Ads-Content-Crawler
+User-agent: Storebot-Google
+User-agent: AdsBot-Google
+Allow: /
+Allow: /api/products
+Allow: /api/admin/media
 
 Disallow: /admin
 Disallow: /admin/
@@ -30,7 +69,6 @@ Allow: /gaming/
 Allow: /software
 Allow: /software/
 Allow: /smart-projectors
-Allow: /smart-projectors/
 Allow: /smart-4k-projectors
 Allow: /ai-subscriptions
 Allow: /steam-game-keys
