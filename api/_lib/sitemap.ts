@@ -7,7 +7,10 @@
 //   /sitemap-pages.xml         → homepage + static public pages (real content only)
 //   /sitemap-categories.xml    → enabled registry categories + curated sub-collections
 //                                (empty categories are NOT included)
-//   /sitemap-products.xml      → every active, published product (lastmod = updatedAt)
+//   /sitemap-products.xml      → every active, published product as its CANONICAL
+//                                /product/:slug URL (same URL the live product
+//                                page uses and declares in <link rel="canonical">).
+//                                Category-prefixed product URLs are NEVER generated.
 //
 // Everything private (admin/account/checkout/order/invoice/API/webhooks) is
 // excluded by construction — these maps never read those routes.
@@ -178,33 +181,42 @@ export async function buildProductsSitemap(db: any): Promise<{ xml: string; coun
   const docs = await db
     .collection("products")
     .find({ active: { $ne: false }, consolidatedParentId: { $exists: false } })
-    .project({ slug: 1, name: 1, title: 1, sku: 1, category: 1, updatedAt: 1, createdAt: 1, seo: 1 })
+    .project({ slug: 1, name: 1, title: 1, sku: 1, updatedAt: 1, createdAt: 1, seo: 1 })
     .toArray();
 
-  // Category → URL slug mapping for SEO-friendly product URLs
-  const CATEGORY_SLUGS: Record<string, string> = {
-    'Streaming': 'streaming',
-    'Subscriptions': 'subscriptions',
-    'AI Tools': 'subscriptions',
-    'Gift Cards': 'gift-cards',
-    'Gaming': 'gaming',
-    'Software': 'software',
-    'Smart Projectors': 'smart-projectors',
-  };
-
   const urls: SitemapUrl[] = [];
+  const seen = new Set<string>();
   let lastmod: Date | null = null;
   for (const d of docs) {
     if (d.seo?.index === false) continue; // admin noindex — excluded from sitemap
     const name = d.name || d.title;
     if (!name) continue;
-    const slug = String(d.slug || "").trim() || slugifySafe(name);
+    // Canonical slug — derived EXACTLY like the storefront's ensureProductSlug()
+    // (src/lib/slug.ts): the stored slug if usable, otherwise the slugified
+    // name/title/sku fallback. The sitemap URL must be byte-identical to the
+    // URL the live product page uses and declares in its <link rel="canonical">.
+    const slug = String(d.slug || "").trim() ? slugifySafe(String(d.slug)) : slugifySafe(String(d.sku || name));
     if (!slug) continue;
+    // Canonical URL — the live product-detail route is /product/:slug. The SPA
+    // router, the product card links, the page's canonical tag (applyRouteSeo →
+    // slugPath = /product/:slug) and the Google Merchant feed (pbFeed=google)
+    // all agree on this pattern. Category-prefixed product URLs such as
+    // /streaming/:slug or /gift-cards/:slug are NOT canonical — the product
+    // page always canonicalizes to /product/:slug — so they must never be
+    // constructed here. Google Search Console receives only canonical URLs.
+    const loc = `${SITE}/product/${slug}`;
+    // Admin-set canonical override: the page emits seo.canonicalUrl verbatim
+    // when it is an https:// URL (upsertCanonical). If that override points
+    // anywhere other than this product's own /product/:slug URL, the page
+    // declares a different canonical — including this loc would publish a
+    // canonical mismatch into GSC, so the product is excluded instead.
+    const override = d.seo && typeof d.seo.canonicalUrl === "string" ? d.seo.canonicalUrl.trim() : "";
+    if (/^https:\/\//.test(override) && override !== loc) continue;
+    if (seen.has(loc)) continue; // never emit duplicate canonical URLs
+    seen.add(loc);
     const lm = toDate(d.updatedAt) || toDate(d.createdAt);
     if (lm && (!lastmod || lm > lastmod)) lastmod = lm;
-    // Use SEO-friendly category-based URL: /{category}/{product-slug}
-    const catSlug = CATEGORY_SLUGS[d.category] || slugifySafe(d.category || '') || 'product';
-    urls.push({ loc: `${SITE}/${catSlug}/${slug}`, lastmod: lm, changefreq: "weekly", priority: "0.8" });
+    urls.push({ loc, lastmod: lm, changefreq: "weekly", priority: "0.8" });
   }
   return { xml: renderUrlSet(urls), count: urls.length, lastmod };
 }
