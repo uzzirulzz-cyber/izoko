@@ -67,6 +67,7 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
   const [webhookSalt, setWebhookSalt] = useState('')
   const [webhookSaltPrev, setWebhookSaltPrev] = useState('')
   const [apiBase, setApiBase] = useState('')
+  const [clientId, setClientId] = useState('')
   const [merchantId, setMerchantId] = useState('')
   const [methods, setMethods] = useState('')
 
@@ -93,6 +94,7 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
     if (cfgRes.data?.success) {
       setConfig(cfgRes.data)
       setApiBase(cfgRes.data.apiBase || '')
+      setClientId(cfgRes.data.clientId || '')
       setMerchantId(cfgRes.data.merchantId || '')
       setMethods((cfgRes.data.methods || []).join(', '))
     }
@@ -125,6 +127,7 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
     if (webhookSalt.trim()) body.webhookSalt = webhookSalt.trim()
     if (webhookSaltPrev.trim()) body.webhookSaltPrev = webhookSaltPrev.trim()
     if (apiBase !== (config?.apiBase || '')) body.apiBase = apiBase
+    if (clientId !== (config?.clientId || '')) body.clientId = clientId.trim()
     if (merchantId !== (config?.merchantId || '')) body.merchantId = merchantId.trim()
     if (methods !== (config?.methods || []).join(', ')) body.methods = methods
     if (clear.length) body.clear = clear
@@ -356,6 +359,18 @@ export const GatewayPanel: React.FC<GatewayPanelProps> = ({ onToast }) => {
               value={apiBase}
               onChange={(e) => setApiBase(e.target.value)}
               placeholder="https://api.rapidgateway.pk"
+              className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-teal-400/50"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+              OAuth Client ID {config?.configured?.clientId && '(pay-in Basic username)'}
+            </span>
+            <input
+              type="text"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="from Rapid portal → API credentials"
               className="mt-1.5 w-full bg-[#121622] border border-white/10 rounded-lg px-3 py-2.5 text-xs font-mono text-white placeholder:text-zinc-600 focus:outline-none focus:border-teal-400/50"
             />
           </label>

@@ -72,8 +72,8 @@ export interface RapidPaymentResult {
 // Cached OAuth2 token (expires in ~299s, refresh at 250s to be safe)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function fetchAccessToken(merchantId: string, clientSecret: string, apiBase: string) {
-  const basicAuth = Buffer.from(`${merchantId}:${clientSecret}`).toString("base64");
+async function fetchAccessToken(basicUser: string, clientSecret: string, apiBase: string) {
+  const basicAuth = Buffer.from(`${basicUser}:${clientSecret}`).toString("base64");
   const res = await fetch(`${apiBase}/oauth2/token`, {
     method: "POST",
     headers: {
@@ -108,8 +108,11 @@ async function getRapidAccessToken(): Promise<string | null> {
     console.error("Rapid OAuth: missing merchantId or clientSecret");
     return null;
   }
+  // Vendor docs: Authorization: Basic base64(clientId:clientSecret) — the
+  // OAuth client id may differ from the merchant id; fall back to it.
+  const basicUser = String(cfg.clientId || "").trim() || merchantId;
   try {
-    return await fetchAccessToken(merchantId, clientSecret, cfg.apiBase || RAPID_API_BASE);
+    return await fetchAccessToken(basicUser, clientSecret, cfg.apiBase || RAPID_API_BASE);
   } catch (err: any) {
     console.error("Rapid OAuth fetch error:", err?.message);
     return null;

@@ -3433,6 +3433,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           webhookSalt: typeof body.webhookSalt === "string" ? body.webhookSalt : undefined,
           webhookSaltPrev: typeof body.webhookSaltPrev === "string" ? body.webhookSaltPrev : undefined,
           apiBase: typeof body.apiBase === "string" ? body.apiBase : undefined,
+          merchantId: typeof body.merchantId === "string" ? body.merchantId : undefined,
+          clientId: typeof body.clientId === "string" ? body.clientId : undefined,
           methods: typeof body.methods === "string" ? body.methods : undefined,
           clear: Array.isArray(body.clear) ? body.clear.map(String) : [],
         },

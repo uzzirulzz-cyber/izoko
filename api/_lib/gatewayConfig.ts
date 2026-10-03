@@ -30,6 +30,7 @@ export interface RapidRuntimeConfig {
   webhookSaltPrev: string;
   apiBase: string;
   merchantId: string;
+  clientId: string;
   refundsBase: string;
   methods: string[];
   webhookUrl: string;
@@ -44,6 +45,7 @@ export interface GatewayConfigPatch {
   webhookSaltPrev?: string;
   apiBase?: string;
   merchantId?: string;
+  clientId?: string;
   refundsBase?: string;
   methods?: string;
   clear?: string[]; // field names to remove ("secretKey" | "webhookSalt" | "webhookSaltPrev")
@@ -109,6 +111,10 @@ function envDefaults() {
     webhookSaltPrev: process.env.RAPID_WEBHOOK_SECRET_PREVIOUS || "",
     apiBase: (process.env.RAPID_API_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, ""),
     merchantId: (process.env.RAPID_MERCHANT_ID || "").trim(),
+    // OAuth2 Basic username per vendor docs: base64(clientId:clientSecret).
+    // Falls back to merchantId when the portal uses the merchant id as the
+    // OAuth client id.
+    clientId: (process.env.RAPID_CLIENT_ID || "").trim(),
     // Refunds API lives on the secure host per vendor docs (OAuth2 + refunds);
     // the Pay-In client defaults to the secure host as well (OAuth2 fix).
     refundsBase: (process.env.RAPID_REFUNDS_BASE || "https://secure.rapid-gateway.com").replace(/\/+$/, ""),
@@ -143,6 +149,7 @@ export async function getRapidConfig(force = false): Promise<RapidRuntimeConfig>
   const webhookSaltPrev = dbSecret("webhookSaltPrevEnc") || env.webhookSaltPrev;
   const apiBase = String(dbDoc?.apiBase || env.apiBase).replace(/\/+$/, "");
   const merchantId = String(dbDoc?.merchantId || env.merchantId || "").trim();
+  const clientId = String(dbDoc?.clientId || env.clientId || "").trim();
   const refundsBase = String(dbDoc?.refundsBase || env.refundsBase).replace(/\/+$/, "");
   const methods = Array.isArray(dbDoc?.methods) && dbDoc.methods.length
     ? dbDoc.methods.map((m: any) => String(m))
@@ -154,10 +161,12 @@ export async function getRapidConfig(force = false): Promise<RapidRuntimeConfig>
     webhookSaltPrev,
     apiBase,
     merchantId,
+    clientId,
     refundsBase,
     methods,
     webhookUrl: `${PUBLIC_SITE_URL.replace(/\/+$/, "")}/webhooks/rapid-gateway`,
     sources: {
+      clientId: dbDoc?.clientId ? "database" : "environment",
       secretKey: pick(dbSecret("secretKeyEnc"), env.secretKey),
       webhookSalt: pick(dbSecret("webhookSaltEnc"), env.webhookSalt),
       webhookSaltPrev: pick(dbSecret("webhookSaltPrevEnc"), env.webhookSaltPrev),
@@ -184,6 +193,7 @@ export async function describeGatewayStatus() {
       webhookSalt: Boolean(cfg.webhookSalt),
       webhookSaltPrev: Boolean(cfg.webhookSaltPrev),
       merchantId: Boolean(cfg.merchantId),
+      clientId: Boolean(cfg.clientId),
     },
     masked: {
       secretKey: maskSecret(cfg.secretKey),
@@ -192,6 +202,7 @@ export async function describeGatewayStatus() {
     },
     apiBase: cfg.apiBase,
     merchantId: cfg.merchantId,
+    clientId: cfg.clientId,
     refundsBase: cfg.refundsBase,
     methods: cfg.methods,
     webhookUrl: cfg.webhookUrl,
@@ -235,6 +246,7 @@ export async function saveRapidConfig(
   enc("webhookSaltPrevEnc", "webhookSaltPrev");
 
   for (const field of patch.clear || []) {
+    if (field === "clientId") { unset.clientId = ""; changed.push("clientId (cleared)"); }
     if (field === "secretKey") { unset.secretKeyEnc = ""; changed.push("secretKey (cleared)"); }
     if (field === "webhookSalt") { unset.webhookSaltEnc = ""; changed.push("webhookSalt (cleared)"); }
     if (field === "webhookSaltPrev") { unset.webhookSaltPrevEnc = ""; changed.push("webhookSaltPrev (cleared)"); }
@@ -258,6 +270,18 @@ export async function saveRapidConfig(
     } else if (!cleaned) {
       unset.merchantId = ""; // reset to env default
       changed.push("merchantId (reset to default)");
+    }
+  }
+  if (typeof patch.clientId === "string") {
+    const cleaned = patch.clientId.trim();
+    // OAuth2 Basic username — portal may show a UUID or short id; permissive
+    // charset, bounded length. Empty string resets to env/merchantId fallback.
+    if (cleaned && /^[A-Za-z0-9_-]{3,64}$/.test(cleaned)) {
+      set.clientId = cleaned;
+      changed.push("clientId");
+    } else if (!cleaned) {
+      unset.clientId = ""; // reset to env/merchantId fallback
+      changed.push("clientId (reset to default)");
     }
   }
   if (typeof patch.refundsBase === "string") {
