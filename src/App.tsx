@@ -92,15 +92,68 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 // Admin token helper — used for product CRUD sync to MongoDB
 const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 
+// ---------------------------------------------------------------------------
+// PENDING PRODUCT OPS QUEUE — "saved locally" changes are never lost.
+// When a create/update cannot reach MongoDB (offline, expired session, server
+// error), the operation is queued in localStorage and auto-retried whenever
+// the admin panel opens with a valid session. This turns "MongoDB sync
+// failed" from permanent data loss into a temporary, self-healing state.
+// ---------------------------------------------------------------------------
+const PENDING_OPS_KEY = 'playbeat_pending_product_ops'
+
+type PendingProductOp = {
+  op: 'create' | 'update'
+  product: Product
+  queuedAt: number
+}
+
+function readPendingProductOps(): PendingProductOp[] {
+  try {
+    const raw = localStorage.getItem(PENDING_OPS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((o: any) => o && o.product) : []
+  } catch {
+    return []
+  }
+}
+
+function writePendingProductOps(ops: PendingProductOp[]) {
+  try {
+    if (ops.length === 0) {
+      localStorage.removeItem(PENDING_OPS_KEY)
+    } else {
+      localStorage.setItem(PENDING_OPS_KEY, JSON.stringify(ops))
+    }
+  } catch {
+    /* quota — best effort only */
+  }
+}
+
+function enqueuePendingProductOp(op: PendingProductOp) {
+  const ops = readPendingProductOps()
+  // Replace any earlier queued op for the same product (latest state wins)
+  const filtered = ops.filter(
+    (o) => o.product.id !== op.product.id && o.product._id !== op.product._id
+  )
+  filtered.push(op)
+  writePendingProductOps(filtered)
+}
+
 // Persist a product to MongoDB (create or update). Returns the canonical product
 // from the server so the local catalog can adopt the database _id.
 async function syncProductToMongo(
   product: Product,
   isNew: boolean
-): Promise<{ ok: boolean; error?: string; saved?: Product }> {
+): Promise<{ ok: boolean; error?: string; status?: number; saved?: Product }> {
   try {
     const token = getAdminToken()
-    if (!token) return { ok: true }
+    if (!token) {
+      return {
+        ok: false,
+        status: 0,
+        error: 'No admin session — sign in as admin to sync to MongoDB',
+      }
+    }
     const url = isNew
       ? `${API_BASE}/api/admin/products`
       : `${API_BASE}/api/admin/products/${encodeURIComponent(product._id || product.id || product.sku)}`
@@ -115,9 +168,20 @@ async function syncProductToMongo(
     })
     const data = await res.json().catch(() => null)
     if (res.ok && data?.success) return { ok: true, saved: data.product }
-    return { ok: false, error: data?.error || `Sync failed (${res.status})` }
+    if (res.status === 401) {
+      return {
+        ok: false,
+        status: 401,
+        error: 'Admin session expired — sign in again to sync to MongoDB',
+      }
+    }
+    return { ok: false, status: res.status, error: data?.error || `Sync failed (${res.status})` }
   } catch {
-    return { ok: false, error: 'Backend unreachable — change saved locally only' }
+    return {
+      ok: false,
+      status: 0,
+      error: 'Backend unreachable — change saved locally only',
+    }
   }
 }
 
@@ -125,7 +189,9 @@ async function syncProductToMongo(
 async function deleteProductFromMongo(productId: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const token = getAdminToken()
-    if (!token) return { ok: true }
+    if (!token) {
+      return { ok: false, error: 'No admin session — sign in as admin to sync deletions' }
+    }
     const res = await fetch(
       `${API_BASE}/api/admin/products/${encodeURIComponent(productId)}`,
       {
@@ -136,6 +202,9 @@ async function deleteProductFromMongo(productId: string): Promise<{ ok: boolean;
     )
     const data = await res.json().catch(() => null)
     if (res.ok && data?.success) return { ok: true }
+    if (res.status === 401) {
+      return { ok: false, error: 'Admin session expired — sign in again, then delete again' }
+    }
     return { ok: false, error: data?.error || `Delete failed (${res.status})` }
   } catch {
     return { ok: false, error: 'Backend unreachable — product removed locally only' }
@@ -1030,6 +1099,7 @@ export function App() {
     'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
   >('profile')
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Persist Products Catalog (wrapped in try-catch — localStorage quota can
   // be exceeded on some browsers, which would crash the entire app)
@@ -1214,13 +1284,88 @@ export function App() {
     }
   }, [user])
 
-  // Toast Helper
-  const showToast = (msg: string) => {
+  // Toast Helper (errors pass a longer duration so the reason stays readable)
+  const showToast = (msg: string, ms: number = 2800) => {
     setToastMessage(msg)
-    setTimeout(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => {
       setToastMessage(null)
-    }, 2800)
+    }, ms)
   }
+
+  // ---------------------------------------------------------------------------
+  // PENDING PRODUCT OPS — retry queue flush. Runs whenever the admin panel is
+  // open with a valid session: every create/update that previously failed to
+  // reach MongoDB is replayed. Success removes the op from the queue and
+  // adopts the canonical DB product; a 409 duplicate means the change already
+  // exists server-side (dropped); anything else stays queued for next time.
+  // ---------------------------------------------------------------------------
+  const flushPendingProductOps = async (): Promise<void> => {
+    if (flushingOpsRef.current) return
+    const ops = readPendingProductOps()
+    if (ops.length === 0) return
+    if (!getAdminToken()) return
+    flushingOpsRef.current = true
+    try {
+      let synced = 0
+      const remaining: PendingProductOp[] = []
+      for (const pending of ops) {
+        const sync = await syncProductToMongo(pending.product, pending.op === 'create')
+        if (sync.ok) {
+          synced++
+          const canonical = sync.saved || pending.product
+          setProducts((prev) => {
+            const withoutDup = prev.filter(
+              (p) =>
+                p.id !== pending.product.id &&
+                p._id !== pending.product._id &&
+                p._id !== canonical._id
+            )
+            return [canonical, ...withoutDup]
+          })
+        } else if (sync.status === 409) {
+          // Already exists in MongoDB — the queued change is moot
+          synced++
+        } else {
+          remaining.push(pending)
+        }
+      }
+      writePendingProductOps(remaining)
+      if (synced > 0 && remaining.length === 0) {
+        showToast(`${synced} pending product change${synced === 1 ? '' : 's'} synced to MongoDB`, 4200)
+      } else if (synced > 0 && remaining.length > 0) {
+        showToast(
+          `${synced} synced — ${remaining.length} still pending (will retry automatically)`,
+          5200
+        )
+      } else if (remaining.length > 0) {
+        showToast(
+          `${remaining.length} product change${remaining.length === 1 ? '' : 's'} still pending MongoDB sync — will retry automatically`,
+          5200
+        )
+      }
+    } finally {
+      flushingOpsRef.current = false
+    }
+  }
+
+  const flushingOpsRef = useRef(false)
+  const pendingFlushRef = useRef(false)
+
+  // Trigger the flush when the admin console is opened with an active session
+  useEffect(() => {
+    if (!adminAuthed || route !== 'admin') return
+    if (pendingFlushRef.current) return
+    pendingFlushRef.current = true
+    // Small delay so the admin shell finishes mounting before network retries
+    const t = setTimeout(() => {
+      flushPendingProductOps().finally(() => {
+        pendingFlushRef.current = false
+      })
+    }, 1500)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminAuthed, route])
 
   // Save (create/update) a product from the Admin Console
   const handleSaveProduct = async (
@@ -1245,10 +1390,24 @@ export function App() {
           ? `Product "${product.name}" created & synced to MongoDB`
           : `Product "${product.name}" updated & synced`
       )
-    } else {
-      showToast(`Saved locally — MongoDB sync failed: ${sync.error}`)
+      // A successful save is a good moment to retry any earlier failed changes
+      flushPendingProductOps().catch(() => {})
+      return { ok: true }
     }
-    return { ok: true }
+
+    // Sync failed — queue the op so nothing is lost, keep the editor open and
+    // surface the EXACT server reason both inline and in a long-lived toast.
+    enqueuePendingProductOp({
+      op: isNew ? 'create' : 'update',
+      product,
+      queuedAt: Date.now(),
+    })
+    const reason = sync.error || 'Unknown error'
+    showToast(
+      `Saved locally — MongoDB sync failed: ${reason} It will retry automatically on your next admin sign-in.`,
+      7000
+    )
+    return { ok: false, error: `${reason} — change is saved locally & queued for automatic retry` }
   }
 
   // Delete a product from the Admin Console
@@ -1259,6 +1418,12 @@ export function App() {
     setProducts((prev) => prev.filter((p) => p.id !== productId && p._id !== productId))
     // Also remove from wishlist/cart references
     setWishlist((prev) => prev.filter((p) => p.id !== productId && p._id !== productId))
+    // Drop any queued create/update for the deleted product
+    writePendingProductOps(
+      readPendingProductOps().filter(
+        (o) => o.product.id !== productId && o.product._id !== productId
+      )
+    )
 
     // Prefer the MongoDB _id when available; the API also matches local ids/skus
     const sync = await deleteProductFromMongo(target?._id || productId)
@@ -1268,10 +1433,13 @@ export function App() {
           ? `Product "${target.name}" permanently deleted`
           : 'Product permanently deleted'
       )
-    } else {
-      showToast(`Removed locally — MongoDB delete failed: ${sync.error}`)
+      return { ok: true }
     }
-    return { ok: true }
+    // If the delete failed the product still exists in MongoDB and will
+    // reappear on the next catalog hydrate — say so plainly.
+    const reason = sync.error || 'Unknown error'
+    showToast(`Removed locally — MongoDB delete failed: ${reason} The product will reappear after reload unless the deletion succeeds.`, 7000)
+    return { ok: false, error: reason }
   }
 
   // Stock update from Admin Console
