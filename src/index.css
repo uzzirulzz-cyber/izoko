@@ -765,3 +765,120 @@
     font-size: 13px;
   }
 }
+
+/* ============================================================
+   PlayBeat storefront — Hero Header redesign (design: "PlayBeat
+   Digital — Hero Header" artifact) — Montserrat + Unbounded,
+   deep-navy panels, gold/orange accents, floating 3D brand stage
+   ============================================================ */
+.pb-mont { font-family: 'Montserrat', 'Inter', system-ui, sans-serif; }
+.pb-unbounded { font-family: 'Unbounded', 'Montserrat', system-ui, sans-serif; }
+
+/* --- headline gradient word (DIGITAL) --- */
+.pb-h1-y {
+  background: linear-gradient(90deg, #ffd01f 20%, #ff7a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(255, 154, 0, 0.27));
+}
+
+/* --- eyebrow rule line --- */
+.pb-eyebrow-line {
+  height: 2px;
+  width: 90px;
+  background: linear-gradient(90deg, #3d8bff, transparent);
+}
+
+/* --- 3D floating brand stage --- */
+.pb-stage-wrap { perspective: 1200px; }
+.pb-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.02;
+  max-width: 760px;
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out;
+  will-change: transform;
+}
+.pb-ring { position: absolute; border-radius: 50%; border: 2px solid transparent; pointer-events: none; }
+.pb-ring-1 {
+  inset: 10% -2% 14% 2%;
+  border-color: rgba(139, 91, 255, 0.4);
+  box-shadow: 0 0 40px rgba(139, 91, 255, 0.33), inset 0 0 40px rgba(255, 79, 160, 0.2);
+  transform: rotate(-14deg);
+}
+.pb-ring-2 {
+  inset: 20% 6% 20% 10%;
+  border-color: rgba(63, 184, 255, 0.33);
+  box-shadow: 0 0 36px rgba(63, 184, 255, 0.27);
+  transform: rotate(12deg);
+}
+.pb-pod {
+  position: absolute;
+  left: 8%;
+  right: 2%;
+  bottom: 3%;
+  height: 17%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #16348a, #070f2c 70%);
+  border: 3px solid #3f95ff;
+  box-shadow: 0 0 30px #3f95ff, 0 0 80px rgba(139, 91, 255, 0.47), inset 0 0 30px rgba(63, 149, 255, 0.53);
+}
+.pb-pod::before {
+  content: "";
+  position: absolute;
+  inset: 16%;
+  border-radius: 50%;
+  border: 2px solid #ffb12e;
+  box-shadow: 0 0 24px #ffb12e;
+}
+.pb-tile {
+  position: absolute;
+  width: var(--w, 19%);
+  aspect-ratio: 1;
+  border-radius: 22%;
+  display: grid;
+  place-items: center;
+  transform: rotate(var(--r, 0deg));
+  animation: pb-fl 6s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(145deg, var(--c1, #14204a), var(--c2, #070c22));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.67), 0 0 26px var(--g, rgba(74, 107, 255, 0.33)), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-weight: 800;
+  text-align: center;
+  color: #fff;
+  line-height: 1.05;
+}
+.pb-tile svg { width: 62%; height: auto; }
+.pb-tile .pb-tx { font-size: clamp(8px, 1.45vw, 19px); }
+.pb-tile .pb-col { display: flex; flex-direction: column; align-items: center; gap: 6%; }
+@keyframes pb-fl { 50% { translate: 0 -7px; } }
+.pb-tile-core {
+  left: 34%;
+  top: 20%;
+  width: 37%;
+  --c1: #0e1d55;
+  --c2: #060b24;
+  --g: rgba(63, 149, 255, 0.6);
+  border: 2px solid #5db3ff;
+  border-radius: 26%;
+  z-index: 3;
+  animation-name: pb-flc;
+}
+@keyframes pb-flc { 50% { translate: 0 -5px; } }
+.pb-gear { position: absolute; z-index: 2; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.67)); }
+.pb-crown {
+  position: absolute;
+  left: 41%;
+  top: 55%;
+  width: 26%;
+  z-index: 4;
+  filter: drop-shadow(0 0 18px #ffb300);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-tile { animation: none; }
+  .pb-stage { transition: none; }
+}

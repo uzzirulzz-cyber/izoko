@@ -1874,6 +1874,19 @@ export function App() {
               document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
               showToast('Showing the biggest discounts first — Offers')
             }}
+            onSearchSubmit={() => {
+              document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            onOpenTrending={() => {
+              document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+            }}
+            onOpenBestValue={() => {
+              setSortBy('rating')
+              setSelectedCategory('all')
+              setSearchQuery('')
+              document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+              showToast('Showing top-rated products first — Best Value')
+            }}
             onNavigate={(path) => {
               // Header links use real indexable URLs; map them to SPA routes
               if (path === '/') {
