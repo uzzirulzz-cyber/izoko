@@ -84,6 +84,12 @@ import {
   saveTrackingConfig,
   sanitizeTrackingPatch,
 } from "../_lib/trackingConfig.js";
+import {
+  getOAuthStatus,
+  saveOAuthOverrides,
+  sanitizeOAuthPatch,
+} from "../_lib/oauthConfig.js";
+import { getMetaCapiStatus } from "../_lib/metaCapi.js";
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 import { sitemapStats } from "../_lib/sitemap.js";
@@ -3325,6 +3331,80 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       });
     } catch (err: any) {
       return jsonError(res, err.message || "Could not save the tracking configuration.", 400);
+    }
+  }
+
+  // ============ GET /api/admin/oauth-config ============
+  // Social sign-in provider status — SECRETS ARE MASKED, never returned raw.
+  if (route === "oauth-config" && req.method === "GET") {
+    try {
+      const status = await getOAuthStatus();
+      const audits = await db
+        .collection("oauth_config_audit")
+        .find({})
+        .sort({ at: -1 })
+        .limit(10)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        providers: status,
+        redirectUris: {
+          google: `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/oauth/google/callback`,
+          facebook: `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/oauth/facebook/callback`,
+          instagram: `${PUBLIC_SITE_URL.replace(/\/$/, "")}/api/auth/oauth/instagram/callback`,
+        },
+        audits: audits.map((a: any) => ({ at: a.at, actor: a.actor, providers: a.providers })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load OAuth configuration.", 500);
+    }
+  }
+
+  // ============ POST /api/admin/oauth-config ============
+  // Body: { google?: { clientId, clientSecret, apiKey? }, facebook?: {...},
+  //         instagram?: {...} } — empty object clears that provider.
+  // Takes effect immediately (30s cache), NO redeploy needed.
+  if (route === "oauth-config" && req.method === "POST") {
+    try {
+      const actor = String((req as any).admin?.email || (req as any).user?.email || "admin");
+      const patch = sanitizeOAuthPatch(req.body || {});
+      await saveOAuthOverrides(patch, actor);
+      const status = await getOAuthStatus();
+      return jsonOk(res, {
+        success: true,
+        message: "OAuth configuration saved — live without redeploy.",
+        providers: status,
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not save the OAuth configuration.", 400);
+    }
+  }
+
+  // ============ GET /api/admin/meta-capi-status ============
+  // Conversions API runtime status — masked token info + recent delivery log.
+  if (route === "meta-capi-status" && req.method === "GET") {
+    try {
+      const status = await getMetaCapiStatus();
+      const log = await db
+        .collection("meta_capi_log")
+        .find({})
+        .sort({ at: -1 })
+        .limit(10)
+        .toArray();
+      return jsonOk(res, {
+        success: true,
+        capi: status,
+        deliveries: log.map((l: any) => ({
+          at: l.at,
+          event: l.event,
+          eventId: l.eventId,
+          source: l.source,
+          ok: l.ok,
+          status: l.status,
+        })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load Meta CAPI status.", 500);
     }
   }
 

@@ -706,11 +706,36 @@ export function App() {
   }
 
   // Social OAuth callback results (?social_success= / ?social_error=)
+  // Admin OAuth (?admin_oauth=Google): the callback set the httpOnly adminToken
+  // cookie — exchange it for a Bearer-capable session via /api/auth/admin/me,
+  // which echoes the token when the request was cookie-authenticated.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
+    const adminOauth = params.get('admin_oauth')
     const ok = params.get('social_success')
     const err = params.get('social_error')
+    if (adminOauth) {
+      fetch(`${API_BASE}/api/auth/admin/me`, { credentials: 'include' })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.success && d?.admin) {
+            if (d.token) localStorage.setItem('playbeat_admin_token', d.token)
+            localStorage.setItem(
+              'playbeat_admin_session',
+              JSON.stringify({ email: d.admin.email, name: d.admin.name, ts: Date.now() })
+            )
+            setAdminAuthed(true)
+            navigate('admin')
+            showToast(`Welcome back, ${d.admin.name} — signed in via ${adminOauth}.`)
+          } else {
+            showToast('Google sign-in could not be verified for admin access — use the admin password login.')
+          }
+        })
+        .catch(() => showToast('Google admin sign-in failed — network error.'))
+      window.history.replaceState({}, '', '/')
+      return
+    }
     if (ok) {
       // The OAuth callback already set the session cookie — fetch the profile
       fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })

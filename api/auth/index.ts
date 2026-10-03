@@ -46,6 +46,7 @@ import {
 } from "../_lib/auth.js";
 import { ADMIN_EMAIL, PUBLIC_SITE_URL } from "../_lib/config.js";
 import { clientIp, mongoRateLimit } from "../_lib/rateLimit.js";
+import { getOAuthOverrides } from "../_lib/oauthConfig.js";
 
 // ---- OAuth provider configuration (activated when env vars are set in Vercel) ----
 type ProviderConfig = {
@@ -56,10 +57,23 @@ type ProviderConfig = {
   clientId?: string;
   clientSecret?: string;
   extraAuthParams?: Record<string, string>;            // e.g. Google prompt=select_account
-  parseProfile?: (json: any) => { id?: string; name?: string; email?: string; username?: string };
+  parseProfile?: (json: any) => { id?: string; name?: string; email?: string; username?: string; emailVerified?: unknown };
 };
 
-function getProviderConfigs(): Record<string, ProviderConfig> {
+// Provider configs = Vercel env vars overlaid with DB secrets (oauth_config
+// collection, key:"active" — DB wins when non-empty, mirroring gateway/meta
+// CAPI runtime-secret patterns). Async because the DB lookup is async; the
+// result is cached in-process for 30s inside getOAuthOverrides.
+async function getProviderConfigs(): Promise<Record<string, ProviderConfig>> {
+  let overrides: Awaited<ReturnType<typeof getOAuthOverrides>> = {};
+  try {
+    overrides = await getOAuthOverrides();
+  } catch {
+    /* env-only fallback */
+  }
+  const googleOv = overrides.google || {};
+  const facebookOv = overrides.facebook || {};
+  const instagramOv = overrides.instagram || {};
   return {
     google: {
       authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -67,17 +81,17 @@ function getProviderConfigs(): Record<string, ProviderConfig> {
       profileUrl: "https://www.googleapis.com/oauth2/v2/userinfo",
       scope: "openid email profile",
       extraAuthParams: { prompt: "select_account", access_type: "online", include_granted_scopes: "true" },
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      parseProfile: (j) => ({ id: j?.id || j?.sub, name: j?.name, email: j?.email, username: j?.email }),
+      clientId: googleOv.clientId || process.env.GOOGLE_CLIENT_ID,
+      clientSecret: googleOv.clientSecret || process.env.GOOGLE_CLIENT_SECRET,
+      parseProfile: (j) => ({ id: j?.id || j?.sub, name: j?.name, email: j?.email, username: j?.email, emailVerified: j?.email_verified }),
     },
     facebook: {
       authUrl: "https://www.facebook.com/v21.0/dialog/oauth",
       tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
       profileUrl: "https://graph.facebook.com/v21.0/me?fields=id,name,email",
       scope: "email,public_profile",
-      clientId: process.env.FACEBOOK_CLIENT_ID,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      clientId: facebookOv.clientId || process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: facebookOv.clientSecret || process.env.FACEBOOK_CLIENT_SECRET,
       parseProfile: (j) => ({ id: j?.id, name: j?.name, email: j?.email, username: j?.email }),
     },
     instagram: {
@@ -565,8 +579,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   if (route === "admin/me" && req.method === "GET") {
     const admin = verifyAdmin(req);
     if (!admin) return jsonError(res, "Admin authentication required", 401);
+    // If the session was verified via the httpOnly adminToken cookie (e.g. right
+    // after a Google OAuth redirect), echo the token so the SPA can also make
+    // Bearer calls. The token belongs to the caller only — safe to return.
+    const cameFromCookie = !req.headers?.authorization?.startsWith("Bearer ");
     return jsonOk(res, {
       success: true,
+      ...(cameFromCookie ? { token: getToken(req, "adminToken") } : {}),
       admin: {
         email: admin.email,
         name: admin.name,
@@ -581,7 +600,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
   // ============ /api/auth/oauth-config ============
   if (route === "oauth-config" && req.method === "GET") {
-    const cfgs = getProviderConfigs();
+    const cfgs = await getProviderConfigs();
     return jsonOk(res, {
       success: true,
       providers: {
@@ -600,7 +619,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   if (pathSegments[0] === "oauth" && pathSegments[2] === "start" && req.method === "GET") {
     const provider = (pathSegments[1] || "").toLowerCase();
     const isMobile = String(url.searchParams.get("mobile") || "") === "1";
-    const cfg = getProviderConfigs()[provider];
+    const cfg = (await getProviderConfigs())[provider];
     if (!cfg) return jsonError(res, `Unknown provider: ${provider}`, 404);
     if (!cfg.clientId || !cfg.clientSecret) {
       if (isMobile) {
@@ -635,7 +654,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // ============ /api/auth/oauth/:provider/callback ============
   if (pathSegments[0] === "oauth" && pathSegments[2] === "callback" && req.method === "GET") {
     const provider = (pathSegments[1] || "").toLowerCase();
-    const cfg = getProviderConfigs()[provider];
+    const cfg = (await getProviderConfigs())[provider];
     const code = url.searchParams.get("code");
     const qErr = url.searchParams.get("error_description") || url.searchParams.get("error");
     const base = PUBLIC_SITE_URL.replace(/\/$/, "");
@@ -703,9 +722,74 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             name: profJson.name || profJson.display_name || profJson.username,
             email: profJson.email,
             username: profJson.username,
+            emailVerified: undefined as unknown,
           };
 
       const db = await getDb();
+
+      // ---- Admin / staff Google sign-in branch ----
+      // The super admin email is reserved from CUSTOMER social sign-up
+      // (upsertSocialUser refuses it), but authorized personnel can sign in to
+      // the admin console with Google when the Google account's verified email
+      // matches the super admin identity or an active staff/admin account.
+      // Everyone else falls through to the normal customer social flow.
+      const googleEmail = String(extracted.email || "").toLowerCase().trim();
+      const emailVerifiedOk = extracted.emailVerified !== false; // Google email_verified
+      const isSuperAdminEmail = provider === "google" && emailVerifiedOk && googleEmail === ADMIN_EMAIL.toLowerCase();
+      let staffAdminUser: any = null;
+      if (provider === "google" && emailVerifiedOk && googleEmail && !isSuperAdminEmail) {
+        staffAdminUser = await db.collection("users").findOne({
+          email: googleEmail,
+          role: { $in: ["staff", "admin"] },
+          active: { $ne: false },
+        });
+      }
+      if (isSuperAdminEmail || staffAdminUser) {
+        const identity = { provider: getProviderLabel(provider), providerId: String(extracted.id || ""), updatedAt: new Date() };
+        let adminName: string;
+        let adminToken: string;
+        if (isSuperAdminEmail) {
+          // Link the Google identity onto the super admin record + profile doc
+          try {
+            await db.collection("users").updateOne(
+              { email: googleEmail },
+              { $set: identity, $setOnInsert: { name: "PlayBeat Super Administrator", role: "super_admin", createdAt: new Date() } },
+              { upsert: true }
+            );
+            await db.collection("admin_profiles").updateOne(
+              { email: googleEmail },
+              { $set: { ...identity, email: googleEmail }, $setOnInsert: { createdAt: new Date() } },
+              { upsert: true }
+            );
+          } catch { /* identity linking is best-effort */ }
+          adminName = "PlayBeat Super Administrator";
+          adminToken = signAdminToken({ email: ADMIN_EMAIL, name: adminName });
+        } else {
+          await db.collection("users").updateOne({ _id: staffAdminUser._id }, { $set: identity });
+          adminName = staffAdminUser.name;
+          adminToken = signUserToken({
+            id: staffAdminUser._id.toString(),
+            email: staffAdminUser.email,
+            role: staffAdminUser.role,
+            authority: staffAdminUser.authority || (staffAdminUser.role === "admin" ? "admin" : "supervisor"),
+            permissions: Array.isArray(staffAdminUser.permissions) ? staffAdminUser.permissions : [],
+          });
+        }
+        try {
+          await db.collection("admin_activity").insertOne({
+            type: "login",
+            adminEmail: googleEmail,
+            adminName,
+            role: isSuperAdminEmail ? "admin" : staffAdminUser.role,
+            detail: "Signed in to the admin dashboard via Google OAuth",
+            meta: { method: "google-oauth" },
+            createdAt: new Date(),
+          });
+        } catch { /* activity tracking must never block login */ }
+        setCookie(res, "adminToken", adminToken, { maxAge: 7 * 24 * 60 * 60 });
+        return res.status(302).redirect(`${base}/?admin_oauth=${encodeURIComponent(getProviderLabel(provider))}`);
+      }
+
       const user = await upsertSocialUser(db, provider, extracted);
       const token = signUserToken({
         id: user._id.toString(),
