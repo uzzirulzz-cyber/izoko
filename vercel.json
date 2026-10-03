@@ -176,6 +176,14 @@
       "destination": "/api/payments?rapid=1"
     },
     {
+      "source": "/api/data-deletion",
+      "destination": "/api/contact?metaDeletion=1"
+    },
+    {
+      "source": "/data-deletion",
+      "destination": "/data-deletion.html"
+    },
+    {
       "source": "/order/:path*",
       "destination": "/index.html"
     },
