@@ -67,6 +67,8 @@ import {
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
+// SB Admin 2 (Bootstrap 4.6) scoped to the admin shell — MUST load before admin-theme.css
+import '../admin/sb2-scoped.css'
 import '../admin-theme.css'
 import { NeonCart, NeonShield, NeonBolt, NeonBrain, ViewHeader, KpiTile } from './admin/enterprise'
 import { CsvImporterModal } from './CsvImporterModal'
