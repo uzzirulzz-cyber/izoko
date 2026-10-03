@@ -189,7 +189,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     .split("/")
     .filter(Boolean)
     .slice(2);
-  if (imgSeg[0] === "images" && imgSeg[1] && req.method === "GET") {
+  // GET + HEAD: Google's Shopping image crawler sends HEAD prechecks — a 405
+  // here is recorded as an image crawl failure and gets the item disapproved.
+  if (imgSeg[0] === "images" && imgSeg[1] && (req.method === "GET" || req.method === "HEAD")) {
     try {
       const imageId = String(imgSeg[1]).trim();
       if (!/^[0-9a-fA-F]{24}$/.test(imageId)) {
@@ -217,6 +219,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       res.setHeader("Content-Length", String(bytes.length));
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       res.setHeader("ETag", `"${imageId}"`);
+      if (req.method === "HEAD") return res.end();
       return res.send(bytes);
     } catch (err: any) {
       return jsonError(res, err.message || "Image serve failed.", 500);
@@ -237,7 +240,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
-  if (req.method !== "GET") return jsonError(res, "Method not allowed", 405);
+  // HEAD allowed alongside GET: Merchant Center probes feed URLs with HEAD
+  // before scheduled fetches; a 405 makes the fetch look unreachable.
+  if (req.method !== "GET" && req.method !== "HEAD")
+    return jsonError(res, "Method not allowed", 405);
 
   try {
     const db = await getDb();
@@ -325,6 +331,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // 15-minute-stale response, hiding newly published products from the
       // Merchant pipeline. The feed is cheap to build — always live instead.
       res.setHeader("Cache-Control", "no-store");
+      if (req.method === "HEAD") return res.end();
       return res.send(feed);
     }
 

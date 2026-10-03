@@ -338,11 +338,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // PUBLIC: avatar image bytes — <img> tags cannot send Authorization headers,
   // so this single read-only route is exempt from the admin gate. It only ever
   // returns stored image bytes — no secrets, no user data beyond the picture.
-  const isPublicAvatarGet = route === "avatar" && req.method === "GET";
+  // GET + HEAD on both public byte routes: crawlers (Google Shopping image
+  // precheck) probe with HEAD — the admin gate must not turn it into a 401,
+  // which Merchant Center records as an unreachable image.
+  const isPublicAvatarGet = route === "avatar" && (req.method === "GET" || req.method === "HEAD");
   // PUBLIC: product media bytes (GET /api/admin/media?id=<assetId>) — same
   // reasoning as the avatar: storefront <img> tags need anonymous access to
   // images uploaded through POST /api/admin/media. Read-only, bytes only.
-  const isPublicMediaGet = route === "media" && req.method === "GET";
+  const isPublicMediaGet = route === "media" && (req.method === "GET" || req.method === "HEAD");
   if (!isPublicAvatarGet && !isPublicMediaGet && !requireAdmin(req, res)) return;
 
   // IT-scope enforcement: accounts with the "it" power authority may ONLY use
@@ -2385,7 +2388,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // PUBLIC image endpoint — serves stored avatar bytes for the admin dashboard
   // (top bar, sidebar, dropdown, messaging, activity) and customer-facing
   // support chat. Only ever returns image bytes — no secrets.
-  if (route === "avatar" && req.method === "GET") {
+  if (route === "avatar" && (req.method === "GET" || req.method === "HEAD")) {
     const url = new URL(req.url || "", "http://localhost");
     const email = String(url.searchParams.get("email") || "").trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -2425,6 +2428,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       "X-Content-Type-Options": "nosniff",
       "Content-Length": String(bytes.length),
     });
+    if (req.method === "HEAD") return res.end();
     res.end(bytes);
     return;
   }
@@ -2473,6 +2477,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         "X-Content-Type-Options": "nosniff",
         "Content-Length": String(mediaBytes.length),
       });
+      if (req.method === "HEAD") return res.end();
       res.end(mediaBytes);
     } catch (err: any) {
       console.error("GET /api/admin/media error:", err);
