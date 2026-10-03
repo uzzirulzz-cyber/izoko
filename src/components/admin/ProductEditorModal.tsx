@@ -5,6 +5,7 @@ import {
   Search, Globe, Eye,
 } from 'lucide-react'
 import { Product, ProductSeo } from '../../types'
+import { compressImageFile, uploadProductImage, ensureImageUrl, isDataImageUrl } from '../../lib/uploadImage'
 
 interface ProductEditorModalProps {
   product: Product | null // null = create mode
@@ -120,13 +121,11 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
     setForm((prev) => ({ ...prev, seo: { ...(prev.seo || {}), [key]: value } }))
 
   // ---------- IMAGE HELPERS ----------
-  const readFileAsDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
+  // Picked files are compressed client-side and uploaded through
+  // POST /api/admin/media — the product payload only ever carries the
+  // returned "/api/media/<id>" URL (base64 images in product JSON caused
+  // HTTP 413 on Vercel's ~4.5MB serverless body cap).
+  const [uploadingImg, setUploadingImg] = useState(false)
 
   const handleMainFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -135,33 +134,52 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
       setErrorMsg('Please select a valid image file (PNG, JPG, WebP).')
       return
     }
-    if (file.size > 2.5 * 1024 * 1024) {
-      setErrorMsg('Image is too large. Maximum 2.5MB per image.')
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMsg('Image file is too large (max 15MB before compression).')
       return
     }
+    setUploadingImg(true)
+    setErrorMsg(null)
     try {
-      const dataUrl = await readFileAsDataUrl(file)
-      setMainImage(dataUrl)
-      setErrorMsg(null)
-    } catch {
-      setErrorMsg('Failed to read the image file.')
+      const compressed = await compressImageFile(file)
+      const uploaded = await uploadProductImage(compressed, file.name || 'product-main-image')
+      if (!uploaded.ok) {
+        setErrorMsg(uploaded.error || 'Image upload failed — please try again.')
+      } else {
+        setMainImage(uploaded.url || '')
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Failed to process the image file.')
+    } finally {
+      setUploadingImg(false)
+      if (mainFileRef.current) mainFileRef.current.value = ''
     }
-    if (mainFileRef.current) mainFileRef.current.value = ''
   }
 
   const handleGalleryFilesUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const newDataUrls: string[] = []
+    setUploadingImg(true)
+    setErrorMsg(null)
+    const uploadedUrls: string[] = []
+    const failed: string[] = []
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue
-      if (file.size > 2.5 * 1024 * 1024) continue
+      if (file.size > 15 * 1024 * 1024) {
+        failed.push(`${file.name}: too large`)
+        continue
+      }
       try {
-        newDataUrls.push(await readFileAsDataUrl(file))
-      } catch {
-        /* skip unreadable file */
+        const compressed = await compressImageFile(file)
+        const uploaded = await uploadProductImage(compressed, file.name || 'product-gallery-image')
+        if (uploaded.ok && uploaded.url) uploadedUrls.push(uploaded.url)
+        else failed.push(`${file.name}: ${uploaded.error || 'upload failed'}`)
+      } catch (e: any) {
+        failed.push(`${file.name}: ${e?.message || 'unreadable'}`)
       }
     }
-    setGallery((prev) => [...prev, ...newDataUrls])
+    if (uploadedUrls.length > 0) setGallery((prev) => [...prev, ...uploadedUrls])
+    if (failed.length > 0) setErrorMsg(`Some images could not be uploaded — ${failed.join('; ')}`)
+    setUploadingImg(false)
     if (galleryFileRef.current) galleryFileRef.current.value = ''
   }
 
@@ -189,6 +207,7 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
 
   // ---------- SAVE ----------
   const handleSave = async () => {
+    if (saving || uploadingImg) return // one save/upload operation at a time
     if (!form.name.trim()) {
       setErrorMsg('Product name is required.')
       setActiveTab('details')
@@ -208,6 +227,46 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
     setSaving(true)
     setErrorMsg(null)
 
+    // EVERY image value must be a URL before the payload is built — this also
+    // converts legacy base64 data URLs that were stored in MongoDB before the
+    // 413 fix (they are uploaded to /api/admin/media and replaced).
+    try {
+      const dataUrls = [mainImage, ...gallery].filter((v) => isDataImageUrl(v))
+      if (dataUrls.length > 0) {
+        setErrorMsg(`Uploading ${dataUrls.length} image${dataUrls.length === 1 ? '' : 's'} to the media library…`)
+      }
+      const mainResult = await ensureImageUrl(mainImage.trim(), `${form.sku || form.name || 'product'}-main`)
+      if (!mainResult.ok) {
+        setErrorMsg(mainResult.error || 'Image upload failed — please try again.')
+        setSaving(false)
+        setActiveTab('images')
+        return
+      }
+      const newMain = mainResult.url
+      const newGallery: string[] = []
+      for (let i = 0; i < gallery.length; i++) {
+        const g = await ensureImageUrl(gallery[i], `${form.sku || form.name || 'product'}-${i + 1}`)
+        if (!g.ok) {
+          setErrorMsg(g.error || 'Image upload failed — please try again.')
+          setSaving(false)
+          setActiveTab('images')
+          return
+        }
+        newGallery.push(g.url)
+      }
+      setMainImage(newMain)
+      setGallery(newGallery)
+      setErrorMsg(null)
+
+      await finishSave(newMain, newGallery)
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Failed to prepare images for saving.')
+      setSaving(false)
+    }
+  }
+
+  // Payload build + submit — only ever called with URL-based images
+  const finishSave = async (mainImageUrl: string, galleryUrls: string[]) => {
     const finalTags = tagsInput
       .split(',')
       .map((t) => t.trim())
@@ -222,10 +281,10 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
       name: form.name.trim(),
       slug: form.slug || slugify(form.name),
       sku: form.sku.trim() || `PB-${Date.now().toString().slice(-6)}`,
-      image: mainImage.trim(),
-      galleryImages: gallery,
-      gallery: [mainImage.trim(), ...gallery],
-      additionalImages: gallery,
+      image: mainImageUrl.trim(),
+      galleryImages: galleryUrls,
+      gallery: [mainImageUrl.trim(), ...galleryUrls],
+      additionalImages: galleryUrls,
       tags: finalTags,
       features: finalFeatures,
       shortDescription: form.shortDescription || form.description.slice(0, 140),
@@ -466,7 +525,7 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className={`${labelCls} mb-0`}>Main Product Image *</label>
-                  <span className="text-[10px] text-zinc-500 font-mono">PNG / JPG / WebP · max 2.5MB</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">PNG / JPG / WebP · any size — auto-compressed &amp; uploaded to the media library</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

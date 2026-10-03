@@ -193,6 +193,40 @@ function sniffDocument(ext: string, b: Buffer): boolean {
   }
 }
 
+// ---------------------------------------------------------------------------
+// PRODUCT IMAGE FIELD SANITIZATION (HTTP 413 root-cause wall)
+// Image fields in product JSON must contain URLs/paths ONLY — never base64
+// data URLs. Embedding base64 images inside product documents blew past the
+// Vercel ~4.5MB serverless body cap (HTTP 413) and made Add/Edit Product
+// unusable. Images go through POST /api/admin/media first; the product then
+// references "/api/media/<id>" URLs.
+// ---------------------------------------------------------------------------
+const PRODUCT_IMAGE_FIELDS = ["image", "gallery", "galleryImages", "additionalImages"] as const;
+const MAX_IMAGE_URLS_PER_FIELD = 12;
+
+function sanitizeProductImageFields(body: any): { ok: boolean; field?: string } {
+  if (!body || typeof body !== "object") return { ok: true };
+  for (const field of PRODUCT_IMAGE_FIELDS) {
+    const v = body[field];
+    if (v == null) continue;
+    if (typeof v === "string") {
+      if (/^\s*data:image/i.test(v)) return { ok: false, field };
+      body[field] = v.trim();
+      continue;
+    }
+    if (Array.isArray(v)) {
+      if (v.some((s: any) => typeof s === "string" && /^\s*data:image/i.test(s))) {
+        return { ok: false, field };
+      }
+      body[field] = v
+        .filter((s: any) => typeof s === "string" && s.trim())
+        .map((s: any) => String(s).trim())
+        .slice(0, MAX_IMAGE_URLS_PER_FIELD);
+    }
+  }
+  return { ok: true };
+}
+
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
 
@@ -1331,6 +1365,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     try {
       const col = db.collection("products");
       const body = req.body || {};
+      // Base64 images are rejected with a structured, actionable error —
+      // they must be uploaded via POST /api/admin/media first.
+      const imgCheck = sanitizeProductImageFields(body);
+      if (!imgCheck.ok) {
+        return jsonError(
+          res,
+          `Image field "${imgCheck.field}" contains embedded base64 image data which makes the request too large. Upload images via POST /api/admin/media and save the returned URL instead.`,
+          413
+        );
+      }
       if (!body.name || !body.price) {
         return jsonError(res, "Product name and price are required.", 400);
       }
@@ -1482,6 +1526,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         const body = { ...req.body };
         delete body._id;
         delete body.id;
+        // Base64 images are rejected with a structured, actionable error —
+        // they must be uploaded via POST /api/admin/media first.
+        const imgCheck = sanitizeProductImageFields(body);
+        if (!imgCheck.ok) {
+          return jsonError(
+            res,
+            `Image field "${imgCheck.field}" contains embedded base64 image data which makes the request too large. Upload images via POST /api/admin/media and save the returned URL instead.`,
+            413
+          );
+        }
         if (body.name && !body.slug) body.slug = slugify(body.name);
         body.updatedAt = new Date();
 
@@ -1978,6 +2032,86 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     });
     res.end(bytes);
     return;
+  }
+
+  // ============ POST /api/admin/media (product image upload) ============
+  // Stores ONE compressed image (base64 data URL) into the `media_assets`
+  // collection and returns its public URL "/api/media/<id>". Product save
+  // payloads must only ever reference these URLs — embedding base64 image
+  // data inside product JSON blew past Vercel's ~4.5MB serverless body cap
+  // (HTTP 413) and made Add/Edit Product unusable.
+  if (route === "media" && req.method === "POST") {
+    if (!requireAuthority(req, res, "manager")) return;
+    try {
+      const body = req.body || {};
+      const dataUrl = String(body.dataUrl || "");
+      const filename =
+        String(body.filename || "product-image")
+          .slice(0, 120)
+          .replace(/[^\w.\- ]+/g, "_") || "product-image";
+      const m = /^data:(image\/(?:jpeg|jpg|png|webp|gif));base64,([A-Za-z0-9+/=\r\n]+)$/.exec(dataUrl);
+      if (!m) {
+        return jsonError(res, "Invalid image payload — expected a base64 data URL (jpeg/png/webp/gif).", 400);
+      }
+      const declared = m[1] === "image/jpg" ? "image/jpeg" : m[1];
+      const bytes = Buffer.from(m[2], "base64");
+      if (bytes.length < 64) return jsonError(res, "Image payload is too small to be valid.", 400);
+      // The client compresses before upload (max 1600px, JPEG ~0.85) —
+      // 600KB decoded is a generous ceiling, far below any body limit.
+      if (bytes.length > 600 * 1024) {
+        return jsonError(res, "Image is too large after compression (max 600 KB). Use a smaller image.", 400);
+      }
+      // Magic-byte sniffing — never trust the declared mime type
+      const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+      const isPng =
+        bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+      const isWebP =
+        bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+        bytes.subarray(8, 12).toString("ascii") === "WEBP";
+      const isGif = bytes.subarray(0, 3).toString("ascii") === "GIF";
+      const sniffed = isJpeg
+        ? "image/jpeg"
+        : isPng
+        ? "image/png"
+        : isWebP
+        ? "image/webp"
+        : isGif
+        ? "image/gif"
+        : null;
+      if (!sniffed || sniffed !== declared) {
+        return jsonError(res, "File content does not match an allowed image format (jpeg/png/webp/gif).", 400);
+      }
+
+      const admin = verifyAdmin(req);
+      const now = new Date();
+      const insertResult = await db.collection("media_assets").insertOne({
+        filename,
+        mime: sniffed,
+        bytes,
+        size: bytes.length,
+        uploader: String(admin?.email || "admin"),
+        purpose: String(body.purpose || "product").slice(0, 40),
+        createdAt: now,
+      });
+      await writeAudit(db, {
+        actor: admin,
+        action: "media.upload",
+        targetType: "media",
+        targetId: insertResult.insertedId.toString(),
+        detail: `Image "${filename}" uploaded (${sniffed}, ${(bytes.length / 1024).toFixed(0)} KB)`,
+      });
+      return jsonOk(res, {
+        success: true,
+        message: "Image uploaded successfully",
+        url: `/api/media/${insertResult.insertedId.toString()}`,
+        publicId: insertResult.insertedId.toString(),
+        size: bytes.length,
+        mime: sniffed,
+      }, 201);
+    } catch (err: any) {
+      console.error("POST /api/admin/media error:", err);
+      return jsonError(res, err.message || "Failed to store image.", 500);
+    }
   }
 
   // ============ GET /api/admin/app/version (Playbeat Admin Android app release) ============
