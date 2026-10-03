@@ -4,6 +4,8 @@
 // gateway and their keys appear on /order/:num after webhook verification.
 import React, { useState } from 'react'
 import { CheckCircle2, Copy, Check, ShoppingCart, Receipt, Mail } from 'lucide-react'
+import { GoogleCustomerReviewsOptIn } from './GoogleCustomerReviewsOptIn'
+import type { CustomerReviewsOptInData } from '../../lib/googleCustomerReviews'
 
 interface OrderSuccessProps {
   orderNumber: string
@@ -13,6 +15,14 @@ interface OrderSuccessProps {
   keys: { title: string; key: string }[]
   /** True when the server released real license keys (digital items). */
   hasDigitalKeys: boolean
+  /**
+   * Google Customer Reviews opt-in payload — built from the REAL server
+   * order (real order id + checkout email + derived country/delivery date).
+   * Presence of this prop alone does not fire anything: this component is
+   * only mounted after the server has confirmed the order, and the loader
+   * applies its own validation, host and duplicate-render guards.
+   */
+  reviewOptIn?: CustomerReviewsOptInData
   onContinueShopping: () => void
   onViewOrders: () => void
 }
@@ -24,6 +34,7 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
   email,
   keys,
   hasDigitalKeys,
+  reviewOptIn,
   onContinueShopping,
   onViewOrders,
 }) => {
@@ -37,6 +48,15 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
 
   return (
     <div className="max-w-lg mx-auto px-4 py-10 pbx-fade-in" data-testid="order-success">
+      {reviewOptIn && (
+        <GoogleCustomerReviewsOptIn
+          orderId={reviewOptIn.orderId}
+          email={reviewOptIn.email}
+          deliveryCountry={reviewOptIn.deliveryCountry}
+          estimatedDeliveryDate={reviewOptIn.estimatedDeliveryDate}
+          enabled
+        />
+      )}
       <div className="pbx-card p-8 text-center">
         <span className="inline-flex w-16 h-16 rounded-full bg-green-50 border border-green-200 items-center justify-center mb-4">
           <CheckCircle2 className="w-9 h-9 text-green-600" />

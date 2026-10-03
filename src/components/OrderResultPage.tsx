@@ -14,6 +14,11 @@ import {
 } from 'lucide-react'
 import './checkout/checkout.css'
 import { trackPurchase } from '../lib/googleTag'
+import {
+  computeEstimatedDeliveryDate,
+  deriveDeliveryCountry,
+} from '../lib/googleCustomerReviews'
+import { GoogleCustomerReviewsOptIn } from './checkout/GoogleCustomerReviewsOptIn'
 import RapidEmbeddedCheckout from './checkout/RapidEmbeddedCheckout'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
@@ -34,7 +39,21 @@ interface OrderView {
   currency: string
   paymentMethod?: string
   customerName?: string
-  items: { name: string; variantName?: string; price: number; quantity: number; licenseKeys?: string[] }[]
+  // Real checkout identity + delivery data (full order doc is returned by
+  // /api/orders/mine/:num) — feeds the Google Customer Reviews opt-in.
+  customerEmail?: string
+  customerPhone?: string
+  deliveryCountry?: string
+  shippingCountry?: string
+  items: {
+    name: string
+    variantName?: string
+    price: number
+    quantity: number
+    licenseKeys?: string[]
+    deliveryType?: string
+    digital?: boolean
+  }[]
   gatewayTxnRef?: string
   rapidPaymentId?: string
   createdAt?: string
@@ -283,6 +302,21 @@ export const OrderResultPage: React.FC<OrderResultPageProps> = ({
 
   return (
     <div className="pbx-scope min-h-screen py-10 px-4">
+      {/* Google Customer Reviews opt-in — ONLY in the webhook-verified
+          success state, with the real order id / checkout email / derived
+          delivery data from the database order document. */}
+      {isSuccess && order && (
+        <GoogleCustomerReviewsOptIn
+          orderId={order.orderNumber}
+          email={order.customerEmail || user.email}
+          deliveryCountry={deriveDeliveryCountry(
+            order.customerPhone,
+            order.deliveryCountry || order.shippingCountry
+          )}
+          estimatedDeliveryDate={computeEstimatedDeliveryDate(order.createdAt, order.items)}
+          enabled
+        />
+      )}
       <div className="max-w-2xl mx-auto space-y-5">
         {/* Status hero */}
         <div

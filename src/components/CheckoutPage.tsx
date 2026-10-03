@@ -32,6 +32,10 @@ import RapidEmbeddedCheckout from './checkout/RapidEmbeddedCheckout'
 import { OrderSummary } from './checkout/OrderSummary'
 import { CheckoutCTA } from './checkout/CheckoutCTA'
 import { OrderSuccess } from './checkout/OrderSuccess'
+import {
+  computeEstimatedDeliveryDate,
+  deriveDeliveryCountry,
+} from '../lib/googleCustomerReviews'
 import { trackBeginCheckout, trackPurchase } from '../lib/googleTag'
 import { PaymentLogoRow, BrandId } from './checkout/PaymentLogos'
 import { PaymentMethodInfo, AppliedCoupon, CartTotals } from './checkout/types'
@@ -75,6 +79,12 @@ type PlacedOrder = {
   paymentMethodLabel: string
   keys: { title: string; key: string }[]
   hasDigitalKeys: boolean
+  // Real server-order fields — feed the Google Customer Reviews opt-in
+  // (derived delivery country + estimated delivery date, never fabricated).
+  customerEmail: string
+  customerPhone: string
+  createdAt: string
+  deliveryTypes: string[]
 }
 
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({
@@ -419,6 +429,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         paymentMethodLabel: DIRECT_METHOD_LABEL[selectedMethod] || 'Direct Payment',
         keys,
         hasDigitalKeys,
+        customerEmail: String(order.customerEmail || contact.email.trim()),
+        customerPhone: contact.phone?.trim() || '',
+        createdAt: typeof order.createdAt === 'string' ? order.createdAt : '',
+        deliveryTypes: (Array.isArray(order.items) ? order.items : [])
+          .map((it: any) => String(it?.deliveryType || ''))
+          .filter(Boolean),
       })
       onClearCart()
       setStoredCoupon(null)
@@ -566,6 +582,15 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           email={contact.email}
           keys={placed.keys}
           hasDigitalKeys={placed.hasDigitalKeys}
+          reviewOptIn={{
+            orderId: placed.orderNumber,
+            email: placed.customerEmail,
+            deliveryCountry: deriveDeliveryCountry(placed.customerPhone),
+            estimatedDeliveryDate: computeEstimatedDeliveryDate(
+              placed.createdAt,
+              placed.deliveryTypes.map((t) => ({ deliveryType: t }))
+            ),
+          }}
           onContinueShopping={() => onNavigate('/')}
           onViewOrders={() => onNavigate('/account')}
         />

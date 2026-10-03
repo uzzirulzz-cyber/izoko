@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:sitemap": "node scripts/sitemap_integrity_check.mjs"
+    "test:sitemap": "node scripts/sitemap_integrity_check.mjs",
+    "test:gcr": "tsx scripts/gcr_optin_check.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
