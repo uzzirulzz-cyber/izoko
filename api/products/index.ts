@@ -179,6 +179,50 @@ async function handleReviews(req: AuthenticatedRequest, res: VercelResponse): Pr
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
 
+  // ---- GET /api/products/images/:id — REAL product images from MongoDB ----
+  // product_images docs: { _id (24-hex STRING), filename, mime, size, bytes(binary) }.
+  // Products reference these as /api/products/images/<id>. Serving them here
+  // makes the catalog show the owner's real product imagery (per-product DB
+  // images) instead of falling back to the logo placeholder. Binary-safe,
+  // cache-immutable (image ids are content-stable), no auth (public catalog).
+  const imgSeg = new URL(req.url || "", "http://localhost").pathname
+    .split("/")
+    .filter(Boolean)
+    .slice(2);
+  if (imgSeg[0] === "images" && imgSeg[1] && req.method === "GET") {
+    try {
+      const imageId = String(imgSeg[1]).trim();
+      if (!/^[0-9a-fA-F]{24}$/.test(imageId)) {
+        return jsonError(res, "Invalid image id.", 400);
+      }
+      const db = await getDb();
+      const imagesCol = db.collection("product_images");
+      // _id is stored as a 24-hex STRING; tolerate ObjectId-shaped queries too
+      let doc: any = await imagesCol.findOne({ _id: imageId });
+      if (!doc) {
+        try {
+          doc = await imagesCol.findOne({ _id: new ObjectId(imageId) });
+        } catch { /* keep null */ }
+      }
+      const bytes: Buffer | null = doc?.bytes?.buffer
+        ? Buffer.from(doc.bytes.buffer)
+        : Buffer.isBuffer(doc?.bytes)
+          ? doc.bytes
+          : null;
+      if (!doc || !bytes || !bytes.length) {
+        return jsonError(res, "Image not found.", 404);
+      }
+      res.status(200);
+      res.setHeader("Content-Type", String(doc.mime || "image/png"));
+      res.setHeader("Content-Length", String(bytes.length));
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("ETag", `"${imageId}"`);
+      return res.send(bytes);
+    } catch (err: any) {
+      return jsonError(res, err.message || "Image serve failed.", 500);
+    }
+  }
+
   // Reviews sub-routes (GET public, POST signed-in)
   const seg0 = new URL(req.url || "", "http://localhost").pathname
     .split("/")
