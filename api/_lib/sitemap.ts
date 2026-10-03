@@ -290,7 +290,12 @@ export async function handleSitemapRequest(res: any, map: string, db: any): Prom
   }
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/xml; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=900, s-maxage=3600, stale-while-revalidate");
+  // NEVER edge-cache sitemaps: "public, max-age" lets Vercel's CDN serve a
+  // stale copy that hides newly published/edited products for up to an hour
+  // (same failure mode the merchant feed had). Spec: sitemap must reflect
+  // product create/update/delete/status changes immediately. Build is a cheap
+  // projected query on a small catalog — always live instead.
+  res.setHeader("Cache-Control", "no-store");
   res.end(xml);
   return true;
 }
