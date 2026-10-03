@@ -184,15 +184,16 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
             {message}
           </div>
 
-          {/* Login button */}
+          {/* Login button — transparent while idle so the baked "→ Login"
+              label shows through; opaque gradient covers it while loading/locked */}
           <button
-            className={`pb-al-go ${loading ? 'pb-al-go-ld' : ''}`}
+            className={`pb-al-go ${loading || isLocked ? 'pb-al-go-ld' : ''}`}
             type="submit"
             aria-label="Login"
             disabled={loading || isLocked}
           >
             <i />
-            <span>{loading ? 'Signing in…' : isLocked ? 'Locked' : 'Login'}</span>
+            <span>{loading ? 'Signing in…' : isLocked ? 'Locked' : ''}</span>
           </button>
         </form>
 
