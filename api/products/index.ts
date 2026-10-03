@@ -196,8 +196,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, "Invalid image id.", 400);
       }
       const db = await getDb();
-      const imagesCol = db.collection("product_images");
       // _id is stored as a 24-hex STRING; tolerate ObjectId-shaped queries too
+      const imagesCol: any = db.collection("product_images");
       let doc: any = await imagesCol.findOne({ _id: imageId });
       if (!doc) {
         try {
