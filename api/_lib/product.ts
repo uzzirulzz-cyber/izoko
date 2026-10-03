@@ -88,8 +88,10 @@ export function formatProduct(doc: any) {
     activationNotes: rest.activationNotes ? String(rest.activationNotes) : undefined,
     ...(plans ? { plans } : {}),
     status: rest.status || (rest.stock === 0 ? "out_of_stock" : "in_stock"),
-    rating: typeof rest.rating === "number" ? rest.rating : 4.8,
-    reviewCount: typeof rest.reviewCount === "number" ? rest.reviewCount : 120,
+    // Ratings are NEVER fabricated — 0 means "no real review data yet" and
+    // suppresses AggregateRating in structured data (Google-safe default).
+    rating: typeof rest.rating === "number" ? rest.rating : 0,
+    reviewCount: typeof rest.reviewCount === "number" ? rest.reviewCount : 0,
     isHot: Boolean(rest.isHot),
     isFeatured: rest.isFeatured !== undefined ? Boolean(rest.isFeatured) : Boolean(rest.featured),
     featured: rest.featured !== undefined ? Boolean(rest.featured) : Boolean(rest.isFeatured),
@@ -106,6 +108,19 @@ export function formatProduct(doc: any) {
     // /product/:slug pages can use the admin title/description/canonical/OG.
     seo: rest.seo && typeof rest.seo === "object" ? rest.seo : undefined,
     slugHistory: Array.isArray(rest.slugHistory) ? rest.slugHistory : [],
+    // ---- Product CMS additive fields (editor round-trip fidelity) ----
+    // These pass through verbatim so /admin/products/:id/edit always opens
+    // with exactly what is stored in MongoDB.
+    ...(rest.cmsStatus !== undefined ? { cmsStatus: rest.cmsStatus } : {}),
+    ...(rest.costPrice != null ? { costPrice: Number(rest.costPrice) } : {}),
+    ...(rest.saleStartsAt ? { saleStartsAt: String(rest.saleStartsAt) } : {}),
+    ...(rest.saleEndsAt ? { saleEndsAt: String(rest.saleEndsAt) } : {}),
+    ...(rest.brand ? { brand: String(rest.brand) } : {}),
+    ...(rest.subcategory ? { subcategory: String(rest.subcategory) } : {}),
+    ...(rest.productKind ? { productKind: String(rest.productKind) } : {}),
+    ...(rest.backorder ? { backorder: rest.backorder } : {}),
+    ...(rest.deliveryEstimate ? { deliveryEstimate: String(rest.deliveryEstimate) } : {}),
+    ...(Array.isArray(rest.galleryMeta) && rest.galleryMeta.length ? { galleryMeta: rest.galleryMeta } : {}),
     createdAt: rest.createdAt || new Date(),
     updatedAt: rest.updatedAt || new Date(),
   };

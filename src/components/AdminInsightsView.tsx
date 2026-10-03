@@ -97,6 +97,8 @@ import { BusinessAnalyticsPanel } from './admin/BusinessAnalyticsPanel'
 import { WhatsAppPanel } from './admin/WhatsAppPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 import { SeoPanel } from './admin/SeoPanel'
+import { ProductEditorPage } from './admin/ProductEditorPage'
+import { SeoControlCenter } from './admin/SeoControlCenter'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -114,8 +116,13 @@ interface AdminInsightsViewProps {
   onSaveProduct?: (
     product: Product,
     isNew: boolean
-  ) => Promise<{ ok: boolean; error?: string }> | void
+  ) => Promise<{ ok: boolean; error?: string; saved?: Product }> | void
   onDeleteProduct?: (productId: string) => Promise<{ ok: boolean; error?: string }> | void
+  /** sub-path after /admin (e.g. "/products/new", "/products/<id>/edit") — enables
+   *  real URL product editor routes: /admin/products/new · /admin/products/:id/edit */
+  adminSubPath?: string
+  /** navigate within the admin SPA (real URLs, keeps browser history) */
+  onAdminNavigate?: (path: string) => void
 }
 
 // NO MOCK DATA — every dataset in this dashboard is fetched live from MongoDB.
@@ -145,6 +152,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   onImportProducts,
   onSaveProduct,
   onDeleteProduct,
+  adminSubPath,
+  onAdminNavigate,
 }) => {
   // Inject noindex meta — admin must never be indexed by search engines
   React.useEffect(() => {
@@ -181,8 +190,25 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all')
 
   // Modals & Drawers
-  const [editorProduct, setEditorProduct] = useState<Product | null>(null)
-  const [showProductEditor, setShowProductEditor] = useState(false)
+  // Product editor moved to a DEDICATED PAGE at /admin/products/new and
+  // /admin/products/:id/edit (real URLs) — the oversized modal was retired.
+  const adminNavigateFallback = (path: string) => {
+    try {
+      window.history.pushState({}, '', path)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } catch { /* navigation must never crash the panel */ }
+  }
+  const goAdmin = onAdminNavigate || adminNavigateFallback
+
+  // Resolve the product-editor route from the /admin sub-path
+  const productEditorRoute = (() => {
+    const seg = (adminSubPath || '').replace(/^\/+/, '').replace(/\/+$/, '')
+    if (seg === 'products/new') return { mode: 'new' as const, ref: '' }
+    const m = seg.match(/^products\/([^/]+)\/edit$/)
+    if (m) return { mode: 'edit' as const, ref: decodeURIComponent(m[1]) }
+    return null
+  })()
   const [showMediaLibrary, setShowMediaLibrary] = useState(false)
   const [showCsvImporterModal, setShowCsvImporterModal] = useState(false)
   const [showQuickAddMenu, setShowQuickAddMenu] = useState(false)
@@ -206,7 +232,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     const VALID = new Set([
       'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
-      'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support',
+      'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
     ])
     const applyHash = () => {
@@ -732,8 +758,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         document.getElementById('admin-search-input')?.focus()
       } else if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
-        setEditorProduct(null)
-        setShowProductEditor(true)
+        goAdminRef.current('/admin/products/new')
       } else if (e.key === 'Escape') {
         setShowQuickAddMenu(false)
         setShowProfileMenu(false)
@@ -744,14 +769,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   }, [])
 
   // ---------- PRODUCT CRUD (delegated to App state + MongoDB sync props) ----------
+  // The keyboard window listener above closes over `goAdmin` from the first
+  // render; keep a ref in sync so Alt+N always navigates with the latest prop.
+  const goAdminRef = useRef(goAdmin)
+  useEffect(() => {
+    goAdminRef.current = goAdmin
+  }, [goAdmin])
+
   const handleEditorSave = async (
     product: Product,
     isNew: boolean
-  ): Promise<{ ok: boolean; error?: string }> => {
+  ): Promise<{ ok: boolean; error?: string; saved?: Product }> => {
     if (!onSaveProduct) return { ok: false, error: 'Save handler unavailable.' }
     const result = await onSaveProduct(product, isNew)
     if (!result || result.ok !== false) {
-      setShowProductEditor(false)
       fetchAdminHealth()
     }
     return result || { ok: true }
@@ -1657,8 +1688,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#121622] border border-white/10 p-1.5 shadow-2xl z-50 text-xs space-y-1 animate-in fade-in">
                     <button
                       onClick={() => {
-                        setEditorProduct(null)
-                        setShowProductEditor(true)
+                        goAdmin('/admin/products/new')
                         setShowQuickAddMenu(false)
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2"
@@ -1917,6 +1947,22 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           {/* CONTENT ROUTER */}
           {/* ========================================================================= */}
           <main className="p-6 space-y-6 max-w-[1600px] w-full mx-auto">
+            {productEditorRoute ? (
+              /* DEDICATED PRODUCT EDITOR PAGE — /admin/products/new and
+                 /admin/products/:id/edit (real, shareable URLs) */
+              <ProductEditorPage
+                mode={productEditorRoute.mode}
+                refId={productEditorRoute.ref}
+                products={products}
+                selectedCurrency={selectedCurrency}
+                onSaveProduct={handleEditorSave}
+                onDeleteProduct={handleEditorDelete}
+                onToast={triggerToast}
+                onDone={() => goAdmin('/admin#products')}
+                onAdminNavigate={goAdmin}
+              />
+            ) : (
+            <>
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
@@ -2889,7 +2935,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     <div className="grid grid-cols-2 gap-2">
                       {/* Add Product */}
                       <button
-                        onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
+                        onClick={() => { goAdmin('/admin/products/new') }}
                         className="p-2.5 rounded-xl pa-well !bg-transparent hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/30 flex items-center gap-2 transition text-left group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
@@ -3141,7 +3187,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       </button>
 
                       <button
-                        onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
+                        onClick={() => goAdmin('/admin/products/new')}
                         className="px-3.5 py-2 rounded-xl bg-amber-400 text-black font-semibold text-xs flex items-center gap-1.5"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -3192,7 +3238,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                       )}
                                       {p.active === false && !p.consolidatedParentId && (
                                         <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">
-                                          hidden
+                                          {(p as any).cmsStatus === 'archived' ? 'archived' : 'draft'}
                                         </span>
                                       )}
                                     </div>
@@ -3262,10 +3308,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                     <Eye className="w-3.5 h-3.5" />
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      setEditorProduct(p)
-                                      setShowProductEditor(true)
-                                    }}
+                                    onClick={() => goAdmin(`/admin/products/${encodeURIComponent(p._id || p.id)}/edit`)}
                                     className="p-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/25"
                                     title="Edit product & images"
                                   >
@@ -3451,7 +3494,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* PANEL: HOMEPAGE BUILDER (Section 4.9 — CMS sections) */}
             {/* ========================================================================= */}
             {activeNav === 'homepage-builder' && <HomepageBuilderPanel onToast={triggerToast} />}
-            {activeNav === 'seo' && <SeoPanel onToast={triggerToast} />}
+            {activeNav === 'seo' && (
+              <SeoControlCenter
+                products={products}
+                onAdminNavigate={goAdmin}
+                onToast={triggerToast}
+              />
+            )}
 
             {/* ========================================================================= */}
             {/* PANEL: AUDIT LOG (Section 4.10 — append-only admin trail) */}
@@ -3673,7 +3722,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   desc="Live subscription products from the catalog — plans, pricing and stock."
                   actions={
                     <button
-                      onClick={() => { setEditorProduct(null); setShowProductEditor(true) }}
+                      onClick={() => { goAdmin('/admin/products/new') }}
                       className="pa-btn-gold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5"
                     >
                       <Plus className="w-4 h-4" /> New Plan
@@ -4100,7 +4149,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                             <Eye className="w-3 h-3" /> Preview
                           </button>
                           <button
-                            onClick={() => { setEditorProduct(p); setShowProductEditor(true) }}
+                            onClick={() => goAdmin(`/admin/products/${encodeURIComponent(p._id || p.id)}/edit`)}
                             className="px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 text-amber-300 text-[10px] font-semibold flex items-center gap-1 transition"
                           >
                             <Edit className="w-3 h-3" /> Edit
@@ -4146,6 +4195,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 onToast={triggerToast}
               />
             )}
+          </>
+          )}
           </main>
 
           {/* Footer */}
@@ -4172,14 +4223,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       {/* ========================================================================= */}
       {/* MODALS */}
       {/* ========================================================================= */}
-      {/* Product Editor Modal — real CRUD synced to MongoDB (create + edit) */}
+      {/* The product editor modal was retired — the editor now lives on dedicated
+          pages at /admin/products/new and /admin/products/:id/edit (rendered in
+          place of the panel content via productEditorRoute above). */}
       {/* ========================================================================= */}
-      <ProductEditorModal
-        product={editorProduct}
-        isOpen={showProductEditor}
-        onClose={() => setShowProductEditor(false)}
-        onSave={handleEditorSave}
-      />
 
       {/* Launch Campaign Modal */}
       {showCampaignModal && (

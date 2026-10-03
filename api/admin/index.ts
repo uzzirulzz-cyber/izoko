@@ -40,6 +40,7 @@
 //   GET    /api/admin/documents/:id/download   (vault binary download — admin auth)
 //   DELETE /api/admin/documents/:id            (vault delete — manager+ or uploader)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import crypto from "crypto";
 import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
 import { formatProduct } from "../_lib/product.js";
@@ -227,6 +228,102 @@ function sanitizeProductImageFields(body: any): { ok: boolean; field?: string } 
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// PER-PRODUCT SEO SANITIZATION — used by BOTH product create and update so the
+// full SEO editor (title, description, canonical, robots, OG, X/Twitter,
+// focus keyword) persists identically on every path. Default-true robots flags
+// are stripped to keep documents lean.
+// ---------------------------------------------------------------------------
+function sanitizeProductSeo(s: any): any | undefined {
+  if (!s || typeof s !== "object" || Array.isArray(s)) return undefined;
+  const out: any = {
+    title: s.title != null ? String(s.title).slice(0, 120) : undefined,
+    description: s.description != null ? String(s.description).slice(0, 300) : undefined,
+    canonicalUrl: s.canonicalUrl != null ? String(s.canonicalUrl).trim() : undefined,
+    index: s.index === false ? false : true,
+    follow: s.follow === false ? false : true,
+    ogTitle: s.ogTitle != null ? String(s.ogTitle).slice(0, 120) : undefined,
+    ogDescription: s.ogDescription != null ? String(s.ogDescription).slice(0, 300) : undefined,
+    ogImage: s.ogImage != null ? String(s.ogImage).slice(0, 500) : undefined,
+    twitterTitle: s.twitterTitle != null ? String(s.twitterTitle).slice(0, 120) : undefined,
+    twitterDescription: s.twitterDescription != null ? String(s.twitterDescription).slice(0, 300) : undefined,
+    twitterImage: s.twitterImage != null ? String(s.twitterImage).slice(0, 500) : undefined,
+    focusKeyword: s.focusKeyword != null ? String(s.focusKeyword).slice(0, 120) : undefined,
+    secondaryKeywords: Array.isArray(s.secondaryKeywords)
+      ? s.secondaryKeywords.slice(0, 15).map((k: any) => String(k).slice(0, 60))
+      : undefined,
+  };
+  for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
+  if (out.index === true) delete out.index; // default — omitted
+  if (out.follow === true) delete out.follow;
+  return Object.keys(out).length ? out : undefined;
+}
+
+// Per-image alt/title metadata — URLS ONLY (base64 rejected like image fields)
+function sanitizeGalleryMeta(v: any): { ok: boolean; value?: any[] } {
+  if (v == null) return { ok: true };
+  if (!Array.isArray(v)) return { ok: false };
+  const out: any[] = [];
+  for (const item of v.slice(0, 16)) {
+    if (!item || typeof item !== "object") return { ok: false };
+    const url = item.url != null ? String(item.url).trim() : "";
+    if (!url || /^\s*data:image/i.test(url)) return { ok: false };
+    const entry: any = { url: url.slice(0, 500) };
+    if (item.alt != null && String(item.alt).trim()) entry.alt = String(item.alt).trim().slice(0, 200);
+    if (item.title != null && String(item.title).trim()) entry.title = String(item.title).trim().slice(0, 200);
+    out.push(entry);
+  }
+  return { ok: true, value: out };
+}
+
+// ---------------------------------------------------------------------------
+// GOOGLE SEARCH CONSOLE — official API only, env-configured only.
+// Required env vars (never hardcoded, never accepted from the client):
+//   GOOGLE_SEARCH_CONSOLE_PROPERTY       e.g. sc-domain:playbeat.digital
+//   GOOGLE_SERVICE_ACCOUNT_EMAIL         service account address (GSC owner)
+//   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY   PEM private key
+// Indexing CANNOT be forced — only sitemap submission + search analytics are
+// implemented (both officially supported for ecommerce properties).
+// ---------------------------------------------------------------------------
+function gscEnv() {
+  const property = process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY || "";
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "";
+  const key = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  return { property, email, key, configured: Boolean(property && email && key) };
+}
+
+async function gscAccessToken(email: string, key: string): Promise<string> {
+  const b64url = (input: Buffer | string) =>
+    Buffer.from(input).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claim = b64url(
+    JSON.stringify({
+      iss: email,
+      scope: "https://www.googleapis.com/auth/webmasters",
+      aud: "https://oauth2.googleapis.com/token",
+      exp: now + 3300,
+      iat: now,
+    })
+  );
+  const signature = b64url(
+    crypto.createSign("RSA-SHA256").update(`${header}.${claim}`).sign(key)
+  );
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${header}.${claim}.${signature}`,
+    }),
+  });
+  const tokenData: any = await tokenRes.json().catch(() => null);
+  if (!tokenRes.ok || !tokenData?.access_token) {
+    throw new Error(tokenData?.error_description || tokenData?.error || `Google token exchange failed (${tokenRes.status})`);
+  }
+  return String(tokenData.access_token);
+}
+
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
 
@@ -342,6 +439,51 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         (d: any) => Array.isArray(d.slugHistory) && d.slugHistory.length > 0
       ).length;
 
+      // Per-product SEO rows (SEO Control Center → Products table)
+      const productRows = active.slice(0, 500).map((d: any) => ({
+        id: String(d._id),
+        name: d.name || d.title || d.sku || String(d._id),
+        slug: d.slug || "",
+        sku: d.sku || "",
+        seoTitle: d.seo?.title || "",
+        seoDescription: d.seo?.description || "",
+        canonical: d.seo?.canonicalUrl || "",
+        noindex: d.seo?.index === false,
+        image: d.image || "",
+        cmsStatus: d.cmsStatus || (d.active !== false ? "published" : "draft"),
+        active: d.active !== false,
+        updatedAt: d.updatedAt || null,
+      }));
+
+      // Duplicate effective meta descriptions (Part 4 — unique metadata)
+      const descCounts = new Map<string, number>();
+      for (const d of active) {
+        const eff = String(d.seo?.description || d.shortDescription || d.description || "")
+          .trim()
+          .toLowerCase()
+          .slice(0, 155);
+        if (!eff) continue;
+        descCounts.set(eff, (descCounts.get(eff) || 0) + 1);
+      }
+      const duplicateDescriptions = [...descCounts.entries()]
+        .filter(([, n]) => n > 1)
+        .map(([d]) => d.slice(0, 80) + "…");
+
+      // Merchant Center readiness summary (real field coverage only)
+      const merchant = {
+        ready: active.filter(
+          (d: any) =>
+            String(d.image || "").trim() &&
+            String(d.shortDescription || d.description || "").trim() &&
+            Number(d.price) > 0 &&
+            String(d.sku || "").trim()
+        ).length,
+        missingImage: active.filter((d: any) => !String(d.image || "").trim()).length,
+        missingBrand: active.filter((d: any) => !String(d.brand || "").trim()).length,
+        missingDescription,
+        missingSku: active.filter((d: any) => !String(d.sku || "").trim()).length,
+      };
+
       return jsonOk(res, {
         success: true,
         seo: {
@@ -357,8 +499,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             missingSlug: active.length - slugs.filter(Boolean).length,
             duplicateSlugs,
             duplicateSeoTitles: duplicateTitles,
+            duplicateDescriptions,
             withSlugHistory,
           },
+          productRows,
+          merchant,
           notes: [
             "Sitemap is generated live from MongoDB on every request — always current.",
             "Actual Google indexing status is only visible in Google Search Console; this dashboard reports URL/crawlability health.",
@@ -446,7 +591,199 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonOk(res, { success: true, action, sitemap: stats, regeneratedAt: new Date().toISOString() });
       }
 
-      return jsonError(res, "Unknown action — use audit | broken-links | regenerate.", 400);
+      if (action === "redirects-list") {
+        const docs = await db
+          .collection("seo_redirects")
+          .find({})
+          .sort({ createdAt: -1 })
+          .limit(500)
+          .toArray();
+        return jsonOk(res, {
+          success: true,
+          action,
+          redirects: docs.map((d: any) => ({
+            id: d._id.toString(),
+            source: d.source,
+            destination: d.destination,
+            type: d.type || 301,
+            createdAt: d.createdAt || null,
+          })),
+        });
+      }
+
+      if (action === "redirect-add") {
+        const source = String(req.body?.source || "").trim();
+        const destination = String(req.body?.destination || "").trim();
+        if (!source.startsWith("/") || source.length < 2) {
+          return jsonError(res, "Source must be a site-relative path starting with /.", 400);
+        }
+        if (!destination.startsWith("/") && !destination.startsWith("https://")) {
+          return jsonError(res, "Destination must start with / or https://.", 400);
+        }
+        if (source === destination) {
+          return jsonError(res, "Redirect loop — source and destination are identical.", 400);
+        }
+        const col = db.collection("seo_redirects");
+        const exists = await col.findOne({ source });
+        if (exists) {
+          await col.updateOne(
+            { _id: exists._id },
+            { $set: { destination, type: 301, active: true, updatedAt: new Date() } }
+          );
+          return jsonOk(res, { success: true, action, id: exists._id.toString(), updated: true });
+        }
+        const ins = await col.insertOne({
+          source,
+          destination,
+          type: 301,
+          active: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        await writeAudit(db, {
+          actor: verifyAdmin(req),
+          action: "seo.redirect.create",
+          targetType: "redirect",
+          targetId: source,
+          detail: `${source} → ${destination}`,
+        });
+        return jsonOk(res, { success: true, action, id: ins.insertedId.toString() });
+      }
+
+      if (action === "redirect-delete") {
+        const rid = String(req.body?.id || "");
+        if (!ObjectId.isValid(rid)) return jsonError(res, "Invalid redirect id.", 400);
+        const del = await db
+          .collection("seo_redirects")
+          .deleteOne({ _id: new ObjectId(rid) });
+        if (del.deletedCount === 0) return jsonError(res, "Redirect not found.", 404);
+        return jsonOk(res, { success: true, action });
+      }
+
+      if (action === "gsc-status") {
+        const env = gscEnv();
+        let stats: any = null;
+        let sitemapSubmitted = false;
+        let lastSubmittedAt: string | null = null;
+        const gscMeta = await db
+          .collection("seoSettings")
+          .findOne({ key: "gsc" });
+        sitemapSubmitted = Boolean(gscMeta?.sitemapSubmitted);
+        lastSubmittedAt = gscMeta?.lastSubmittedAt ? new Date(gscMeta.lastSubmittedAt).toISOString() : null;
+        if (env.configured) {
+          try {
+            const token = await gscAccessToken(env.email, env.key);
+            // Search analytics — last 28 days (official Search Console API)
+            const startDate = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+            const endDate = new Date().toISOString().slice(0, 10);
+            const prop = env.property.startsWith("http")
+              ? env.property
+              : env.property.replace(/^sc-domain:/, "sc-domain:");
+            const saRes = await fetch(
+              `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(prop)}/searchAnalytics/query`,
+              {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ startDate, endDate, dimensions: [] }),
+              }
+            );
+            const saData: any = await saRes.json().catch(() => null);
+            if (saRes.ok && saData?.rows?.[0]) {
+              const r = saData.rows[0];
+              stats = {
+                clicks: Math.round(r.clicks || 0),
+                impressions: Math.round(r.impressions || 0),
+                ctr: typeof r.ctr === "number" ? Math.round(r.ctr * 1000) / 10 : null,
+                position: typeof r.position === "number" ? Math.round(r.position * 10) / 10 : null,
+              };
+            } else if (saRes.ok) {
+              stats = { clicks: 0, impressions: 0, ctr: 0, position: null };
+            }
+          } catch {
+            // stats stay null — status still reports configuration honestly
+          }
+        }
+        return jsonOk(res, {
+          success: true,
+          action,
+          gsc: {
+            configured: env.configured,
+            property: env.property,
+            sitemapSubmitted,
+            lastSubmittedAt,
+            stats,
+          },
+        });
+      }
+
+      if (action === "gsc-submit-sitemap") {
+        const env = gscEnv();
+        if (!env.configured) {
+          return jsonError(
+            res,
+            "Search Console is not configured. Set GOOGLE_SEARCH_CONSOLE_PROPERTY, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variables, add the service account as a property owner in GSC, then retry.",
+            400
+          );
+        }
+        const feedPath = String(req.body?.feedPath || "https://playbeat.digital/sitemap.xml");
+        if (!/^https:\/\/playbeat\.digital\//.test(feedPath)) {
+          return jsonError(res, "feedPath must be a playbeat.digital sitemap URL.", 400);
+        }
+        try {
+          const token = await gscAccessToken(env.email, env.key);
+          const prop = env.property;
+          const submitRes = await fetch(
+            `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(prop)}/sitemaps/${encodeURIComponent(feedPath)}`,
+            { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (!submitRes.ok) {
+            const errText = await submitRes.text().catch(() => "");
+            return jsonError(res, `Search Console API rejected the submission (${submitRes.status}): ${errText.slice(0, 300)}`, 502);
+          }
+          await db.collection("seoSettings").updateOne(
+            { key: "gsc" },
+            { $set: { key: "gsc", sitemapSubmitted: true, lastSubmittedAt: new Date(), feedPath } },
+            { upsert: true }
+          );
+          return jsonOk(res, {
+            success: true,
+            action,
+            message: `Sitemap ${feedPath} submitted to ${prop}. Google processes it asynchronously — check coverage in Search Console.`,
+          });
+        } catch (err: any) {
+          return jsonError(res, err.message || "Search Console submission failed.", 502);
+        }
+      }
+
+      if (action === "merchant-audit") {
+        const docs = await db
+          .collection("products")
+          .find({ active: { $ne: false } })
+          .project({
+            name: 1, sku: 1, slug: 1, price: 1, currency: 1, image: 1,
+            brand: 1, description: 1, shortDescription: 1, stock: 1, seo: 1,
+          })
+          .toArray();
+        const merchant = {
+          ready: docs.filter(
+            (d: any) =>
+              String(d.image || "").trim() &&
+              String(d.shortDescription || d.description || "").trim() &&
+              Number(d.price) > 0 &&
+              String(d.sku || "").trim()
+          ).length,
+          missingImage: docs.filter((d: any) => !String(d.image || "").trim()).length,
+          missingBrand: docs.filter((d: any) => !String(d.brand || "").trim()).length,
+          missingDescription: docs.filter(
+            (d: any) => !String(d.shortDescription || d.description || "").trim()
+          ).length,
+          missingSku: docs.filter((d: any) => !String(d.sku || "").trim()).length,
+          checked: docs.length,
+        };
+        return jsonOk(res, { success: true, action, merchant });
+      }
+
+      return jsonError(res, "Unknown action — use audit | broken-links | regenerate | redirects-list | redirect-add | redirect-delete | gsc-status | gsc-submit-sitemap | merchant-audit.", 400);
     } catch (err: any) {
       return jsonError(res, err.message || "SEO action failed", 500);
     }
@@ -1379,8 +1716,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           413
         );
       }
-      if (!body.name || !body.price) {
-        return jsonError(res, "Product name and price are required.", 400);
+      if (!body.name || (body.price == null && body.cmsStatus !== "draft")) {
+        // Drafts may be saved without pricing; published products need both
+        return jsonError(
+          res,
+          body.cmsStatus === "draft"
+            ? "Product name is required."
+            : "Product name and price are required.",
+          400
+        );
       }
       const name = body.name.trim();
       const slug = body.slug ? slugify(body.slug) : slugify(name);
@@ -1410,7 +1754,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const existing = await col.findOne({ $or: [{ slug }, { sku }] });
       const finalSlug = existing ? `${slug}-${Math.floor(100 + Math.random() * 900)}` : slug;
 
-      const newProductDoc = {
+      const newProductDoc: any = {
         sku, name, slug: finalSlug,
         category: body.category || "Digital Products",
         productType: body.productType || (body.digital !== false ? "digital" : "physical"),
@@ -1426,26 +1770,56 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         gallery: Array.isArray(body.gallery) ? body.gallery : [body.image || "/playbeat-logo.png"],
         galleryImages: Array.isArray(body.galleryImages) ? body.galleryImages : [],
         additionalImages: Array.isArray(body.additionalImages) ? body.additionalImages : [],
+        galleryMeta: sanitizeGalleryMeta(body.galleryMeta).value,
         tags: Array.isArray(body.tags) ? body.tags : ["Verified", "Digital"],
         digital: body.digital !== undefined ? Boolean(body.digital) : true,
         stock: typeof body.stock === "number" ? body.stock : Number(body.stock) || 50,
+        stockMode: body.stockMode === "finite" || body.stockMode === "unlimited" ? body.stockMode : undefined,
+        lowStockThreshold: body.lowStockThreshold != null && !isNaN(Number(body.lowStockThreshold)) ? Number(body.lowStockThreshold) : undefined,
+        downloadUrl: body.downloadUrl ? String(body.downloadUrl).trim().slice(0, 500) : undefined,
+        activationNotes: body.activationNotes ? String(body.activationNotes).slice(0, 2000) : undefined,
+        plans: Array.isArray(body.plans) ? body.plans : undefined,
         status: body.status || "in_stock",
-        rating: Number(body.rating) || 4.9,
-        reviewCount: Number(body.reviewCount) || 10,
+        rating: Number(body.rating) || 0,
+        reviewCount: Number(body.reviewCount) || 0,
         isHot: Boolean(body.isHot),
         isFeatured: Boolean(body.isFeatured || body.featured),
         featured: Boolean(body.featured || body.isFeatured),
-        active: body.active !== undefined ? Boolean(body.active) : true,
+        active:
+          body.active !== undefined
+            ? Boolean(body.active)
+            : !(body.cmsStatus === "draft" || body.cmsStatus === "archived"),
+        // Product CMS status — Draft/Published/Archived (drives visibility + sitemap)
+        cmsStatus: ["draft", "published", "archived"].includes(body.cmsStatus)
+          ? body.cmsStatus
+          : body.active === false
+            ? "draft"
+            : "published",
         variants: Array.isArray(body.variants) ? body.variants : [],
         projectorSpec: body.projectorSpec,
         deliveryType: body.deliveryType || "Instant Auto-Email",
         deliveryInfo: body.deliveryInfo || "Instant 15-Second Key Delivery",
+        deliveryEstimate: body.deliveryEstimate ? String(body.deliveryEstimate).trim().slice(0, 200) : undefined,
         region: body.region || "Global",
         features: Array.isArray(body.features) ? body.features : [],
+        // Product CMS enrichment (Pricing/Advanced) — additive fields
+        costPrice: body.costPrice != null && !isNaN(Number(body.costPrice)) ? Number(body.costPrice) : undefined,
+        saleStartsAt: body.saleStartsAt ? String(body.saleStartsAt).slice(0, 40) : undefined,
+        saleEndsAt: body.saleEndsAt ? String(body.saleEndsAt).slice(0, 40) : undefined,
+        brand: body.brand ? String(body.brand).trim().slice(0, 120) : undefined,
+        subcategory: body.subcategory ? String(body.subcategory).trim().slice(0, 120) : undefined,
+        productKind: body.productKind ? String(body.productKind).trim().slice(0, 60) : undefined,
+        backorder: body.backorder === "allow" ? "allow" : "deny",
+        // Full SEO editor (title/desc/canonical/robots/OG/X/keywords)
+        seo: sanitizeProductSeo(body.seo),
         slugHistory: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      // undefined values would be serialized as null by the driver — drop them
+      for (const k of Object.keys(newProductDoc)) {
+        if (newProductDoc[k] === undefined) delete newProductDoc[k];
+      }
 
       const insertResult = await col.insertOne(newProductDoc);
       await writeAudit(db, {
@@ -1540,25 +1914,21 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             413
           );
         }
+        const gmCheck = sanitizeGalleryMeta(body.galleryMeta);
+        if (!gmCheck.ok) {
+          return jsonError(res, "galleryMeta contains invalid image data — URLs only.", 400);
+        }
+        if (gmCheck.value !== undefined) body.galleryMeta = gmCheck.value;
         if (body.name && !body.slug) body.slug = slugify(body.name);
         body.updatedAt = new Date();
 
-        // ---- SEO field sanitization (audit §25) — admins may set custom
-        // title/description/canonical/indexing/OG per product ----
-        if (body.seo && typeof body.seo === "object" && !Array.isArray(body.seo)) {
-          const s = body.seo;
-          body.seo = {
-            title: s.title != null ? String(s.title).slice(0, 120) : undefined,
-            description: s.description != null ? String(s.description).slice(0, 300) : undefined,
-            canonicalUrl: s.canonicalUrl != null ? String(s.canonicalUrl).trim() : undefined,
-            index: s.index === false ? false : true,
-            ogTitle: s.ogTitle != null ? String(s.ogTitle).slice(0, 120) : undefined,
-            ogDescription: s.ogDescription != null ? String(s.ogDescription).slice(0, 300) : undefined,
-            ogImage: s.ogImage != null ? String(s.ogImage).slice(0, 500) : undefined,
-          };
-          for (const k of Object.keys(body.seo)) if ((body.seo as any)[k] === undefined) delete (body.seo as any)[k];
-        } else if (body.seo !== undefined) {
-          delete body.seo;
+        // ---- SEO field sanitization (audit §25) — the shared sanitizer now
+        // covers robots follow/nofollow, X/Twitter overrides and the focus
+        // keyword, identical to the create path ----
+        if (body.seo !== undefined) {
+          const cleanSeo = sanitizeProductSeo(body.seo);
+          if (cleanSeo === undefined) delete body.seo;
+          else body.seo = cleanSeo;
         }
         if (body.slug != null && String(body.slug).trim()) body.slug = slugify(String(body.slug));
         else if (body.slug !== undefined) delete body.slug; // empty string would nuke the URL

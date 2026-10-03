@@ -243,6 +243,88 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const db = await getDb();
     const col = db.collection("products");
 
+    // ---- pbRedirect: admin redirect-manager resolution (SEO Control Center).
+    // The SPA 404 route consults this before showing "Page Not Found" — an
+    // exact source match returns the destination for a permanent client-side
+    // redirect. Never redirects to admin/private routes. ----
+    const pbRedirect = String((req.query as Record<string, string>).pbRedirect || "").trim();
+    if (pbRedirect) {
+      const doc = await db
+        .collection("seo_redirects")
+        .findOne({ source: pbRedirect, active: { $ne: false } });
+      if (doc?.destination && !doc.destination.startsWith("/admin")) {
+        return jsonOk(res, { success: true, redirectTo: doc.destination, type: doc.type || 301 });
+      }
+      return jsonOk(res, { success: true, redirectTo: null });
+    }
+
+    // ---- pbFeed=google: Google Merchant Center product feed (RSS 2.0 + g:)
+    // Every indexable product with the exact fields Merchant Center validates:
+    // title, link, description, image, price (PKR), availability, brand,
+    // identifier (SKU), condition. Draft/archived/noindex products excluded. ----
+    const pbFeed = String((req.query as Record<string, string>).pbFeed || "").toLowerCase();
+    if (pbFeed === "google") {
+      const feedDocs = await col
+        .find({ active: { $ne: false }, "seo.index": { $ne: false } })
+        .limit(1000)
+        .toArray();
+      const xmlEscape = (s: string) =>
+        String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      const items = feedDocs
+        .map((d: any) => {
+          const slug = d.slug || slugify(d.name || d.sku || String(d._id));
+          const link = `https://playbeat.digital/product/${slug}`;
+          const image = d.image
+            ? d.image.startsWith("http")
+              ? d.image
+              : `https://playbeat.digital${d.image}`
+            : "";
+          const title = String(d.seo?.title || d.name || "").slice(0, 150);
+          const description = String(d.seo?.description || d.shortDescription || d.description || `${d.name} — instant delivery from PlayBeat Digital.`).slice(0, 5000);
+          const price = Number(d.price) || 0;
+          const availability = d.stock === 0 || d.status === "out_of_stock" ? "out of stock" : "in stock";
+          return [
+            "  <item>",
+            `    <title>${xmlEscape(title)}</title>`,
+            `    <link>${xmlEscape(link)}</link>`,
+            `    <description>${xmlEscape(description)}</description>`,
+            `    <g:id>${xmlEscape(String(d.sku || d._id.toString()))}</g:id>`,
+            image ? `    <g:image_link>${xmlEscape(image)}</g:image_link>` : null,
+            `    <g:condition>new</g:condition>`,
+            `    <g:availability>${availability}</g:availability>`,
+            `    <g:brand>${xmlEscape(String(d.brand || "PlayBeat Digital"))}</g:brand>`,
+            price > 0 ? `    <g:price>${price.toFixed(2)} ${xmlEscape(String(d.currency || "PKR"))}</g:price>` : null,
+            `    <g:identifier_exists>yes</g:identifier_exists>`,
+            `    <g:mpn>${xmlEscape(String(d.sku || ""))}</g:mpn>`,
+            d.updatedAt ? `    <pubDate>${new Date(d.updatedAt).toUTCString()}</pubDate>` : null,
+            "  </item>",
+          ]
+            .filter(Boolean)
+            .join("\n");
+        })
+        .join("\n");
+      const feed = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">',
+        "  <channel>",
+        "    <title>PlayBeat Digital — Product Feed</title>",
+        "    <link>https://playbeat.digital</link>",
+        "    <description>Google Merchant Center product feed for playbeat.digital</description>",
+        items,
+        "  </channel>",
+        "</rss>",
+      ].join("\n");
+      res.status(200);
+      res.setHeader("Content-Type", "application/rss+xml; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=900");
+      return res.send(feed);
+    }
+
     // Extract sub-path from req.url (Vercel rewrites /api/products/:path* → /api/products)
     const url = new URL(req.url || '', 'http://localhost');
     const parts = url.pathname.split('/').filter(Boolean);

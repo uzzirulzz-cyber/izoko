@@ -173,11 +173,12 @@ export async function buildCategoriesSitemap(db: any): Promise<{ xml: string; co
 export async function buildProductsSitemap(db: any): Promise<{ xml: string; count: number; lastmod: Date | null }> {
   // Only ACTIVE (published) products with a usable slug. Consolidated variant
   // children (hidden from the storefront) are excluded — their canonical lives
-  // on the parent product page.
+  // on the parent product page. Admin-noindexed products (seo.index === false)
+  // are excluded too — a page Google must not index never belongs in the map.
   const docs = await db
     .collection("products")
     .find({ active: { $ne: false }, consolidatedParentId: { $exists: false } })
-    .project({ slug: 1, name: 1, title: 1, sku: 1, category: 1, updatedAt: 1, createdAt: 1 })
+    .project({ slug: 1, name: 1, title: 1, sku: 1, category: 1, updatedAt: 1, createdAt: 1, seo: 1 })
     .toArray();
 
   // Category → URL slug mapping for SEO-friendly product URLs
@@ -194,6 +195,7 @@ export async function buildProductsSitemap(db: any): Promise<{ xml: string; coun
   const urls: SitemapUrl[] = [];
   let lastmod: Date | null = null;
   for (const d of docs) {
+    if (d.seo?.index === false) continue; // admin noindex — excluded from sitemap
     const name = d.name || d.title;
     if (!name) continue;
     const slug = String(d.slug || "").trim() || slugifySafe(name);

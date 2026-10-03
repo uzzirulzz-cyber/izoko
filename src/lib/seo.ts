@@ -19,6 +19,10 @@ export interface RouteSeo {
   ogType?: 'website' | 'product' | 'article'
   /** Absolute canonical override — admin-controlled, advanced use only. */
   canonicalUrl?: string
+  /** X/Twitter card overrides — fall back to the OG/title values when unset. */
+  twitterTitle?: string
+  twitterDescription?: string
+  twitterImage?: string
 }
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
@@ -42,11 +46,27 @@ function upsertCanonical(path: string, canonicalUrl?: string) {
 }
 
 // BreadcrumbList structured data — written on every non-home indexed route so
-// crawlers see the Home → Page hierarchy (audit §11).
+// crawlers see the Home → Page hierarchy (audit §11). Deep hierarchies
+// (Home > Category > Product) pass a full itemList via applyBreadcrumbJsonLd.
 function upsertBreadcrumbJsonLd(path: string, name: string) {
   if (path === '/') return
+  applyBreadcrumbJsonLd([
+    { name: 'Home', item: `${SITE}/` },
+    { name, item: `${SITE}${path}` },
+  ])
+}
+
+/**
+ * Write a BreadcrumbList with a real <a href> hierarchy. Callers MUST only
+ * pass crumbs that exist as crawlable links on the page.
+ */
+export function applyBreadcrumbJsonLd(items: { name: string; item?: string }[]) {
   const id = 'breadcrumb-jsonld'
   let el = document.getElementById(id) as HTMLScriptElement | null
+  if (!items || items.length === 0) {
+    el?.remove()
+    return
+  }
   if (!el) {
     el = document.createElement('script')
     el.id = id
@@ -56,10 +76,12 @@ function upsertBreadcrumbJsonLd(path: string, name: string) {
   const data = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
-      { '@type': 'ListItem', position: 2, name, item: `${SITE}${path}` },
-    ],
+    itemListElement: items.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      ...(c.item ? { item: c.item } : {}),
+    })),
   }
   el.textContent = JSON.stringify(data)
 }
@@ -73,11 +95,18 @@ export function applyProductJsonLd(product: {
   name: string
   description?: string
   image?: string
+  additionalImages?: (string | undefined)[]
   price: number
   currency?: string
   inStock?: boolean
   sku?: string
   url?: string
+  brand?: string
+  /** Real rating data ONLY — aggregateRating is omitted when these are 0/absent. */
+  rating?: number
+  reviewCount?: number
+  /** ISO date — surfaces as the Offer's priceValidUntil when a sale window is set. */
+  saleEndsAt?: string
 } | null) {
   const id = 'product-jsonld'
   let el = document.getElementById(id) as HTMLScriptElement | null
@@ -91,23 +120,42 @@ export function applyProductJsonLd(product: {
     el.type = 'application/ld+json'
     document.head.appendChild(el)
   }
-  const data = {
+  const images = [product.image, ...(product.additionalImages || [])]
+    .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    .map((v) => (v.startsWith('http') ? v : `${SITE}${v}`))
+  const data: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: product.description || `${product.name} — instant delivery from PlayBeat Digital.`,
-    image: product.image ? (product.image.startsWith('http') ? product.image : `${SITE}${product.image}`) : undefined,
+    image: images.length ? images : undefined,
     sku: product.sku,
-    brand: { '@type': 'Brand', name: 'PlayBeat Digital' },
+    brand: { '@type': 'Brand', name: product.brand || 'PlayBeat Digital' },
+    itemCondition: 'https://schema.org/NewCondition',
     offers: {
       '@type': 'Offer',
       url: product.url ? `${SITE}${product.url}` : `${SITE}/`,
       priceCurrency: product.currency || 'PKR',
       price: String(product.price),
       availability: product.inStock === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+      itemCondition: 'https://schema.org/NewCondition',
+      ...(product.saleEndsAt && !isNaN(new Date(product.saleEndsAt).getTime())
+        ? { priceValidUntil: new Date(product.saleEndsAt).toISOString().slice(0, 10) }
+        : {}),
       seller: { '@id': `${SITE}/#organization` },
     },
   }
+  // AggregateRating ONLY from real, owner-curated rating data — never fabricated
+  const rating = Number(product.rating || 0)
+  const reviewCount = Number(product.reviewCount || 0)
+  if (rating > 0 && reviewCount > 0) {
+    data.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: String(Math.min(5, Math.max(0, rating))),
+      reviewCount: String(Math.round(reviewCount)),
+    }
+  }
+  for (const k of Object.keys(data)) if (data[k] === undefined) delete data[k]
   el.textContent = JSON.stringify(data)
 }
 
@@ -166,9 +214,9 @@ export function applyRouteSeo(seo: RouteSeo) {
   upsertMeta('property', 'og:image', image)
 
   upsertMeta('name', 'twitter:card', 'summary_large_image')
-  upsertMeta('name', 'twitter:title', title)
-  upsertMeta('name', 'twitter:description', desc)
-  upsertMeta('name', 'twitter:image', image)
+  upsertMeta('name', 'twitter:title', seo.twitterTitle || title)
+  upsertMeta('name', 'twitter:description', seo.twitterDescription || desc)
+  upsertMeta('name', 'twitter:image', seo.twitterImage || image)
 
   if (!seo.noindex) {
     upsertJsonLd(seo.path, seo.title, desc)

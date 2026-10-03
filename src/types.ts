@@ -72,9 +72,15 @@ export interface ProductSeo {
   description?: string // custom meta description
   canonicalUrl?: string // absolute https://playbeat.digital/... override — advanced
   index?: boolean // false = noindex, nofollow (default: index when active)
+  follow?: boolean // false = nofollow links (default: follow)
   ogTitle?: string
   ogDescription?: string
   ogImage?: string
+  twitterTitle?: string // X/Twitter card override (falls back to ogTitle/title)
+  twitterDescription?: string
+  twitterImage?: string
+  focusKeyword?: string // content-quality aid — validated against title/desc/slug
+  secondaryKeywords?: string[]
 }
 
 export interface Product {
@@ -124,6 +130,19 @@ export interface Product {
   features?: string[]
   seo?: ProductSeo
   slugHistory?: string[] // previous slugs — old URLs 301 to the current one
+  // ---- Product CMS (WooCommerce/Shopify-style editor) additive fields ----
+  // All optional & additive: the storefront keeps reading the existing fields,
+  // these only enrich the admin editor, JSON-LD and the merchant feed.
+  cmsStatus?: 'draft' | 'published' | 'archived'
+  costPrice?: number // internal — margin display only, never shown to customers
+  saleStartsAt?: string // ISO date — informational + JSON-LD priceValidUntil
+  saleEndsAt?: string
+  brand?: string // falls back to "PlayBeat Digital" in JSON-LD / merchant feed
+  subcategory?: string
+  productKind?: string // Digital Product | Subscription | Gift Card | Streaming Account | Software Key | IPTV | Smart Projector | Physical Product
+  backorder?: 'allow' | 'deny'
+  deliveryEstimate?: string // human-readable, e.g. "within 2 minutes" / "2-4 days"
+  galleryMeta?: { url: string; alt?: string; title?: string }[] // per-image alt/title (URLs only — never base64)
   createdAt?: string | Date
   updatedAt?: string | Date
 }

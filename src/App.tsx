@@ -35,8 +35,14 @@ import { CheckoutPage } from './components/CheckoutPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { ensureProductSlug } from './lib/slug'
+
+// Client-side slugify for the breadcrumb category URL (kept tiny — full
+// slugify lives in lib/slug.ts for product slugs)
+const breadcrumbSlugify = (t: string) =>
+  t.toLowerCase().trim().replace(/\s+/g, '-').replace(/&/g, 'and').replace(/[^\w-]+/g, '')
+const slugify = (t: string) => breadcrumbSlugify(t || '')
 import { applyRouteSeo } from './lib/seo'
-import { applyProductJsonLd } from './lib/seo'
+import { applyProductJsonLd, applyBreadcrumbJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
 import { initGoogleTracking, trackAddToCart, trackSearch, trackViewItem } from './lib/googleTag'
 import { ConsentBanner } from './components/ConsentBanner'
@@ -404,7 +410,12 @@ function parseRoute(): Route {
 }
 
 function routeToPath(route: Route): string {
-  if (route === 'admin') return '/admin'
+  if (route === 'admin') {
+    // Preserve deep admin sub-paths (/admin/products/new, /admin/products/:id/edit)
+    // — the editor URLs must survive the route→URL sync effect
+    const p = typeof window !== 'undefined' ? window.location.pathname : '/admin'
+    return p.toLowerCase().startsWith('/admin') ? p : '/admin'
+  }
   if (route === 'crm') return '/crm'
   if (route === 'admin-login') return '/admin/login'
   if (route === 'storefront') return '/'
@@ -479,6 +490,15 @@ export function App() {
   // ============================================
   const [route, setRoute] = useState<Route>(() => parseRoute())
 
+  // /admin sub-path (e.g. "/products/new", "/products/<id>/edit") — read from
+  // the address bar so dedicated product-editor URLs survive reloads
+  const readAdminSubPath = () => {
+    if (typeof window === 'undefined') return ''
+    const p = window.location.pathname
+    return p.toLowerCase().startsWith('/admin') ? p.slice('/admin'.length) || '/' : ''
+  }
+  const [adminSubPath, setAdminSubPath] = useState<string>(readAdminSubPath)
+
   // Admin auth state — only true after explicit login. NEVER auto-login.
   const [adminAuthed, setAdminAuthed] = useState<boolean>(false)
   const [adminChecking, setAdminChecking] = useState<boolean>(false)
@@ -486,6 +506,7 @@ export function App() {
   useEffect(() => {
     const onPop = () => {
       setRoute(parseRoute())
+      setAdminSubPath(readAdminSubPath())
       const p = window.location.pathname
       setOrderNumberParam(
         p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
@@ -950,15 +971,21 @@ export function App() {
   // opens and closes so crawlers see accurate product + offer info (audit §11)
   useEffect(() => {
     if (quickViewProduct) {
+      const p = quickViewProduct as any
       applyProductJsonLd({
         name: quickViewProduct.name,
         description: quickViewProduct.description,
         image: quickViewProduct.image,
+        additionalImages: quickViewProduct.galleryImages || [],
         price: quickViewProduct.price,
-        currency: (quickViewProduct as any).currency,
-        inStock: (quickViewProduct as any).stock !== 0,
+        currency: p.currency,
+        inStock: quickViewProduct.stock !== 0,
         sku: quickViewProduct.sku,
         url: `/product/${ensureProductSlug(quickViewProduct)}`,
+        brand: p.brand,
+        rating: quickViewProduct.rating,
+        reviewCount: quickViewProduct.reviewCount,
+        saleEndsAt: p.saleEndsAt,
       })
     } else {
       applyProductJsonLd(null)
@@ -1045,11 +1072,50 @@ export function App() {
       path: slugPath,
       image: ogImage,
       ogType: 'product',
-      noindex: seo.index === false,
+      noindex: seo.index === false || p.active === false,
       canonicalUrl: seo.canonicalUrl,
+      twitterTitle: seo.twitterTitle || seo.ogTitle,
+      twitterDescription: seo.twitterDescription || seo.ogDescription,
+      twitterImage: seo.twitterImage,
     })
+    // Real crawlable hierarchy: Home > Category > Product (matches the visible
+    // breadcrumb the storefront renders — categories are real <a href> pages)
+    const categoryName = String(p.category || '')
+    const categorySlug = (
+      categoryName === 'Gift Cards' ? 'gift-cards' : slugify(categoryName)
+    )
+    applyBreadcrumbJsonLd([
+      { name: 'Home', item: 'https://playbeat.digital/' },
+      ...(categoryName && categorySlug
+        ? [{ name: categoryName, item: `https://playbeat.digital/${categorySlug}` }]
+        : []),
+      { name: p.name, item: `https://playbeat.digital${slugPath}` },
+    ])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, quickViewProduct])
+
+  // 404 → managed-redirect consultation: before rendering the 404 page, ask the
+  // admin redirect manager (seo_redirects collection) whether this URL was
+  // permanently moved. A match performs a real client-side 301 via
+  // location.replace (visitors + JS-rendering crawlers both follow it).
+  useEffect(() => {
+    if (route !== 'notfound') return
+    const path = window.location.pathname
+    if (!path || path === '/') return
+    let alive = true
+    fetch(`${API_BASE}/api/products?pbRedirect=${encodeURIComponent(path)}`, {
+      credentials: 'include',
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((d) => {
+        if (!alive) return
+        if (d?.redirectTo) window.location.replace(d.redirectTo)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [route])
 
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isWishlistOpen, setIsWishlistOpen] = useState(false)
@@ -1265,7 +1331,7 @@ export function App() {
   const handleSaveProduct = async (
     product: Product,
     isNew: boolean
-  ): Promise<{ ok: boolean; error?: string }> => {
+  ): Promise<{ ok: boolean; error?: string; saved?: Product }> => {
     // Defense-in-depth: refuse to send base64 image data (the 413 cause).
     const productJson = JSON.stringify(product)
     if (/"data:image\//i.test(productJson)) {
@@ -1296,7 +1362,7 @@ export function App() {
           ? `Product "${product.name}" saved to database successfully`
           : `Product "${product.name}" updated successfully`
       )
-      return { ok: true }
+      return { ok: true, saved: canonical }
     }
 
     // REAL failure — say so plainly, keep the form open with its contents.
@@ -1695,6 +1761,19 @@ export function App() {
         <AdminInsightsView
           products={products}
           selectedCurrency={selectedCurrency}
+          adminSubPath={adminSubPath}
+          onAdminNavigate={(path) => {
+            const target = path || '/admin'
+            try {
+              if (window.location.pathname + window.location.hash !== target) {
+                window.history.pushState({}, '', target)
+              }
+              window.dispatchEvent(new PopStateEvent('popstate'))
+              window.dispatchEvent(new HashChangeEvent('hashchange'))
+            } catch {
+              /* navigation must never break the admin */
+            }
+          }}
           onBackToStorefront={() => {
             setAdminAuthed(false) // require re-auth next visit (no auto-login)
             clearAdminSession()

@@ -90,6 +90,11 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'details' | 'images' | 'advanced' | 'seo'>('details')
+  // IMPORTANT: every hook must live ABOVE the `if (!isOpen) return null` early
+  // return below — a useState declared after it changes the hook count between
+  // renders (closed → open) and crashes React with error #310
+  // ("Rendered more hooks than during the previous render").
+  const [uploadingImg, setUploadingImg] = useState(false)
 
   const mainFileRef = useRef<HTMLInputElement>(null)
   const galleryFileRef = useRef<HTMLInputElement>(null)
@@ -125,8 +130,6 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
   // POST /api/admin/media — the product payload only ever carries the
   // returned "/api/media/<id>" URL (base64 images in product JSON caused
   // HTTP 413 on Vercel's ~4.5MB serverless body cap).
-  const [uploadingImg, setUploadingImg] = useState(false)
-
   const handleMainFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     const file = files[0]
