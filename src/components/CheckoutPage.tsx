@@ -127,13 +127,14 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     return unsub
   }, [])
 
-  // Prefill from the signed-in profile when empty
+  // Prefill from the signed-in profile when empty (phone comes from the
+  // customer profile — set & added on /account after signing up)
   useEffect(() => {
     if (user) {
       setContact((prev) => ({
         name: prev.name || user.name || '',
         email: prev.email || user.email || '',
-        phone: prev.phone || (user as any).phone || '',
+        phone: prev.phone || (user as any).phone || (user as any).profile?.phone || '',
       }))
     }
   }, [user])

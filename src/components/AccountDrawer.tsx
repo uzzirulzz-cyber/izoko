@@ -30,9 +30,16 @@ interface AccountDrawerProps {
   onClose: () => void
   activeTab: 'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings' | 'notifications'
   onSelectTab: (tab: any) => void
-  user: { name: string; email: string }
+  user: {
+    name: string
+    email: string
+    phone?: string
+    profile?: { phone?: string; city?: string; address?: string }
+  }
   currency: CurrencyCode
   onSignOut: () => void
+  /** Open the full Profile Details editor on /account */
+  onEditProfile?: () => void
   onOpenWishlist: () => void
 }
 
@@ -581,6 +588,7 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
   user,
   currency,
   onSignOut,
+  onEditProfile,
   onOpenWishlist,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -791,6 +799,14 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                     <span className="text-white font-medium truncate block">{user.email}</span>
                   </div>
                   <div>
+                    <span className="text-slate-500 text-[10px] block">Phone:</span>
+                    {user.phone || user.profile?.phone ? (
+                      <span className="text-white font-medium">{user.phone || user.profile?.phone}</span>
+                    ) : (
+                      <span className="text-slate-500 italic">Not added</span>
+                    )}
+                  </div>
+                  <div>
                     <span className="text-slate-500 text-[10px] block">Membership:</span>
                     <span className="text-yellow-400 font-mono font-bold">VIP Early Access</span>
                   </div>
@@ -799,6 +815,14 @@ export const AccountDrawer: React.FC<AccountDrawerProps> = ({
                     <span className="text-white font-mono">{currency}</span>
                   </div>
                 </div>
+                {onEditProfile && (
+                  <button
+                    onClick={onEditProfile}
+                    className="w-full mt-1 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/20 text-sky-300 text-xs font-semibold transition"
+                  >
+                    Edit profile — add phone & delivery details
+                  </button>
+                )}
               </div>
 
               <div className="p-4 rounded-2xl bg-[#070D22] border border-slate-400/15 space-y-2 text-xs">

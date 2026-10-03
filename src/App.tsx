@@ -557,7 +557,12 @@ export function App() {
   }, [route, adminAuthed])
 
   // User State — NO auto-login. User must explicitly sign in.
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+  const [user, setUser] = useState<{
+    name: string
+    email: string
+    phone?: string
+    profile?: { phone?: string; city?: string; address?: string }
+  } | null>(null)
   // Order number for /order/:orderNumber — read from the address bar so the
   // payment result page survives reloads and gateway return redirects
   const [orderNumberParam, setOrderNumberParam] = useState<string>(() => {
@@ -775,7 +780,12 @@ export function App() {
           .then((r) => r.json())
           .then((data) => {
             if (data?.success && data?.user) {
-              setUser({ name: data.user.name, email: data.user.email })
+              setUser({
+                name: data.user.name,
+                email: data.user.email,
+                phone: data.user.phone,
+                profile: data.user.profile,
+              })
             } else {
               localStorage.removeItem('playbeat_user_token')
               localStorage.removeItem('playbeat_user')
@@ -976,6 +986,9 @@ export function App() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
+  // Post-signup profile setup — when true, /account auto-opens the Profile
+  // Details editor so new customers set & add their details right away.
+  const [accountSetup, setAccountSetup] = useState(false)
   const [accountTab, setAccountTab] = useState<
     'profile' | 'orders' | 'subscriptions' | 'library' | 'messages' | 'wishlist' | 'settings'
   >('profile')
@@ -1737,9 +1750,22 @@ export function App() {
         <>
           <AccountPage
             user={user}
+            autoOpenProfile={accountSetup}
             onRequireAuth={() => setIsAuthOpen(true)}
             onLogout={handleUserSignOut}
-            onNavigate={handleNavigatePath}
+            onNavigate={(p) => {
+              setAccountSetup(false)
+              handleNavigatePath(p)
+            }}
+            onUserUpdate={(u) =>
+              setUser((prev) => {
+                const merged = { ...(prev || { name: u.name, email: u.email }), ...u }
+                try {
+                  localStorage.setItem('playbeat_user', JSON.stringify(merged))
+                } catch { /* quota — non-fatal */ }
+                return merged
+              })
+            }
           />
           <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
         </>
@@ -2186,11 +2212,18 @@ export function App() {
           <AuthModal
             isOpen={isAuthOpen}
             onClose={() => setIsAuthOpen(false)}
-            onSuccess={(u, token) => {
+            onSuccess={(u, token, meta) => {
               if (token) localStorage.setItem('playbeat_user_token', token)
               localStorage.setItem('playbeat_user', JSON.stringify(u))
               setUser(u)
-              showToast(`Welcome to PlayBeat, ${u.name}!`)
+              if (meta?.mode === 'signup') {
+                // New customer → straight into profile setup on /account
+                setAccountSetup(true)
+                showToast(`Welcome to PlayBeat, ${u.name}! Add your details for faster checkout.`)
+                navigate('account')
+              } else {
+                showToast(`Welcome to PlayBeat, ${u.name}!`)
+              }
             }}
           />
 
@@ -2204,6 +2237,11 @@ export function App() {
               user={user}
               currency={selectedCurrency}
               onSignOut={handleUserSignOut}
+              onEditProfile={() => {
+                setIsAccountOpen(false)
+                setAccountSetup(true)
+                handleNavigatePath('/account')
+              }}
               onOpenWishlist={() => {
                 setIsAccountOpen(false)
                 setIsWishlistOpen(true)

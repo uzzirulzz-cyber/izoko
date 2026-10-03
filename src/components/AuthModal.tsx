@@ -5,7 +5,11 @@ interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
   initialMode?: 'signin' | 'signup'
-  onSuccess: (user: { name: string; email: string }, token?: string) => void
+  onSuccess: (
+    user: { name: string; email: string },
+    token?: string,
+    meta?: { mode: 'signin' | 'signup' }
+  ) => void
 }
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
@@ -105,6 +109,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           email: data.user?.email || email.trim(),
         },
         data.token,
+        { mode }
       )
       // reset form
       setName('')

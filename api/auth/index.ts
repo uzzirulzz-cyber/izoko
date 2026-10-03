@@ -4,6 +4,8 @@
 //   POST /api/auth/login
 //   POST /api/auth/social            → 410 GONE (mock sign-up disabled; real OAuth only)
 //   GET  /api/auth/me
+//   GET  /api/auth/profile        (customer profile — read)
+//   PUT  /api/auth/profile        (customer profile — set & add after sign-up; POST alias)
 //   POST /api/auth/forgot-password
 //   POST /api/auth/admin/login        (super admin env credentials OR staff account in DB)
 //   GET  /api/auth/admin/me
@@ -276,6 +278,40 @@ async function upsertSocialUser(
   return user;
 }
 
+// ============================================================
+// Customer profile — set & add AFTER signing up
+// ============================================================
+// Stored on the user document as `profile: { phone, city, address,
+// updatedAt, completedAt }`. Customers register with just name/email/
+// password; the storefront then invites them to complete their profile
+// (phone + city + delivery address) from /account. "Complete" means all
+// three present — the nudge disappears once they are.
+type ProfileDoc = {
+  phone: string;
+  city: string;
+  address: string;
+  updatedAt?: Date;
+  completedAt?: Date | null;
+};
+
+function normalizeProfileDoc(raw: any): ProfileDoc {
+  const p = raw && typeof raw === "object" ? raw : {};
+  return {
+    phone: typeof p.phone === "string" ? p.phone : "",
+    city: typeof p.city === "string" ? p.city : "",
+    address: typeof p.address === "string" ? p.address : "",
+    updatedAt: p.updatedAt instanceof Date ? p.updatedAt : undefined,
+    completedAt: p.completedAt instanceof Date ? p.completedAt : null,
+  };
+}
+
+function isProfileComplete(p: ProfileDoc): boolean {
+  return Boolean(p.phone && p.city && p.address);
+}
+
+// Same phone shape the orders API accepts (digits, spaces, dashes).
+const PROFILE_PHONE_RE = /^\+?[\d\s-]{7,20}$/;
+
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
 
@@ -423,6 +459,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // OAuth redirect), echo the token so the SPA can also make Bearer calls.
       // The token belongs to the caller only — safe to return to the verified party.
       const cameFromCookie = !req.headers?.authorization?.startsWith("Bearer ");
+      const profile = normalizeProfileDoc(user.profile);
       return jsonOk(res, {
         success: true,
         ...(cameFromCookie ? { token: getToken(req, "token") } : {}),
@@ -432,10 +469,108 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           email: user.email,
           role: user.role || "user",
           provider: user.provider || "local",
+          // Top-level phone so checkout contact prefill reads it directly
+          phone: profile.phone || undefined,
+          profile,
+          profileComplete: isProfileComplete(profile),
         },
       });
     } catch (err: any) {
       return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ============ /api/auth/profile — GET read · PUT/POST update ============
+  // Customers set & add profile details after signing up: display name,
+  // phone, city and delivery address. Powers the /account "Profile
+  // Details" card and pre-fills checkout contact fields.
+  if (
+    route === "profile" &&
+    (req.method === "GET" || req.method === "PUT" || req.method === "POST")
+  ) {
+    try {
+      const decoded = verifyUser(req);
+      if (!decoded) return jsonError(res, "Authentication required", 401);
+      const db = await getDb();
+      const usersCol = db.collection("users");
+      const user = await usersCol.findOne({ _id: new ObjectId(decoded.id) });
+      if (!user) return jsonError(res, "User not found", 404);
+
+      if (req.method === "GET") {
+        const profile = normalizeProfileDoc(user.profile);
+        return jsonOk(res, {
+          success: true,
+          profile,
+          profileComplete: isProfileComplete(profile),
+        });
+      }
+
+      // --- mutation (PUT / POST) — light per-user abuse damping ---
+      const rl = await mongoRateLimit(await getDb(), `profile:${decoded.id}`, 20, 60);
+      if (!rl.allowed) {
+        return jsonError(res, `Too many profile updates — try again in ${rl.retryAfterSec}s.`, 429);
+      }
+
+      const body: any = req.body || {};
+      const $set: Record<string, any> = {};
+
+      // Display name (top-level — the whole storefront reads user.name)
+      if (typeof body.name === "string" && body.name.trim()) {
+        $set.name = body.name.trim().slice(0, 80);
+      }
+
+      // Profile fields — non-empty strings set, empty string clears.
+      const incoming = {
+        phone: typeof body.phone === "string" ? body.phone.trim().slice(0, 24) : undefined,
+        city: typeof body.city === "string" ? body.city.trim().slice(0, 80) : undefined,
+        address: typeof body.address === "string" ? body.address.trim().slice(0, 240) : undefined,
+      };
+      if (incoming.phone !== undefined) {
+        if (incoming.phone && !PROFILE_PHONE_RE.test(incoming.phone)) {
+          return jsonError(
+            res,
+            "Phone number looks invalid — use 7–20 characters (digits, spaces or dashes).",
+            400
+          );
+        }
+        $set["profile.phone"] = incoming.phone;
+      }
+      if (incoming.city !== undefined) $set["profile.city"] = incoming.city;
+      if (incoming.address !== undefined) $set["profile.address"] = incoming.address;
+
+      if (!Object.keys($set).length) {
+        return jsonError(res, "Nothing to update — send name, phone, city, or address.", 400);
+      }
+
+      // Completeness is computed AFTER the merge so completedAt flips on the
+      // first save that satisfies it (and never regresses once set).
+      const merged = { ...normalizeProfileDoc(user.profile) };
+      if ($set["profile.phone"] !== undefined) merged.phone = $set["profile.phone"];
+      if ($set["profile.city"] !== undefined) merged.city = $set["profile.city"];
+      if ($set["profile.address"] !== undefined) merged.address = $set["profile.address"];
+      $set["profile.updatedAt"] = new Date();
+      if (isProfileComplete(merged) && !user.profile?.completedAt) {
+        $set["profile.completedAt"] = new Date();
+      }
+      $set.updatedAt = new Date();
+
+      await usersCol.updateOne({ _id: user._id }, { $set });
+      const fresh = await usersCol.findOne({ _id: user._id });
+      const profile = normalizeProfileDoc(fresh?.profile);
+      return jsonOk(res, {
+        success: true,
+        message: "Profile saved",
+        profile,
+        profileComplete: isProfileComplete(profile),
+        user: {
+          id: user._id.toString(),
+          name: fresh?.name || user.name,
+          email: fresh?.email || user.email,
+        },
+      });
+    } catch (err: any) {
+      console.error("Profile Error:", err);
+      return jsonError(res, err.message || "Failed to save profile", 500);
     }
   }
 

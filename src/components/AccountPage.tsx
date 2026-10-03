@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   User,
   Package,
@@ -15,15 +15,28 @@ import {
   RefreshCw,
   ChevronRight,
   Inbox,
+  Pencil,
+  Phone,
+  MapPin,
+  Home,
 } from 'lucide-react'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 interface AccountPageProps {
   user: { name: string; email: string } | null
+  /** Post-signup: auto-open the Profile Details editor (once) when incomplete */
+  autoOpenProfile?: boolean
   onRequireAuth: () => void
   onLogout: () => void
   onNavigate: (path: string) => void
+  /** Push profile changes up to App state (header, drawer, checkout prefill) */
+  onUserUpdate?: (u: {
+    name: string
+    email: string
+    phone?: string
+    profile?: { phone?: string; city?: string; address?: string }
+  }) => void
 }
 
 interface OrderRow {
@@ -83,12 +96,29 @@ function initials(name: string): string {
  * band with overlapping round avatar, white rounded cards, blue interactive
  * values, quiet gray metadata. Data flow and actions are unchanged.
  */
-export const AccountPage: React.FC<AccountPageProps> = ({ user, onRequireAuth, onLogout, onNavigate }) => {
+export const AccountPage: React.FC<AccountPageProps> = ({
+  user,
+  autoOpenProfile,
+  onRequireAuth,
+  onLogout,
+  onNavigate,
+  onUserUpdate,
+}) => {
   const [state, setState] = useState<DashboardState>('loading')
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [errMsg, setErrMsg] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  // ---- Profile state (set & add after signing up) ----
+  const [profile, setProfile] = useState<{ phone: string; city: string; address: string } | null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [profileComplete, setProfileComplete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [profileMsg, setProfileMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+  const [form, setForm] = useState({ name: '', phone: '', city: '', address: '' })
+  const autoOpenedRef = useRef(false)
 
   const load = useCallback(async () => {
     const token = localStorage.getItem('playbeat_user_token')
@@ -127,8 +157,115 @@ export const AccountPage: React.FC<AccountPageProps> = ({ user, onRequireAuth, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ---- Profile loader — GET /api/auth/me carries profile + completeness ----
+  const loadProfile = useCallback(async () => {
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) return
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success && data?.user) {
+        const p = data.user.profile || {}
+        setProfile({ phone: p.phone || '', city: p.city || '', address: p.address || '' })
+        setProfileComplete(Boolean(data.user.profileComplete))
+      }
+    } catch {
+      /* non-fatal — profile card just stays in its last state */
+    }
+    setProfileLoaded(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const openEditor = () => {
+    setForm({
+      name: user?.name || '',
+      phone: profile?.phone || '',
+      city: profile?.city || '',
+      address: profile?.address || '',
+    })
+    setProfileMsg(null)
+    setEditing(true)
+  }
+
+  // Auto-open once after signup (profile still incomplete)
   useEffect(() => {
-    if (user) load()
+    if (autoOpenProfile && profileLoaded && !autoOpenedRef.current) {
+      autoOpenedRef.current = true
+      if (!profileComplete) openEditor()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenProfile, profileLoaded, profileComplete])
+
+  // ---- Profile save — PUT /api/auth/profile ----
+  const saveProfile = async () => {
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) {
+      onRequireAuth()
+      return
+    }
+    const phone = form.phone.trim()
+    if (phone && !/^\+?[\d\s-]{7,20}$/.test(phone)) {
+      setProfileMsg({ kind: 'err', text: 'Phone looks invalid — use 7–20 characters (digits, spaces or dashes).' })
+      return
+    }
+    if (!form.name.trim()) {
+      setProfileMsg({ kind: 'err', text: 'Please enter your full name.' })
+      return
+    }
+    setSaving(true)
+    setProfileMsg(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: form.name.trim(),
+          phone,
+          city: form.city.trim(),
+          address: form.address.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        const p = data.profile || {}
+        setProfile({ phone: p.phone || '', city: p.city || '', address: p.address || '' })
+        const wasIncomplete = !profileComplete
+        setProfileComplete(Boolean(data.profileComplete))
+        if (onUserUpdate && data.user) {
+          onUserUpdate({
+            name: data.user.name,
+            email: data.user.email || user?.email || '',
+            phone: p.phone || undefined,
+            profile: { phone: p.phone || '', city: p.city || '', address: p.address || '' },
+          })
+        }
+        setProfileMsg({ kind: 'ok', text: wasIncomplete ? 'Profile saved — your details will pre-fill at checkout.' : 'Profile updated.' })
+        setEditing(false)
+      } else if (res.status === 401) {
+        // Session expired — self-heal like the orders loader does
+        localStorage.removeItem('playbeat_user_token')
+        localStorage.removeItem('playbeat_user')
+        onRequireAuth()
+        return
+      } else {
+        setProfileMsg({ kind: 'err', text: data?.error || 'Could not save your profile — please try again.' })
+      }
+    } catch {
+      setProfileMsg({ kind: 'err', text: 'Network error — please try again.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (user) {
+      load()
+      loadProfile()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
@@ -183,6 +320,152 @@ export const AccountPage: React.FC<AccountPageProps> = ({ user, onRequireAuth, o
           >
             <LogOut className="w-3.5 h-3.5" /> Log out
           </button>
+        </div>
+
+        {/* ===== Profile Details — set & add after signing up ===== */}
+        <div className="mt-7 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold text-[#17181C] flex items-center gap-2">
+              <User className="w-4 h-4 text-blue-600" /> Profile Details
+            </h2>
+            {!editing && (
+              <button
+                onClick={openEditor}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-500 transition"
+              >
+                <Pencil className="w-3 h-3" />
+                {profileLoaded && !profileComplete ? 'Add details' : 'Edit'}
+              </button>
+            )}
+          </div>
+
+          {/* Incomplete-profile nudge */}
+          {profileLoaded && !profileComplete && !editing && (
+            <div className="mx-5 mt-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div className="text-xs leading-relaxed">
+                <p className="font-semibold text-amber-700">Complete your profile</p>
+                <p className="text-amber-600/90 mt-0.5">
+                  Add your phone and delivery details so we can reach you about your orders — and check out faster.
+                </p>
+                <button
+                  onClick={openEditor}
+                  className="mt-2 inline-flex items-center gap-1 font-bold text-amber-700 hover:text-amber-800 transition"
+                >
+                  Add your details <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline feedback */}
+          {profileMsg && (
+            <div
+              className={`mx-5 mt-4 rounded-xl px-4 py-2.5 text-xs font-semibold flex items-center gap-2 ${
+                profileMsg.kind === 'ok'
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                  : 'bg-rose-50 border border-rose-200 text-rose-600'
+              }`}
+            >
+              {profileMsg.kind === 'ok' ? <Check className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+              {profileMsg.text}
+            </div>
+          )}
+
+          {editing ? (
+            /* ---- Edit mode ---- */
+            <div className="p-5 space-y-3.5">
+              <div>
+                <label htmlFor="pf-name" className="block text-xs font-bold text-slate-600 mb-1">Full name</label>
+                <input
+                  id="pf-name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  maxLength={80}
+                  placeholder="Your name"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-medium text-[#17181C] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+              <div>
+                <label htmlFor="pf-phone" className="block text-xs font-bold text-slate-600 mb-1">Phone</label>
+                <input
+                  id="pf-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  maxLength={24}
+                  placeholder="+92 3XX XXXXXXX"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-medium text-[#17181C] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+              <div>
+                <label htmlFor="pf-city" className="block text-xs font-bold text-slate-600 mb-1">City</label>
+                <input
+                  id="pf-city"
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  maxLength={80}
+                  placeholder="Karachi, Lahore, Islamabad…"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-medium text-[#17181C] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+              <div>
+                <label htmlFor="pf-address" className="block text-xs font-bold text-slate-600 mb-1">Delivery address</label>
+                <textarea
+                  id="pf-address"
+                  rows={2}
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  maxLength={240}
+                  placeholder="Street, area, landmark…"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-[13px] font-medium text-[#17181C] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition resize-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={saveProfile}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#17181C] text-white text-xs font-bold hover:bg-black disabled:opacity-60 transition"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  Save profile
+                </button>
+                <button
+                  onClick={() => {
+                    setEditing(false)
+                    setProfileMsg(null)
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ---- Display mode ---- */
+            <div className="px-5 py-2 divide-y divide-slate-50">
+              {[
+                { key: 'phone', icon: <Phone className="w-4 h-4 text-slate-400" />, label: 'Phone', value: profile?.phone },
+                { key: 'city', icon: <MapPin className="w-4 h-4 text-slate-400" />, label: 'City', value: profile?.city },
+                { key: 'address', icon: <Home className="w-4 h-4 text-slate-400" />, label: 'Delivery address', value: profile?.address },
+              ].map((r) => (
+                <div key={r.key} className="py-3 flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                    {r.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{r.label}</div>
+                    {r.value ? (
+                      <div className="text-[13px] font-semibold text-[#17181C] break-words">{r.value}</div>
+                    ) : (
+                      <div className="text-[12px] italic text-slate-400">Not added yet</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ===== Stats ===== */}
