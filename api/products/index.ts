@@ -294,6 +294,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           const description = String(d.seo?.description || d.shortDescription || d.description || `${d.name} — instant delivery from PlayBeat Digital.`).slice(0, 5000);
           const price = Number(d.price) || 0;
           const availability = d.stock === 0 || d.status === "out_of_stock" ? "out of stock" : "in stock";
+          // Brand must be a real manufacturer/issuer brand. Several CMS
+          // products have `brand` equal to the product's own name (import
+          // artifact) — that reads as "inaccurate details" to Merchant
+          // Center, so fall back to the store brand for those.
+          const brand =
+            d.brand && String(d.brand).trim() && d.brand !== d.name
+              ? d.brand
+              : "PlayBeat Digital";
           return [
             "  <item>",
             `    <title>${xmlEscape(title)}</title>`,
@@ -303,11 +311,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             image ? `    <g:image_link>${xmlEscape(image)}</g:image_link>` : null,
             `    <g:condition>new</g:condition>`,
             `    <g:availability>${availability}</g:availability>`,
-            `    <g:brand>${xmlEscape(String(d.brand || "PlayBeat Digital"))}</g:brand>`,
+            `    <g:brand>${xmlEscape(String(brand))}</g:brand>`,
             price > 0 ? `    <g:price>${price.toFixed(2)} ${xmlEscape(String(d.currency || "PKR"))}</g:price>` : null,
-            `    <g:identifier_exists>yes</g:identifier_exists>`,
-            `    <g:mpn>${xmlEscape(String(d.sku || ""))}</g:mpn>`,
-            d.updatedAt ? `    <pubDate>${new Date(d.updatedAt).toUTCString()}</pubDate>` : null,
+            // These are store-defined digital products: no real GTIN/MPN
+            // exists. Declaring `yes` and submitting the SKU as an MPN is
+            // fabricated data under Google's product-data policy — declare
+            // `no` truthfully instead. (SKU remains in g:id.)
+            `    <g:identifier_exists>no</g:identifier_exists>`,
             "  </item>",
           ]
             .filter(Boolean)
