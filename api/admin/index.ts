@@ -5145,6 +5145,231 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // =========================================================================
+  // SERVICES / BUSINESS SOLUTIONS — CMS + request pipeline (brief rules 23-26)
+  // Admin-only: full documents incl. internal notes & quotes (never public).
+  // =========================================================================
+  const admin = verifyAdmin(req as any);
+
+  // ---- GET /api/admin/services (full list incl. unpublished) ----
+  if (route === "services" && req.method === "GET") {
+    try {
+      const db = await getDb();
+      const docs = await db.collection("services").find({}).sort({ displayOrder: 1, title: 1 }).limit(200).toArray();
+      return jsonOk(res, { success: true, services: docs.map((d: any) => ({ ...d, _id: String(d._id) })) });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ---- POST /api/admin/services (create) ----
+  if (route === "services" && req.method === "POST") {
+    try {
+      const db = await getDb();
+      const { sanitizeServiceDoc } = await import("../_lib/servicesStore.js");
+      const clean = sanitizeServiceDoc(req.body || {});
+      const dup = await db.collection("services").findOne({ slug: clean.slug });
+      if (dup) return jsonError(res, `Slug "${clean.slug}" is already in use.`, 409);
+      const now = new Date();
+      const doc = { ...clean, createdAt: now, updatedAt: now };
+      const r = await db.collection("services").insertOne(doc as any);
+      await writeAudit(db, { actor: admin, action: "service.create", targetType: "service", targetId: clean.slug, detail: `Service ${clean.title} created` });
+      return jsonOk(res, { success: true, service: { ...doc, _id: String(r.insertedId) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- PATCH /api/admin/services/:id (update) ----
+  if (route.startsWith("services/") && req.method === "PATCH") {
+    try {
+      const db = await getDb();
+      const id = route.split("/")[1];
+      const { sanitizeServiceDoc, oid } = await import("../_lib/servicesStore.js");
+      const existing = await db.collection("services").findOne({ _id: oid(id) });
+      if (!existing) return jsonError(res, "Service not found.", 404);
+      const clean = sanitizeServiceDoc({ ...existing, ...(req.body || {}) }, existing as any);
+      if (clean.slug !== existing.slug) {
+        const dup = await db.collection("services").findOne({ slug: clean.slug });
+        if (dup) return jsonError(res, `Slug "${clean.slug}" is already in use.`, 409);
+      }
+      await db.collection("services").updateOne({ _id: existing._id }, { $set: { ...clean, updatedAt: new Date() } });
+      await writeAudit(db, { actor: admin, action: "service.update", targetType: "service", targetId: clean.slug, detail: `Service ${clean.title} updated (${Object.keys(req.body || {}).join(", ")})` });
+      return jsonOk(res, { success: true, message: "Service saved." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- DELETE /api/admin/services/:id ----
+  if (route.startsWith("services/") && req.method === "DELETE") {
+    try {
+      const db = await getDb();
+      const id = route.split("/")[1];
+      const { oid } = await import("../_lib/servicesStore.js");
+      const r = await db.collection("services").deleteOne({ _id: oid(id) });
+      if (!r.deletedCount) return jsonError(res, "Service not found.", 404);
+      await writeAudit(db, { actor: admin, action: "service.delete", targetType: "service", targetId: id, detail: "Service deleted" });
+      return jsonOk(res, { success: true, message: "Service deleted." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- GET /api/admin/service-requests (list | ?stats=1 aggregates) ----
+  if (route === "service-requests" && req.method === "GET") {
+    try {
+      const db = await getDb();
+      const urlQ = new URL(req.url || "", "http://localhost").searchParams;
+      if (urlQ.get("stats") === "1") {
+        const col = db.collection("service_requests");
+        const [total, byStatus] = await Promise.all([
+          col.countDocuments({}),
+          col.aggregate([{ $group: { _id: "$status", n: { $sum: 1 } } }]).toArray(),
+        ]);
+        const counts: Record<string, number> = {};
+        for (const b of byStatus) counts[String(b._id)] = b.n;
+        return jsonOk(res, {
+          success: true,
+          stats: {
+            total,
+            new: counts["new"] || 0,
+            active: ["contacted", "requirements_review", "proposal_draft", "in_progress", "waiting_customer", "negotiation"].reduce((s, k) => s + (counts[k] || 0), 0),
+            proposalSent: (counts["proposal_sent"] || 0) + (counts["proposal_draft"] || 0),
+            approved: (counts["approved"] || 0) + (counts["in_progress"] || 0),
+            completed: counts["completed"] || 0,
+            byStatus: counts,
+          },
+        });
+      }
+      const status = urlQ.get("status");
+      const q = (urlQ.get("q") || "").trim().toLowerCase();
+      const filter: any = {};
+      if (status && status !== "all") filter.status = status;
+      if (q) {
+        filter.$or = [
+          { requestId: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
+          { fullName: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
+          { businessName: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
+          { email: new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
+        ];
+      }
+      const docs = await db
+        .collection("service_requests")
+        .find(filter, { projection: { attachments: 0, description: 0, notes: 0, internalNotes: 0 } })
+        .sort({ createdAt: -1 })
+        .limit(200)
+        .toArray();
+      return jsonOk(res, { success: true, requests: docs.map((d: any) => ({ ...d, _id: String(d._id) })) });
+    } catch (err: any) {
+      return jsonError(res, err.message, 500);
+    }
+  }
+
+  // ---- GET /api/admin/service-requests/:id (full detail) ----
+  if (route.startsWith("service-requests/") && req.method === "GET") {
+    try {
+      const db = await getDb();
+      const id = route.split("/")[1];
+      const { oid } = await import("../_lib/servicesStore.js");
+      const doc = /^[0-9a-fA-F]{24}$/.test(id)
+        ? await db.collection("service_requests").findOne({ _id: oid(id) })
+        : await db.collection("service_requests").findOne({ requestId: id.toUpperCase() });
+      if (!doc) return jsonError(res, "Request not found.", 404);
+      return jsonOk(res, { success: true, request: { ...doc, _id: String(doc._id) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- PATCH /api/admin/service-requests/:id (status / assign / notes / quotes) ----
+  if (route.startsWith("service-requests/") && req.method === "PATCH") {
+    try {
+      const db = await getDb();
+      const id = route.split("/")[1];
+      const { oid, SERVICE_STATUSES } = await import("../_lib/servicesStore.js");
+      const doc = /^[0-9a-fA-F]{24}$/.test(id)
+        ? await db.collection("service_requests").findOne({ _id: oid(id) })
+        : await db.collection("service_requests").findOne({ requestId: id.toUpperCase() });
+      if (!doc) return jsonError(res, "Request not found.", 404);
+      const body = req.body || {};
+      const set: any = { updatedAt: new Date() };
+      const hist: any[] = [];
+      if (body.status !== undefined) {
+        if (!SERVICE_STATUSES.includes(body.status)) return jsonError(res, "Invalid status.", 400);
+        set.status = body.status;
+        hist.push({ status: body.status, at: new Date(), by: admin?.email || "admin" });
+      }
+      if (body.assignedTo !== undefined) set.assignedTo = String(body.assignedTo || "").slice(0, 160) || null;
+      if (body.estimatedQuote !== undefined) set.estimatedQuote = String(body.estimatedQuote || "").slice(0, 120) || null;
+      if (body.finalQuote !== undefined) set.finalQuote = String(body.finalQuote || "").slice(0, 120) || null;
+      if (Array.isArray(body.proposalFiles)) {
+        set.proposalFiles = body.proposalFiles.slice(0, 10).map((p: any) => ({
+          name: String(p?.name || "").slice(0, 160),
+          url: String(p?.url || "").slice(0, 400),
+        }));
+      }
+      if (typeof body.note === "string" && body.note.trim()) {
+        const note = { text: body.note.trim().slice(0, 2000), author: admin?.email || "admin", at: new Date() };
+        await db.collection("service_requests").updateOne({ _id: doc._id }, { $push: { internalNotes: note } as any });
+      }
+      if (Object.keys(set).length) {
+        if (hist.length) set.statusHistory = [...(doc.statusHistory || []), ...hist];
+        await db.collection("service_requests").updateOne({ _id: doc._id }, { $set: set });
+      }
+      await writeAudit(db, { actor: admin, action: "service_request.update", targetType: "service_request", targetId: doc.requestId, detail: `Updated (${Object.keys(body).join(", ")})` });
+      const fresh = await db.collection("service_requests").findOne({ _id: doc._id });
+      return jsonOk(res, { success: true, request: { ...fresh, _id: String(fresh._id) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- Portfolio CMS: GET/POST /api/admin/services-portfolio ----
+  if (route === "services-portfolio" && (req.method === "GET" || req.method === "POST")) {
+    try {
+      const db = await getDb();
+      if (req.method === "GET") {
+        const docs = await db.collection("service_portfolio").find({}).sort({ featured: -1, createdAt: -1 }).limit(120).toArray();
+        return jsonOk(res, { success: true, portfolio: docs.map((d: any) => ({ ...d, _id: String(d._id) })) });
+      }
+      const { sanitizePortfolioDoc } = await import("../_lib/servicesStore.js");
+      const clean = sanitizePortfolioDoc(req.body || {});
+      const dup = await db.collection("service_portfolio").findOne({ slug: clean.slug });
+      if (dup) return jsonError(res, `Slug "${clean.slug}" is already in use.`, 409);
+      const now = new Date();
+      const doc = { ...clean, createdAt: now, updatedAt: now };
+      const r = await db.collection("service_portfolio").insertOne(doc as any);
+      await writeAudit(db, { actor: admin, action: "portfolio.create", targetType: "portfolio", targetId: clean.slug, detail: `Portfolio item ${clean.title} created` });
+      return jsonOk(res, { success: true, item: { ...doc, _id: String(r.insertedId) } });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
+  // ---- Portfolio CMS: PATCH/DELETE /api/admin/services-portfolio/:id ----
+  if (route.startsWith("services-portfolio/") && (req.method === "PATCH" || req.method === "DELETE")) {
+    try {
+      const db = await getDb();
+      const id = route.split("/")[1];
+      const { sanitizePortfolioDoc, oid } = await import("../_lib/servicesStore.js");
+      if (req.method === "DELETE") {
+        const r = await db.collection("service_portfolio").deleteOne({ _id: oid(id) });
+        if (!r.deletedCount) return jsonError(res, "Portfolio item not found.", 404);
+        await writeAudit(db, { actor: admin, action: "portfolio.delete", targetType: "portfolio", targetId: id, detail: "Portfolio item deleted" });
+        return jsonOk(res, { success: true, message: "Portfolio item deleted." });
+      }
+      const existing = await db.collection("service_portfolio").findOne({ _id: oid(id) });
+      if (!existing) return jsonError(res, "Portfolio item not found.", 404);
+      const clean = sanitizePortfolioDoc({ ...existing, ...(req.body || {}) }, existing as any);
+      await db.collection("service_portfolio").updateOne({ _id: existing._id }, { $set: { ...clean, updatedAt: new Date() } });
+      await writeAudit(db, { actor: admin, action: "portfolio.update", targetType: "portfolio", targetId: clean.slug, detail: `Portfolio item ${clean.title} updated` });
+      return jsonOk(res, { success: true, message: "Portfolio item saved." });
+    } catch (err: any) {
+      return jsonError(res, err.message, 400);
+    }
+  }
+
   return jsonError(res, `Admin route not found: ${route}`, 404);
 }
 

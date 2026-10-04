@@ -19,6 +19,7 @@ import {
   Phone,
   MapPin,
   Home,
+  Briefcase,
 } from 'lucide-react'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
@@ -109,6 +110,9 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   const [errMsg, setErrMsg] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  // Business Solutions — the signed-in customer's project requests (safe view)
+  const [svcRequests, setSvcRequests] = useState<Array<{ requestId: string; service: string; statusLabel: string; status: string; createdAt: string; estimatedQuote?: string | null; finalQuote?: string | null }>>([])
+  const [svcState, setSvcState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   // ---- Profile state (set & add after signing up) ----
   const [profile, setProfile] = useState<{ phone: string; city: string; address: string } | null>(null)
@@ -268,6 +272,32 @@ export const AccountPage: React.FC<AccountPageProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
+
+  // My Service Requests — separate fetch; failure never blocks the dashboard
+  const loadSvc = useCallback(async () => {
+    const token = localStorage.getItem('playbeat_user_token')
+    if (!token) return
+    setSvcState('loading')
+    try {
+      const res = await fetch(`${API_BASE}/api/services/my-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        setSvcRequests(data.requests || [])
+        setSvcState('ready')
+      } else {
+        setSvcState('error')
+      }
+    } catch {
+      setSvcState('error')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user) loadSvc()
+  }, [user, loadSvc])
 
   const copy = (t: string) => {
     navigator.clipboard.writeText(t)
@@ -566,6 +596,78 @@ export const AccountPage: React.FC<AccountPageProps> = ({
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+
+        {/* ===== My Service Requests (Business Solutions) ===== */}
+        <div className="mt-4 rounded-2xl bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-[#17181C] flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-sky-600" /> My Service Requests
+            </h2>
+            <button
+              onClick={loadSvc}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-500 transition"
+            >
+              <RefreshCw className={`w-3 h-3 ${svcState === 'loading' ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+          {svcState === 'loading' && (
+            <div className="p-8 flex justify-center"><Loader2 className="w-5 h-5 text-sky-500 animate-spin" /></div>
+          )}
+          {svcState === 'error' && (
+            <div className="px-5 py-5 flex items-center gap-2 text-sm text-slate-500">
+              <AlertCircle className="w-4 h-4 text-rose-500" /> Could not load your service requests right now.
+            </div>
+          )}
+          {svcState === 'ready' && svcRequests.length === 0 && (
+            <div className="px-6 py-8 text-center space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center">
+                <Briefcase className="w-5 h-5 text-slate-400" />
+              </div>
+              <p className="text-[13px] text-slate-500 leading-relaxed max-w-[320px] mx-auto">
+                No project requests yet. Need a website, CRM or custom system?
+              </p>
+              <button
+                onClick={() => onNavigate('/services/request')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition"
+              >
+                Request a Business Solution <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {svcState === 'ready' && svcRequests.length > 0 && (
+            <div className="divide-y divide-slate-100">
+              {svcRequests.map((r) => (
+                <div key={r.requestId} className="px-5 py-3 flex items-center justify-between gap-3 text-xs">
+                  <div className="min-w-0">
+                    <span className="font-mono font-semibold text-[#17181C]">{r.requestId}</span>
+                    <span className="text-slate-400 ml-2">· {r.service}</span>
+                    <div className="text-slate-400 mt-0.5">
+                      {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en', { dateStyle: 'medium' }) : ''}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {(r.finalQuote || r.estimatedQuote) && (
+                      <span className="font-semibold text-emerald-600">{r.finalQuote || r.estimatedQuote}</span>
+                    )}
+                    <span
+                      className={`px-2 py-0.5 rounded-full border font-semibold ${
+                        r.status === 'completed'
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          : r.status === 'cancelled' || r.status === 'archived'
+                          ? 'bg-rose-50 text-rose-600 border-rose-200'
+                          : r.status === 'approved' || r.status === 'in_progress'
+                          ? 'bg-blue-50 text-blue-600 border-blue-200'
+                          : 'bg-amber-50 text-amber-600 border-amber-200'
+                      }`}
+                    >
+                      {r.statusLabel || r.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

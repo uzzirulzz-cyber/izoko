@@ -179,6 +179,24 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                     <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
                   </a>
                 </li>
+                <li>
+                  <a href="/services" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Business Solutions
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/services/request" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Request a Project
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
+                <li>
+                  <a href="/services/portfolio" className="inline-flex items-center gap-1.5 hover:text-yellow-300 transition group">
+                    Case Studies
+                    <ArrowRight className="w-3 h-3 opacity-0 -ml-1 group-hover:opacity-100 group-hover:ml-0 transition-all" />
+                  </a>
+                </li>
               </ul>
             </div>
 

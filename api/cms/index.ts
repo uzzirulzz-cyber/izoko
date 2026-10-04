@@ -11,7 +11,19 @@
 // Admin CRUD: /api/admin/cms/homepage (see api/admin).
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "../_lib/mongo.js";
-import { handleOptions, jsonOk, jsonError, requireAdmin, AuthenticatedRequest } from "../_lib/auth.js";
+import {
+  handleOptions,
+  jsonOk,
+  jsonError,
+  requireAdmin,
+  verifyUser,
+  AuthenticatedRequest,
+} from "../_lib/auth.js";
+import {
+  nextServiceRequestId,
+  validateServiceRequest,
+  publicRequestView,
+} from "../_lib/servicesStore.js";
 
 export const CMS_DEFAULTS = {
   announcement: {
@@ -50,10 +62,15 @@ export const CMS_DEFAULTS = {
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
 
-  const seg = new URL(req.url || "", "http://localhost").pathname
-    .split("/")
-    .filter(Boolean)
-    .slice(2);
+  const url = new URL(req.url || "", "http://localhost");
+  const parts = url.pathname.split("/").filter(Boolean);
+  // Services/Business-Solutions router — rewrites point /api/services/* here
+  // while req.url keeps the ORIGINAL path, so branch on the real prefix.
+  if (parts[1] === "services" || (req.method === "POST" && parts[1] === "service-requests")) {
+    return handleServicesRoute(req, res, parts[1] === "service-requests" ? parts.slice(2) : parts.slice(2));
+  }
+
+  const seg = parts.slice(2);
 
   // ---- GET /api/cms/homepage — public homepage-builder content ----
   if (seg[0] === "homepage" && req.method === "GET") {
@@ -141,4 +158,122 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     // Fail-safe: serve defaults if DB is unreachable
     return jsonOk(res, { success: true, settings: CMS_DEFAULTS, updatedAt: null });
   }
+}
+
+// ===========================================================================
+// SERVICES / BUSINESS SOLUTIONS router — mounted from the main handler above.
+//   GET  /api/services                 → published services (public)
+//   GET  /api/services/:slug           → one published service (public)
+//   GET  /api/services/portfolio       → published case studies (privacy-filtered)
+//   POST /api/services/requests        → public project request (rate-limited)
+//   POST /api/service-requests         → alias of the above
+//   GET  /api/services/my-requests     → signed-in customer's own requests
+// ===========================================================================
+async function handleServicesRoute(req: AuthenticatedRequest, res: VercelResponse, seg: string[]) {
+  const db = await getDb().catch(() => null);
+  if (!db) return jsonError(res, "Database unavailable", 503);
+  const route = (seg || []).join("/").toLowerCase();
+
+  // ---- GET /api/services (list) -------------------------------------------
+  if (route === "" && req.method === "GET") {
+    try {
+      const docs = await db
+        .collection("services")
+        .find({ published: { $ne: false } })
+        .sort({ displayOrder: 1, title: 1 })
+        .limit(60)
+        .toArray();
+      return jsonOk(res, { success: true, services: docs.map(({ _id, createdAt, updatedAt, seoTitle, seoDescription, ...s }: any) => s) });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load services", 500);
+    }
+  }
+
+  // ---- GET /api/services/portfolio ----------------------------------------
+  if (route === "portfolio" && req.method === "GET") {
+    try {
+      const docs = await db
+        .collection("service_portfolio")
+        .find({ published: { $ne: false } })
+        .sort({ featured: -1, createdAt: -1 })
+        .limit(40)
+        .toArray();
+      // Privacy: client names are stripped unless showClientName is true (brief §27)
+      const items = docs.map((d: any) => {
+        const { clientName, showClientName, ...p } = d;
+        return { ...p, _id: undefined, clientName: showClientName ? clientName : null };
+      });
+      return jsonOk(res, { success: true, portfolio: items });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load portfolio", 500);
+    }
+  }
+
+  // ---- GET /api/services/my-requests (signed-in customer) ------------------
+  if (route === "my-requests" && req.method === "GET") {
+    const user = verifyUser(req);
+    if (!user) return jsonError(res, "Authentication required", 401);
+    try {
+      const docs = await db
+        .collection("service_requests")
+        .find({ userId: String(user.id || user._id || "") })
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .toArray();
+      return jsonOk(res, { success: true, requests: docs.map(publicRequestView) });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load requests", 500);
+    }
+  }
+
+  // ---- POST /api/services/requests (public submission) ---------------------
+  if ((route === "requests" || route === "") && req.method === "POST") {
+    try {
+      const { mongoRateLimit } = await import("../_lib/rateLimit.js");
+      const { clientIp } = await import("../_lib/rateLimit.js");
+      const rl = await mongoRateLimit(db, `service-requests:${clientIp(req as any)}`, 5, 60);
+      if (!rl.allowed) {
+        return jsonError(res, `Too many requests — please try again in ${rl.retryAfterSec}s.`, 429);
+      }
+      const user = verifyUser(req);
+      const data = validateServiceRequest(req.body || {});
+      const requestId = await nextServiceRequestId(db);
+      const now = new Date();
+      await db.collection("service_requests").insertOne({
+        requestId,
+        userId: user ? String(user.id || user._id || "") : null,
+        ...data,
+        status: "new",
+        assignedTo: null,
+        internalNotes: [],
+        estimatedQuote: null,
+        finalQuote: null,
+        proposalFiles: [],
+        statusHistory: [{ status: "new", at: now, by: "customer" }],
+        createdAt: now,
+        updatedAt: now,
+      });
+      return jsonOk(res, {
+        success: true,
+        requestId,
+        message: "Project request received. Our team will contact you shortly.",
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not submit the request", 400);
+    }
+  }
+
+  // ---- GET /api/services/:slug (detail) ------------------------------------
+  if (req.method === "GET" && route && route !== "requests") {
+    try {
+      const doc = await db.collection("services").findOne({ slug: route, published: { $ne: false } });
+      if (!doc) return jsonError(res, "Service not found", 404);
+      const { _id, createdAt, updatedAt, ...s } = doc;
+      return jsonOk(res, { success: true, service: s });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Could not load the service", 500);
+    }
+  }
+
+  return jsonError(res, "Method not allowed", 405);
 }

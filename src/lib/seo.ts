@@ -315,7 +315,7 @@ export const SEO_PRESETS: Record<string, RouteSeo> = {
     title: 'Digital Services — AI Subscriptions, IPTV & Managed Plans',
     description:
       'PlayBeat Digital services: AI subscriptions, IPTV plans, productivity suites and managed digital services with 24/7 human support.',
-    path: '/services',
+    path: '/digital-services',
   },
   'social-media': {
     title: 'Social Media — Growth Services & Account Top-Ups',

@@ -112,6 +112,7 @@ const CATEGORY_ROUTE_META: Record<string, { changefreq: string; priority: string
   "steam-game-keys": { changefreq: "weekly", priority: "0.8" },
   "windows-office": { changefreq: "weekly", priority: "0.8" },
   "creative-software": { changefreq: "weekly", priority: "0.8" },
+  "digital-services": { changefreq: "weekly", priority: "0.8" },
   "services": { changefreq: "weekly", priority: "0.8" },
   "social-media": { changefreq: "weekly", priority: "0.7" },
   "web-hosting": { changefreq: "weekly", priority: "0.7" },
@@ -133,8 +134,37 @@ function productMatches(p: any, c: any): boolean {
   }
 }
 
+// ---- Business Solutions service URLs --------------------------------------
+// Static hub/request/portfolio + every PUBLISHED service detail page (dynamic,
+// read from the `services` collection — MongoDB is the source of truth).
+async function serviceUrls(db: any): Promise<SitemapUrl[]> {
+  const urls: SitemapUrl[] = [
+    { loc: `${SITE}/services`, changefreq: "weekly", priority: "0.9" },
+    { loc: `${SITE}/services/request`, changefreq: "monthly", priority: "0.8" },
+    { loc: `${SITE}/services/portfolio`, changefreq: "monthly", priority: "0.7" },
+  ];
+  try {
+    const docs = await db
+      .collection("services")
+      .find({ published: { $ne: false } }, { projection: { slug: 1, updatedAt: 1 } })
+      .sort({ displayOrder: 1 })
+      .limit(100)
+      .toArray();
+    for (const d of docs) {
+      urls.push({ loc: `${SITE}/services/${d.slug}`, changefreq: "monthly", priority: "0.8" });
+    }
+  } catch {
+    /* DB unavailable — static service URLs still ship */
+  }
+  return urls;
+}
+
 export async function buildPagesSitemap(): Promise<string> {
   return renderUrlSet(STATIC_PAGES);
+}
+
+export async function buildServicesSitemap(db: any): Promise<string> {
+  return renderUrlSet(await serviceUrls(db));
 }
 
 export async function buildCategoriesSitemap(db: any): Promise<{ xml: string; count: number }> {
@@ -239,6 +269,7 @@ export async function buildSitemapIndex(db: any): Promise<string> {
     { loc: `${SITE}/sitemap-pages.xml`, lastmod },
     { loc: `${SITE}/sitemap-categories.xml`, lastmod },
     { loc: `${SITE}/sitemap-products.xml`, lastmod },
+    { loc: `${SITE}/sitemap-services.xml`, lastmod },
   ]);
 }
 
@@ -292,6 +323,7 @@ export async function handleSitemapRequest(res: any, map: string, db: any): Prom
     else if (map === "sitemap-products.xml") xml = (await buildProductsSitemap(db)).xml;
     else if (map === "sitemap-categories.xml") xml = (await buildCategoriesSitemap(db)).xml;
     else if (map === "sitemap-pages.xml") xml = await buildPagesSitemap();
+    else if (map === "sitemap-services.xml") xml = await buildServicesSitemap(db);
     else return false;
   } catch (err: any) {
     console.error("sitemap generation error:", err?.message);

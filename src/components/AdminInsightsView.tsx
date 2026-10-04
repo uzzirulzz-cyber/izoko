@@ -64,6 +64,8 @@ import {
   Folder,
   CreditCard,
   MessageCircle,
+  Briefcase,
+  Inbox,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -102,6 +104,8 @@ import {
   AuditLogPanel,
 } from './admin/OpsPanels'
 import { SupportPanel } from './admin/SupportPanel'
+import { ServicesPanel } from './admin/ServicesPanel'
+import { ServiceRequestsPanel } from './admin/ServiceRequestsPanel'
 import { MessageBoxPanel } from './admin/MessageBoxPanel'
 import { AndroidAppPanel } from './admin/AndroidAppPanel'
 import { MobileAppsPanel } from './admin/MobileAppsPanel'
@@ -257,6 +261,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
+      'services', 'service-requests',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -305,6 +310,26 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [backupsLoading, setBackupsLoading] = useState(false)
   const [cmsSettings, setCmsSettings] = useState<any>(null)
   const [cmsLoading, setCmsLoading] = useState(false)
+  // Business Solutions — count of NEW service requests (sidebar badge + KPIs)
+  const [svcStats, setSvcStats] = useState<{ new: number; active: number; proposalSent: number; approved: number; completed: number; total: number } | null>(null)
+  const svcNewCount = svcStats?.new ?? undefined
+
+  const fetchSvcStats = React.useCallback(async () => {
+    try {
+      const token = localStorage.getItem('playbeat_admin_token')
+      if (!token) return
+      const res = await fetch(`${API_BASE}/api/admin/service-requests?stats=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success && data.stats) setSvcStats(data.stats)
+    } catch { /* badge is best-effort */ }
+  }, [])
+
+  useEffect(() => {
+    fetchSvcStats()
+  }, [fetchSvcStats])
   const [adminAnalytics, setAdminAnalytics] = useState<any>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [adminRole, setAdminRole] = useState<'admin' | 'staff'>('admin')
@@ -1186,6 +1211,55 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <MessageCircle className="w-4 h-4 text-emerald-400" />
                     {!sidebarCollapsed && <span>WhatsApp Business</span>}
+                  </button>
+                </div>
+              </div>
+
+              {/* BUSINESS SOLUTIONS — services CMS + request pipeline */}
+              <div>
+                {!sidebarCollapsed && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-sky-300/90 px-3 mb-1.5 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_currentColor]"></span>
+                    Business Solutions
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  <button
+                    onClick={() => setActiveNav('services')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${
+                      activeNav === 'services' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'services'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="Services CMS — manage the public Business Solutions catalog & case studies"
+                  >
+                    <Briefcase className="w-4 h-4 text-sky-400" />
+                    {!sidebarCollapsed && <span>Services CMS</span>}
+                  </button>
+                  <button
+                    onClick={() => setActiveNav('service-requests')}
+                    className={`w-full flex items-center justify-between gap-2.5 px-3 py-2 ${
+                      activeNav === 'service-requests' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    style={
+                      activeNav === 'service-requests'
+                        ? ({ '--nav-a': '#7dd3fc', '--nav-bg': 'rgba(56,189,248,0.09)', '--nav-edge': 'rgba(56,189,248,0.28)' } as React.CSSProperties)
+                        : undefined
+                    }
+                    title="Project requests from /services/request — statuses, quotes, notes"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Inbox className="w-4 h-4 text-sky-400" />
+                      {!sidebarCollapsed && <span>Service Requests</span>}
+                    </span>
+                    {!sidebarCollapsed && typeof svcNewCount === 'number' && svcNewCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-200 text-[10px] font-bold">
+                        {svcNewCount}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -3217,6 +3291,31 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                 </div>
 
+                {/* BUSINESS SOLUTIONS KPI STRIP — service request pipeline (brief §43) */}
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                  {[
+                    { label: 'New Requests', value: svcStats?.new ?? 0, icon: Inbox, card: 'bg-gradient-to-br from-sky-500/10 to-transparent border-sky-500/20', ic: 'text-sky-400' },
+                    { label: 'Active Projects', value: svcStats?.active ?? 0, icon: Briefcase, card: 'bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20', ic: 'text-blue-400' },
+                    { label: 'Proposal Sent', value: svcStats?.proposalSent ?? 0, icon: FileText, card: 'bg-gradient-to-br from-violet-500/10 to-transparent border-violet-500/20', ic: 'text-violet-400' },
+                    { label: 'Approved', value: svcStats?.approved ?? 0, icon: CheckCircle2, card: 'bg-gradient-to-br from-emerald-500/10 to-transparent border-emerald-500/20', ic: 'text-emerald-400' },
+                    { label: 'Completed', value: svcStats?.completed ?? 0, icon: Activity, card: 'bg-gradient-to-br from-teal-500/10 to-transparent border-teal-500/20', ic: 'text-teal-400' },
+                    { label: 'All Requests', value: svcStats?.total ?? 0, icon: Folder, card: 'bg-gradient-to-br from-amber-500/10 to-transparent border-amber-500/20', ic: 'text-amber-400' },
+                  ].map((k) => (
+                    <button
+                      key={k.label}
+                      onClick={() => setActiveNav('service-requests')}
+                      className={`rounded-2xl border p-4 text-left hover:-translate-y-0.5 transition ${k.card}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <k.icon className={`w-4 h-4 ${k.ic}`} />
+                        <ArrowUpRight className="w-3 h-3 text-zinc-500" />
+                      </div>
+                      <div className="text-[10px] text-zinc-400 font-mono uppercase">{k.label}</div>
+                      <div className="text-xl font-bold text-white">{k.value}</div>
+                    </button>
+                  ))}
+                </div>
+
                 {/* Bottom Full-Width Footer Banner matching Screenshot 1 */}
                 <div className="pa-card pa-card--gold p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -3723,6 +3822,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {activeNav === 'whatsapp' && (
               <WhatsAppPanel onToast={triggerToast} />
+            )}
+
+            {/* PANEL: BUSINESS SOLUTIONS — services CMS + portfolio */}
+            {activeNav === 'services' && (
+              <ServicesPanel onToast={triggerToast} />
+            )}
+
+            {/* PANEL: SERVICE REQUESTS — project request pipeline */}
+            {activeNav === 'service-requests' && (
+              <ServiceRequestsPanel onToast={triggerToast} onChanged={fetchSvcStats} />
             )}
 
             {/* ========================================================================= */}

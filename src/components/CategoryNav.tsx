@@ -143,7 +143,7 @@ const ROUTE_BY_NAME: Record<string, string> = {
   Gaming: 'gaming',
   Software: 'software',
   'Smart Projectors': 'smart-projectors',
-  Services: 'services',
+  Services: 'digital-services',
   'Social Media': 'social-media',
   'Web Hosting': 'web-hosting',
   'Digital Marketing': 'digital-marketing',

@@ -36,6 +36,18 @@ import {
   Tag,
   Star,
   Projector,
+  ArrowRight,
+  Briefcase,
+  AppWindow,
+  Code2,
+  Users,
+  LayoutDashboard,
+  Workflow,
+  Archive,
+  PenTool,
+  Palette,
+  FileText,
+  Smartphone,
 } from 'lucide-react'
 import { CurrencyCode } from '../types'
 import { CURRENCY_META, SUPPORTED_CURRENCIES, formatPrice } from '../lib/currency'
@@ -71,6 +83,44 @@ interface HeaderProps {
   floating?: boolean
   floatedVisible?: boolean
 }
+
+// Business Solutions mega menu — internal routes only (brief rule: strict
+// external link policy). Grouped per the navigation spec.
+const BS_MENU: { group: string; items: { label: string; path: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+  {
+    group: 'Development',
+    items: [
+      { label: 'Websites', path: '/services/web-development', icon: Globe },
+      { label: 'Web Applications', path: '/services/web-applications', icon: AppWindow },
+      { label: 'E-Commerce', path: '/services/ecommerce', icon: ShoppingCart },
+      { label: 'Custom Software', path: '/services/custom-software', icon: Code2 },
+    ],
+  },
+  {
+    group: 'Business Systems',
+    items: [
+      { label: 'CRM', path: '/services/crm', icon: Users },
+      { label: 'Admin Panels', path: '/services/admin-panels', icon: LayoutDashboard },
+      { label: 'Automation', path: '/services/automation', icon: Workflow },
+      { label: 'Digital Archive', path: '/services/digital-archive', icon: Archive },
+    ],
+  },
+  {
+    group: 'Creative',
+    items: [
+      { label: 'UI/UX', path: '/services/ui-ux', icon: PenTool },
+      { label: 'Graphic Design', path: '/services/design', icon: Palette },
+      { label: 'Business Documents', path: '/services/document-design', icon: FileText },
+    ],
+  },
+  {
+    group: 'Advanced Solutions',
+    items: [
+      { label: 'AI-Assisted Solutions', path: '/services/ai-solutions', icon: Sparkles },
+      { label: 'Mobile Business Apps', path: '/services/business-apps', icon: Smartphone },
+    ],
+  },
+]
 
 // Main category links (SEO-friendly URL slugs)
 const NAV_CATEGORIES = [
@@ -133,6 +183,9 @@ export const Header: React.FC<HeaderProps> = ({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false)
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false)
+  const [bsMenuOpen, setBsMenuOpen] = useState(false)
+  const [bsMobileOpen, setBsMobileOpen] = useState(false)
+  const bsMenuRef = useRef<HTMLDivElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -183,6 +236,12 @@ export const Header: React.FC<HeaderProps> = ({
         !categoriesDropdownRef.current.contains(e.target as Node)
       ) {
         setCategoriesDropdownOpen(false)
+      }
+      if (
+        bsMenuRef.current &&
+        !bsMenuRef.current.contains(e.target as Node)
+      ) {
+        setBsMenuOpen(false)
       }
       if (
         mobileMenuRef.current &&
@@ -394,6 +453,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+
           <button
             type="submit"
             aria-label="Search"
@@ -631,6 +691,70 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Star className="w-4 h-4" /> Best Value
         </button>
+
+        {/* Business Solutions mega menu — grouped internal service routes */}
+        <div className="relative" ref={bsMenuRef}>
+          <button
+            onClick={() => setBsMenuOpen(!bsMenuOpen)}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full border text-[13.5px] font-semibold transition whitespace-nowrap ${
+              bsMenuOpen
+                ? 'border-[#3d8bff]/60 bg-[#13275a] text-[#7db4ff]'
+                : 'border-[#2a3c6e] bg-[#0a1634] text-[#5db3ff] hover:bg-[#13275a]'
+            }`}
+          >
+            <Briefcase className="w-4 h-4" /> Business Solutions
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${bsMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {bsMenuOpen && (
+            <div className="absolute left-0 top-full mt-2 w-[min(720px,88vw)] rounded-2xl bg-[#091330] border border-[#1b2f63] shadow-2xl backdrop-blur-2xl p-5 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+                {BS_MENU.map((col) => (
+                  <div key={col.group}>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-[#5db3ff] font-semibold mb-2">
+                      {col.group}
+                    </div>
+                    <div className="space-y-1">
+                      {col.items.map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => {
+                            setBsMenuOpen(false)
+                            onNavigate(item.path)
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-[#c9d5fa] hover:bg-white/5 hover:text-white transition text-left"
+                        >
+                          <item.icon className="w-3.5 h-3.5 text-[#5db3ff] shrink-0" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-3 border-t border-[#1b2f63] flex items-center justify-between gap-2">
+                <button
+                  onClick={() => {
+                    setBsMenuOpen(false)
+                    onNavigate('/services')
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-[#5db3ff] hover:bg-white/5 hover:text-white transition"
+                >
+                  View All Services
+                </button>
+                <button
+                  onClick={() => {
+                    setBsMenuOpen(false)
+                    onNavigate('/services/request')
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-[#2563eb] to-[#3d8bff] text-white hover:shadow-[0_6px_20px_rgba(61,139,255,.35)] transition"
+                >
+                  Request a Project <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </nav>
 
       {/* Mobile Navigation Menu */}
@@ -664,6 +788,68 @@ export const Header: React.FC<HeaderProps> = ({
                 {item.label}
               </button>
             ))}
+
+            {/* Business Solutions — collapsible grouped menu (brief §29: do not
+                dump 12+ links into the first navigation level on mobile) */}
+            <div className="pt-3 pb-1">
+              <button
+                onClick={() => setBsMobileOpen(!bsMobileOpen)}
+                className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl text-sm font-medium transition ${
+                  bsMobileOpen
+                    ? 'bg-sky-400/10 text-sky-300 border border-sky-400/25'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <Briefcase className="w-4 h-4" /> Business Solutions
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${bsMobileOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {bsMobileOpen && (
+                <div className="mt-1.5 space-y-2">
+                  {BS_MENU.map((col) => (
+                    <div key={col.group} className="rounded-xl bg-[#0A122E] border border-slate-400/10 p-2">
+                      <div className="px-2 pt-1 pb-1.5 text-[10px] font-mono uppercase tracking-wider text-sky-300/90 font-semibold">
+                        {col.group}
+                      </div>
+                      {col.items.map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            onNavigate(item.path)
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs text-slate-300 hover:bg-white/5 hover:text-white transition text-left"
+                        >
+                          <item.icon className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        onNavigate('/services')
+                      }}
+                      className="px-3 py-2.5 rounded-xl bg-[#0A122E] border border-slate-400/10 text-xs font-semibold text-sky-300 hover:border-sky-400/40 transition"
+                    >
+                      View All Services
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        onNavigate('/services/request')
+                      }}
+                      className="px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#3d8bff] text-xs font-semibold text-white transition"
+                    >
+                      Request a Project
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="pt-3 pb-1 px-1 text-[10px] font-mono uppercase tracking-wider text-[#ffc21a]/90 font-semibold">
               Categories

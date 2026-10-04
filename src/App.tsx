@@ -57,6 +57,10 @@ import { InstallPwaChip } from './components/app/InstallPwaChip'
 import { InvoicePage } from './components/InvoicePage'
 import { CmsHomepageSections } from './components/CmsHomepageSections'
 import { CRMApp } from './components/crm/CRMApp'
+import { ServicesPage } from './components/services/ServicesPage'
+import { ServiceDetailPage } from './components/services/ServiceDetailPage'
+import { ServiceRequestPage } from './components/services/ServiceRequestPage'
+import { ServicesPortfolioPage } from './components/services/ServicesPortfolioPage'
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -67,7 +71,7 @@ const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
   'gift-cards': SEO_PRESETS['gift-cards'],
   gaming: SEO_PRESETS.gaming,
   software: SEO_PRESETS.software,
-  services: SEO_PRESETS.services,
+  'digital-services': SEO_PRESETS.services,
   'social-media': SEO_PRESETS['social-media'],
   'web-hosting': SEO_PRESETS['web-hosting'],
   'digital-marketing': SEO_PRESETS['digital-marketing'],
@@ -217,6 +221,10 @@ type Route =
   | 'invoice'
   | 'gift-cards'
   | 'services'
+  | 'service-detail'
+  | 'service-request'
+  | 'services-portfolio'
+  | 'digital-services'
   | 'social-media'
   | 'web-hosting'
   | 'digital-marketing'
@@ -246,7 +254,7 @@ const CATEGORY_TO_SLUG: Record<string, string> = Object.entries(CATEGORY_ROUTES)
 // Section 3 target categories live in SUBCATEGORY_ROUTES — make them
 // navigable from the category cards too (real indexable URLs)
 Object.assign(CATEGORY_TO_SLUG, {
-  'Services': 'services',
+  'Services': 'digital-services',
   'Social Media': 'social-media',
   'Web Hosting': 'web-hosting',
   'Digital Marketing': 'digital-marketing',
@@ -320,7 +328,9 @@ const SUBCATEGORY_ROUTES: Record<
   // catalog renders them instantly; the API remains the source of truth for
   // counts and copy. Old routes (/ai-subscriptions, /subscriptions) keep
   // working — /services overlays them as sub-collections.
-  'services': {
+  // Digital Services catalog collection (moved off /services — now the
+  // Business Solutions hub) — same matcher, new indexable URL.
+  'digital-services': {
     label: 'Digital Services',
     match: (p) =>
       ['Subscriptions', 'IPTV & Services', 'AI & Productivity', 'Bundles'].includes(p.category) ||
@@ -401,6 +411,13 @@ function parseRoute(): Route {
   // /policy is a friendly alias of /privacy — renders the privacy policy while
   // the /policy URL stays in the address bar (canonical link still points to /privacy)
   if (path === 'policy') return 'privacy'
+  // ---- Business Solutions — /services is the public services hub (brief rule
+  // 48: /services must ALWAYS show the public services page). The old product
+  // "Digital Services" collection now lives at /digital-services.
+  if (path === 'services/request' || path.startsWith('services/request/')) return 'service-request'
+  if (path === 'services/portfolio' || path.startsWith('services/portfolio/')) return 'services-portfolio'
+  if (path === 'services') return 'services'
+  if (path.startsWith('services/') && path.split('/').length === 2) return 'service-detail'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
   if (SUBCATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
@@ -430,6 +447,11 @@ function routeToPath(route: Route): string {
   if (route === 'invoice') return window.location.pathname || '/invoice'
   // Product URLs keep their /product/:slug address — the slug is read from it
   if (route === 'product') return window.location.pathname || '/product'
+  // Service detail keeps its /services/:slug address — the slug is read from it
+  if (route === 'service-detail') return window.location.pathname || '/services'
+  if (route === 'service-request') return '/services/request'
+  if (route === 'services-portfolio') return '/services/portfolio'
+  if (route === 'services') return '/services'
   // Category slug URLs keep their /category/:slug address
   if (route === 'category') return window.location.pathname || '/category'
   if (route === 'account') return '/account'
@@ -531,6 +553,15 @@ export function App() {
       )
       setInvoiceNumberParam(
         p.toLowerCase().startsWith('/invoice/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+      )
+      setServiceSlugParam(
+        (() => {
+          const parts = p.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
+          if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio'].includes(parts[1])) {
+            return decodeURIComponent(parts[1] || '')
+          }
+          return ''
+        })()
       )
     }
     window.addEventListener('popstate', onPop)
@@ -635,6 +666,16 @@ export function App() {
     if (typeof window === 'undefined') return ''
     const p = window.location.pathname
     return p.toLowerCase().startsWith('/order/') ? decodeURIComponent(p.split('/')[2] || '') : ''
+  })
+
+  // Service detail slug — /services/:slug (Business Solutions detail pages).
+  const [serviceSlugParam, setServiceSlugParam] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    const parts = window.location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
+    if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio'].includes(parts[1])) {
+      return decodeURIComponent(parts[1] || '')
+    }
+    return ''
   })
 
   // Product deep-link slug — /product/:slug OR /{category}/:slug (SEO-friendly).
@@ -1871,6 +1912,15 @@ export function App() {
       {/* ABOUT & BUSINESS MODEL — compliance page: business model, customer
           journey, payment gateway use-case, PKR pricing disclosure */}
       {route === 'about' && <AboutPage currency={selectedCurrency} />}
+
+      {/* ============================================
+          BUSINESS SOLUTIONS — /services hub + detail + request + portfolio
+          Public pages; each manages its own SEO (title/canonical/OG/JSON-LD).
+          ============================================ */}
+      {route === 'services' && <ServicesPage />}
+      {route === 'service-detail' && <ServiceDetailPage slug={serviceSlugParam} />}
+      {route === 'service-request' && <ServiceRequestPage />}
+      {route === 'services-portfolio' && <ServicesPortfolioPage />}
 
       {/* ============================================
           MOBILE APP DOWNLOAD PAGE — /download
