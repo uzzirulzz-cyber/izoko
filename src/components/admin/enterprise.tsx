@@ -59,7 +59,7 @@ export const ViewHeader: React.FC<{
   desc: string
   actions?: React.ReactNode
 }> = ({ icon, tone = 'gold', chipA, chipB, chipGlow, title, desc, actions }) => (
-  <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3'>
+  <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3' data-aos='fade-up'>
     <div className='flex items-center gap-3'>
       <span
         className={`pa-viewchip ${tone !== 'gold' ? `pa-chip--${tone}` : ''}`}

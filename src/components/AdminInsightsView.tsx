@@ -67,6 +67,13 @@ import {
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
+// Vendored admin CSS stack (owner-uploaded): Bootstrap 4.3.1 + Font Awesome
+// 4.5 + Themify + Flaticon + Animate.css 3.7 + AOS + Magnific + Nice Select
+// + Owl + Slick — ALL scoped under .pbadmin by scripts/vendor_admin_libs.mjs.
+// MUST load BEFORE sb2-scoped.css so Bootstrap 4.6 + SB2 theme wins
+// collisions, and before admin-theme.css (the final word).
+import '../admin/vendor-scoped.css'
+import { initAdminMotion } from '../admin/adminMotion'
 // SB Admin 2 (Bootstrap 4.6) scoped to the admin shell — MUST load before admin-theme.css
 import '../admin/sb2-scoped.css'
 import '../admin-theme.css'
@@ -175,6 +182,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     meta.name = 'robots'
     meta.content = 'noindex, nofollow, noarchive'
     document.head.appendChild(meta)
+    // AOS scroll-reveal + animate.css modal entrances (vendored, scoped)
+    initAdminMotion()
     return () => {
       document.head.removeChild(meta)
     }

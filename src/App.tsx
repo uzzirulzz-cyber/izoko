@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { Header } from './components/Header'
 import { HeroBanner } from './components/HeroBanner'
 import { HeroHeaderStage } from './components/HeroHeaderStage'
@@ -22,7 +22,11 @@ import { WishlistDrawer } from './components/WishlistDrawer'
 import { AuthModal } from './components/AuthModal'
 import { AccountDrawer } from './components/AccountDrawer'
 import { Footer } from './components/Footer'
-import { AdminInsightsView } from './components/AdminInsightsView'
+// Admin console is CODE-SPLIT (lazy): the storefront never downloads the
+// admin JS/CSS bundle (SB Admin 2, vendored Bootstrap stack, admin theme).
+const AdminInsightsView = lazy(() =>
+  import('./components/AdminInsightsView').then((m) => ({ default: m.AdminInsightsView }))
+)
 import { AdminLogin } from './components/AdminLogin'
 import { PolicyPage } from './components/PolicyPage'
 import { ContactPage } from './components/ContactPage'
@@ -1758,6 +1762,11 @@ export function App() {
           ROUTING — separate /admin and /storefront
           ============================================ */}
       {route === 'admin' && adminAuthed && (
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-[#07090E] text-zinc-300">
+            <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
         <AdminInsightsView
           products={products}
           selectedCurrency={selectedCurrency}
@@ -1791,6 +1800,7 @@ export function App() {
           onSaveProduct={handleSaveProduct}
           onDeleteProduct={handleDeleteProduct}
         />
+        </Suspense>
       )}
 
       {route === 'admin' && !adminAuthed && (
