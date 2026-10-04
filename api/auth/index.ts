@@ -163,6 +163,10 @@ function metaAppSecrets(): string[] {
     process.env.FACEBOOK_CLIENT_SECRET,
     process.env.INSTAGRAM_CLIENT_SECRET,
     process.env.WHATSAPP_APP_SECRET,
+    // MyPlaybeat (1095332246787379) app secret — provisioned in Vercel for the
+    // data-deletion callback (/api/contact?metaDeletion=1 reads the same var).
+    // Without it the deauthorize + webhook + data-deletion routes 503.
+    process.env.META_APP_SECRET,
   ].filter(Boolean) as string[];
 }
 
