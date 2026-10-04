@@ -663,7 +663,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* ============ Row 2 — Category pill nav ============ */}
-      <nav className="mx-4 sm:mx-6 lg:mx-10 mb-2 hidden lg:flex gap-1 items-center p-2 border border-[#172a57] rounded-3xl bg-gradient-to-b from-[#0b183a] to-[#08122d] overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
+      <nav className="mx-4 sm:mx-6 lg:mx-10 mb-2 hidden lg:flex flex-wrap gap-1.5 items-center p-2 border border-[#172a57] rounded-3xl bg-gradient-to-b from-[#0b183a] to-[#08122d]">
         {HERO_NAV.map((item) => {
           const Icon = item.icon
           // Active state: Home pill on the untouched storefront, All Products
@@ -676,7 +676,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               key={item.label}
               onClick={() => handleHeroNav(item)}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 py-2.5 rounded-2xl text-[13.5px] font-semibold transition whitespace-nowrap ${
+              className={`flex items-center justify-center gap-1.5 min-w-[92px] px-3.5 py-2.5 rounded-full border border-transparent text-[13.5px] font-semibold transition whitespace-nowrap ${
                 active
                   ? 'bg-gradient-to-b from-[#3592ff] to-[#1568e6] text-white shadow-[0_4px_18px_rgba(31,134,255,0.4)]'
                   : 'text-[#c9d5fa] hover:bg-[#13275a] hover:text-white'
@@ -690,29 +690,31 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )
         })}
-        <span className="flex-1 min-w-3"></span>
+        {/* Right actions group — wraps as ONE unit so Trending/Deals/Best
+            Value/Business Solutions never split across nav rows */}
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5 min-w-fit">
         <button
           onClick={() => (onOpenTrending ? onOpenTrending() : onOpenBrowseCategories())}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#ff6a2b] hover:bg-[#13275a] transition whitespace-nowrap"
+          className="flex items-center justify-center gap-2 min-w-[92px] px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#ff6a2b] hover:bg-[#13275a] transition whitespace-nowrap"
         >
           <Flame className="w-4 h-4" /> Trending
         </button>
         <button
           onClick={onOpenOffers}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#ff6ad5] hover:bg-[#13275a] transition whitespace-nowrap"
+          className="flex items-center justify-center gap-2 min-w-[92px] px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#ff6ad5] hover:bg-[#13275a] transition whitespace-nowrap"
         >
           <Tag className="w-4 h-4" /> Deals
         </button>
         <button
           onClick={() => (onOpenBestValue ? onOpenBestValue() : onOpenOffers())}
-          className="flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#c46bff] hover:bg-[#13275a] transition whitespace-nowrap"
+          className="flex items-center justify-center gap-2 min-w-[92px] px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#c46bff] hover:bg-[#13275a] transition whitespace-nowrap"
         >
           <Star className="w-4 h-4" /> Best Value
         </button>
 
         {/* Business Solutions mega menu — grouped internal service routes.
-            Panel renders position:fixed (see bsMenuPos) because the pill nav
-            is an overflow-x-auto container that clips absolute dropdowns. */}
+            Panel renders position:fixed (see bsMenuPos) so no ancestor
+            overflow container can ever clip the dropdown. */}
         <div className="relative" ref={bsMenuRef}>
           <button
             onClick={() => {
@@ -725,7 +727,7 @@ export const Header: React.FC<HeaderProps> = ({
               }
               setBsMenuOpen(!bsMenuOpen)
             }}
-            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full border text-[13.5px] font-semibold transition whitespace-nowrap ${
+            className={`flex items-center justify-center gap-2 min-w-[92px] px-3.5 py-2.5 rounded-full border text-[13.5px] font-semibold transition whitespace-nowrap ${
               bsMenuOpen
                 ? 'border-[#3d8bff]/60 bg-[#13275a] text-[#7db4ff]'
                 : 'border-[#2a3c6e] bg-[#0a1634] text-[#5db3ff] hover:bg-[#13275a]'
@@ -786,6 +788,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           )}
+        </div>
         </div>
       </nav>
 

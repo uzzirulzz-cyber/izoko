@@ -992,12 +992,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.18cqw;
-  padding: 0 0.28cqw;
+  padding: 0 0.26cqw;
   border-radius: 999px;
   background: linear-gradient(180deg, #0d1c42, #081226);
   border: 0.075cqw solid #2f4c8f;
   color: #fff;
-  font: 700 0.56cqw Montserrat, system-ui, sans-serif;
+  font: 700 0.6cqw Montserrat, system-ui, sans-serif;
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
@@ -1006,8 +1006,8 @@
   z-index: 3;
 }
 .pbhs-svc svg {
-  width: 0.62cqw;
-  height: 0.62cqw;
+  width: 0.64cqw;
+  height: 0.64cqw;
   color: #5db3ff;
   flex-shrink: 0;
 }

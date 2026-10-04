@@ -132,6 +132,30 @@ export const SERVICE_CATEGORIES: Array<{ key: ServiceCategoryKey; label: string 
   { key: 'advanced', label: 'Advanced Solutions' },
 ];
 
+// Per-category cover gradients for the marketplace-style service cards
+// (Dribbble-style visual grid on the /services hub).
+export const CATEGORY_ACCENTS: Record<
+  ServiceCategoryKey,
+  { label: string; cover: string }
+> = {
+  development: {
+    label: 'Development',
+    cover: 'linear-gradient(135deg,#1e3a8a 0%,#2563eb 52%,#0ea5e9 100%)',
+  },
+  business: {
+    label: 'Business Systems',
+    cover: 'linear-gradient(135deg,#4c1d95 0%,#7c3aed 52%,#c026d3 100%)',
+  },
+  creative: {
+    label: 'Creative',
+    cover: 'linear-gradient(135deg,#831843 0%,#db2777 52%,#f59e0b 100%)',
+  },
+  advanced: {
+    label: 'Advanced Solutions',
+    cover: 'linear-gradient(135deg,#064e3b 0%,#059669 52%,#34d399 100%)',
+  },
+};
+
 export const INDUSTRIES: Industry[] = [
   {
     slug: 'retail',

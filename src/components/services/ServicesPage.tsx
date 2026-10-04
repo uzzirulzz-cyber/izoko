@@ -7,7 +7,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
   AlertTriangle,
   ArrowRight,
-  CheckCircle2,
+  BadgeCheck,
   ChevronDown,
   Inbox,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
   BTN_PRIMARY,
   BTN_SECONDARY,
   CARD,
+  CATEGORY_ACCENTS,
   CHIP,
   CONTAINER,
   EYEBROW,
@@ -35,7 +36,7 @@ import {
   useApiResource,
   WHY_US,
 } from './servicesContent';
-import type { ServiceLite } from './servicesContent';
+import type { ServiceCategoryKey, ServiceLite } from './servicesContent';
 import { ServicesTopBar, ServicesFooter } from './ServicesTopBar'
 
 type NavigateFn = (path: string) => void;
@@ -60,17 +61,22 @@ function ServicesPageBase({ onNavigate }: ServicesPageProps) {
     `${API_BASE}/api/services`,
   );
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [activeCat, setActiveCat] = useState<'all' | ServiceCategoryKey>('all');
 
   const services = useMemo<ServiceLite[]>(() => data?.services ?? [], [data]);
 
-  const groups = useMemo(
-    () =>
-      SERVICE_CATEGORIES.map((category) => ({
-        ...category,
-        items: services.filter((service) => service.category === category.key),
-      })).filter((group) => group.items.length > 0),
-    [services],
-  );
+  // Marketplace grid: single visual flow (Dribbble-style), filterable by
+  // category chips, featured solutions first.
+  const visibleServices = useMemo(() => {
+    const list =
+      activeCat === 'all'
+        ? services
+        : services.filter((service) => service.category === activeCat);
+    return [...list].sort(
+      (a, b) =>
+        Number(b.featured) - Number(a.featured) || a.displayOrder - b.displayOrder,
+    );
+  }, [services, activeCat]);
 
   const featured = useMemo(() => {
     const flagged = services.filter((service) => service.featured);
@@ -146,8 +152,31 @@ function ServicesPageBase({ onNavigate }: ServicesPageProps) {
                 id="services-grid-title"
                 eyebrow="Services"
                 title="What We Build"
-                description="Structured digital solutions grouped by the outcomes they deliver — from public-facing websites to internal business systems."
+                description="Browse the full catalog of digital solutions — every card opens a full breakdown of scope, features and delivery."
               />
+
+              {/* "What do you need?" — category filter chips (marketplace style) */}
+              <div className="mb-7 flex flex-wrap items-center gap-2" role="group" aria-label="Filter services by category">
+                <span className="mr-1 font-mono text-[11px] uppercase tracking-[0.18em] text-[#8190a8]">
+                  What do you need?
+                </span>
+                <FilterChip
+                  active={activeCat === 'all'}
+                  onClick={() => setActiveCat('all')}
+                  label={`All Services${services.length ? ` (${services.length})` : ''}`}
+                />
+                {SERVICE_CATEGORIES.map((category) => {
+                  const count = services.filter((s) => s.category === category.key).length;
+                  return (
+                    <FilterChip
+                      key={category.key}
+                      active={activeCat === category.key}
+                      onClick={() => setActiveCat(category.key)}
+                      label={count > 0 ? `${category.label} (${count})` : category.label}
+                    />
+                  );
+                })}
+              </div>
 
               {loading ? (
                 <div
@@ -160,28 +189,15 @@ function ServicesPageBase({ onNavigate }: ServicesPageProps) {
                 </div>
               ) : error ? (
                 <ErrorPanel message={error} onRetry={retry} />
-              ) : services.length === 0 ? (
+              ) : visibleServices.length === 0 ? (
                 <EmptyPanel
-                  title="No services published yet"
+                  title="No services in this category yet"
                   message="Our service catalog is being prepared. Please check back soon or contact our team directly."
                 />
               ) : (
-                <div className="space-y-12">
-                  {groups.map((group) => (
-                    <div key={group.key}>
-                      <div className="mb-5 flex items-center gap-3 sm:mb-6">
-                        <h3 className="text-lg font-semibold text-white">{group.label}</h3>
-                        <span className="font-mono text-[11px] text-[#8190a8]">
-                          {String(group.items.length).padStart(2, '0')}
-                        </span>
-                        <span className="h-px flex-1 bg-[rgba(148,170,210,.12)]" aria-hidden="true" />
-                      </div>
-                      <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
-                        {group.items.map((service) => (
-                          <ServiceCard key={service.slug} service={service} onNavigate={onNavigate} />
-                        ))}
-                      </div>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+                  {visibleServices.map((service) => (
+                    <ServiceCard key={service.slug} service={service} onNavigate={onNavigate} />
                   ))}
                 </div>
               )}
@@ -416,6 +432,31 @@ function SectionHeader({
   );
 }
 
+function FilterChip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-medium transition ${
+        active
+          ? 'bg-[#3d8bff]/15 text-white ring-1 ring-[#3d8bff]/60'
+          : 'bg-white/[0.04] text-[#b7c2d6] ring-1 ring-[rgba(148,170,210,.2)] hover:bg-white/[0.07] hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 function ServiceCard({
   service,
   onNavigate,
@@ -424,60 +465,92 @@ function ServiceCard({
   onNavigate?: NavigateFn;
 }) {
   const Icon = getIcon(service.icon);
-  const features = (service.features ?? []).slice(0, 4);
-  const requestHref = `/services/request?service=${encodeURIComponent(service.title)}`;
+  const accent = CATEGORY_ACCENTS[service.category];
 
   return (
-    <article className={`${CARD} flex h-full flex-col p-5 sm:p-6`}>
-      <div className="flex items-center justify-between gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#3d8bff]/10 text-[#3d8bff] ring-1 ring-[#3d8bff]/25">
-          <Icon className="h-5 w-5" aria-hidden="true" />
+    <article className={`${CARD} group flex h-full flex-col overflow-hidden`}>
+      {/* Cover — marketplace visual tile */}
+      <a
+        {...navLink(`/services/${service.slug}`, onNavigate)}
+        className="relative block aspect-[16/9] overflow-hidden"
+        aria-label={`${service.title} — view service`}
+        style={{ background: accent.cover }}
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.14]"
+          style={{
+            backgroundImage: 'radial-gradient(rgba(255,255,255,.75) 1px, transparent 1px)',
+            backgroundSize: '18px 18px',
+          }}
+        />
+        <Icon
+          aria-hidden="true"
+          className="absolute -bottom-7 -right-5 h-36 w-36 rotate-6 text-white/25 transition duration-300 group-hover:scale-110 group-hover:text-white/35"
+        />
+        <span className="absolute left-3.5 top-3.5 rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-white/90 backdrop-blur-sm">
+          {accent.label}
         </span>
-        {service.featured ? <span className={CHIP}>Featured</span> : null}
-      </div>
-      <h3 className="mt-4 text-lg font-semibold leading-snug text-white break-words">{service.title}</h3>
-      {service.tagline ? (
-        <p className="mt-1 text-[13px] font-medium text-[#3d8bff] break-words">{service.tagline}</p>
-      ) : null}
-      <p className="mt-2 text-sm leading-relaxed text-[#b7c2d6]">{service.shortDescription}</p>
-      {features.length > 0 && (
-        <ul className="mt-4 space-y-2">
-          {features.map((feature) => (
-            <li key={feature} className="flex items-start gap-2 text-[13px] leading-relaxed text-[#b7c2d6]">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#3d8bff]/80" aria-hidden="true" />
-              <span className="break-words">{feature}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-6">
-        <a
-          {...navLink(`/services/${service.slug}`, onNavigate)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white ring-1 ring-[rgba(148,170,210,.25)] transition hover:bg-[#3d8bff]/15 hover:ring-[#3d8bff]/50"
-        >
-          Learn More
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </a>
-        <a
-          {...navLink(requestHref, onNavigate)}
-          className="inline-flex items-center text-sm font-medium text-[#8190a8] transition hover:text-[#3d8bff]"
-        >
-          Request Quote
-        </a>
-      </div>
+        {service.featured ? (
+          <span className="absolute right-3.5 top-3.5 rounded-full bg-white/95 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-[#0b1222] shadow">
+            Featured
+          </span>
+        ) : null}
+        <span className="absolute inset-0 flex items-center justify-center bg-[#050913]/55 opacity-0 transition duration-200 group-hover:opacity-100">
+          <span className="rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#0b1222] shadow-xl">
+            View Service
+          </span>
+        </span>
+      </a>
+
+      {/* Body — title, one-liner, provider row (Dribbble card anatomy) */}
+      <a
+        {...navLink(`/services/${service.slug}`, onNavigate)}
+        className="flex flex-1 flex-col p-5"
+        aria-label={service.title}
+      >
+        <h3 className="text-[15.5px] font-semibold leading-snug text-white break-words transition group-hover:text-[#7db4ff]">
+          {service.title}
+        </h3>
+        <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-[#8190a8]">
+          {service.tagline || service.shortDescription}
+        </p>
+        <div className="mt-auto flex items-center gap-2.5 border-t border-[rgba(148,170,210,.12)] pt-4">
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white shadow"
+            style={{ background: accent.cover }}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-1 text-[13px] font-semibold text-white">
+              <span className="truncate">PlayBeat Digital</span>
+              <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-[#3d8bff]" aria-hidden="true" />
+            </span>
+            <span className="block text-[11px] text-[#8190a8]">Business Solutions Team</span>
+          </span>
+          <span className="ml-auto shrink-0 text-[13px] font-bold text-white">Custom Quote</span>
+        </div>
+      </a>
     </article>
   );
 }
 
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl border border-[rgba(148,170,210,.12)] bg-white/[0.03] p-6">
-      <div className="h-11 w-11 animate-pulse rounded-xl bg-white/[0.06]" />
-      <div className="mt-4 h-4 w-2/3 animate-pulse rounded bg-white/[0.06]" />
-      <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/[0.05]" />
-      <div className="mt-1.5 h-3 w-5/6 animate-pulse rounded bg-white/[0.05]" />
-      <div className="mt-1.5 h-3 w-4/6 animate-pulse rounded bg-white/[0.05]" />
-      <div className="mt-6 h-9 w-28 animate-pulse rounded-lg bg-white/[0.06]" />
+    <div className="rounded-2xl border border-[rgba(148,170,210,.12)] bg-white/[0.03] p-0 overflow-hidden">
+      <div className="aspect-[16/9] animate-pulse bg-white/[0.06]" />
+      <div className="p-5">
+        <div className="h-4 w-2/3 animate-pulse rounded bg-white/[0.06]" />
+        <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/[0.05]" />
+        <div className="mt-1.5 h-3 w-5/6 animate-pulse rounded bg-white/[0.05]" />
+        <div className="mt-5 flex items-center gap-2.5 border-t border-[rgba(148,170,210,.12)] pt-4">
+          <div className="h-9 w-9 animate-pulse rounded-full bg-white/[0.06]" />
+          <div className="h-3 w-28 animate-pulse rounded bg-white/[0.05]" />
+          <div className="ml-auto h-3 w-16 animate-pulse rounded bg-white/[0.05]" />
+        </div>
+      </div>
     </div>
   );
 }
