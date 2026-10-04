@@ -1,16 +1,21 @@
 import React, { forwardRef, useState } from 'react'
-import { Briefcase, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 /**
- * HeroHeaderStage — "PlayBeat Digital — Hero Header (2)" design implementation.
- * The full header + hero is ONE pixel-perfect artwork (1926×817 design grid,
- * served as retina 3852×1634 webp) with invisible interactive hotspots laid
- * on top, exactly like the uploaded design artifact:
+ * HeroHeaderStage — "PlayBeat Digital — Hero Header" EXACT design implementation.
+ * The full header + hero is ONE pixel-perfect artwork (1672×941 design grid,
+ * served as hero_header_v3.webp) with invisible interactive hotspots laid on
+ * top, coordinates ported 1:1 from the owner's "playb11eat-screenshot-exact"
+ * artifact (28 hotspots):
+ *   - utility bar: Help Center / Track Order / Contact (Language & Currency
+ *     are informational in the design — baked text, no feature)
  *   - real search input + category select + submit overlays in the search pill
- *   - transparent hotspot buttons over every nav item / action / CTA
- *   - live cart & wishlist badges drawn over the baked "0" badges
- * Stage keeps a 1000px min-width with horizontal scroll on small screens
- * (per the design's .scroll/.stage spec).
+ *     (baked placeholder/"All Categories" text is masked by the live controls)
+ *   - 12-equal-height nav pill hotspots incl. baked "Services" (gear) pill
+ *   - live cart & wishlist badges drawn over the baked gold cart "0" badge
+ * Stage matches the artifact's .page: max-width 1672px, centered, dark
+ * #000b1d gutters blend into the artwork edges; 1000px min-width keeps
+ * horizontal scroll on small screens (per the design's .scroll/.stage spec).
  */
 
 interface HeroHeaderStageProps {
@@ -34,8 +39,8 @@ interface HeroHeaderStageProps {
   wishlistCount: number
 }
 
-// Design hotspot grid (percentages of the 1926×817 stage) — ported 1:1 from
-// "PlayBeat Digital — Hero Header (2).html"
+// Design hotspot grid (percentages of the 1672×941 stage) — ported 1:1 from
+// "playb11eat-screenshot-exact.html" (28 <a.hs> anchors)
 type Hotspot = {
   label: string
   left: number
@@ -45,6 +50,10 @@ type Hotspot = {
   radius?: number
   go: () => void
 }
+
+// Nav pill row: every cell shares the SAME top (18.916%) and height (8.714%)
+const PILL_TOP = 18.916
+const PILL_H = 8.714
 
 export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
   (
@@ -84,46 +93,49 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
     ]
 
     const hotspots: Hotspot[] = [
-      // Category pill nav
-      { label: 'Home', left: 2.96, top: 22.032, width: 6.438, height: 6.242, go: onNavigateHome },
-      { label: 'AI & Productivity', left: 10.696, top: 22.032, width: 8.152, height: 6.242, go: () => onNavigate('/ai-subscriptions') },
-      { label: 'Video Editing', left: 21.132, top: 22.032, width: 6.802, height: 6.242, go: () => onNavigate('/creative-software') },
-      { label: 'Gift Cards', left: 30.27, top: 22.032, width: 5.504, height: 6.242, go: () => onNavigate('/gift-cards') },
-      { label: 'Streaming Accounts', left: 37.954, top: 22.032, width: 9.346, height: 6.242, go: () => onNavigate('/streaming') },
-      { label: 'IPTV', left: 49.533, top: 22.032, width: 3.479, height: 6.242, go: () => onNavigate('/subscriptions') },
-      { label: 'Smart Projectors', left: 55.296, top: 22.032, width: 8.1, height: 6.242, go: () => onNavigate('/smart-projectors') },
-      { label: 'All Products', left: 65.628, top: 22.032, width: 6.334, height: 6.242, go: () => onSelectCategory('all') },
-      { label: 'Trending', left: 76.064, top: 22.399, width: 6.906, height: 5.63, go: onOpenTrending },
-      { label: 'Deals', left: 83.541, top: 22.399, width: 5.607, height: 5.63, go: onOpenOffers },
-      { label: 'Best Value', left: 89.72, top: 22.399, width: 7.477, height: 5.63, go: onOpenBestValue },
-      // Utility bar
-      { label: 'Help Center', left: 68.12, top: 0.979, width: 5.659, height: 2.938, go: () => onNavigate('/contact') },
-      { label: 'Track Order', left: 75.286, top: 0.979, width: 5.607, height: 2.938, go: () => onOpenAccountTab('orders') },
-      { label: 'Contact', left: 82.243, top: 0.979, width: 4.05, height: 2.938, go: () => onNavigate('/contact') },
-      // Header actions
-      { label: 'PlayBeat Digital home', left: 3.427, top: 6.854, width: 15.265, height: 10.282, go: onNavigateHome },
-      { label: 'Wishlist', left: 70.197, top: 10.037, width: 3.842, height: 6.854, go: onOpenWishlist },
+      // ===== 12-pill nav row (equal height 8.714% — Services is baked in) =====
+      { label: 'Home', left: 1.675, top: PILL_TOP, width: 7.596, height: PILL_H, go: onNavigateHome },
+      { label: 'AI & Productivity', left: 9.27, top: PILL_TOP, width: 9.39, height: PILL_H, go: () => onNavigate('/ai-subscriptions') },
+      { label: 'Video Editing', left: 18.66, top: PILL_TOP, width: 8.612, height: PILL_H, go: () => onNavigate('/creative-software') },
+      { label: 'Gift Cards', left: 27.273, top: PILL_TOP, width: 7.715, height: PILL_H, go: () => onNavigate('/gift-cards') },
+      { label: 'Streaming Accounts', left: 34.988, top: PILL_TOP, width: 10.167, height: PILL_H, go: () => onNavigate('/streaming') },
+      { label: 'IPTV', left: 45.156, top: PILL_TOP, width: 6.4, height: PILL_H, go: () => onNavigate('/subscriptions') },
+      { label: 'Smart Projectors', left: 51.555, top: PILL_TOP, width: 9.749, height: PILL_H, go: () => onNavigate('/smart-projectors') },
+      { label: 'All Products', left: 61.304, top: PILL_TOP, width: 7.775, height: PILL_H, go: () => onSelectCategory('all') },
+      { label: 'Services', left: 69.079, top: PILL_TOP, width: 7.237, height: PILL_H, go: () => onNavigate('/services') },
+      { label: 'Trending', left: 76.316, top: PILL_TOP, width: 7.536, height: PILL_H, go: onOpenTrending },
+      { label: 'Deals', left: 83.852, top: PILL_TOP, width: 7.237, height: PILL_H, go: onOpenOffers },
+      { label: 'Best Value', left: 91.089, top: PILL_TOP, width: 7.177, height: PILL_H, go: onOpenBestValue },
+      // ===== Utility bar =====
+      { label: 'Help Center', left: 66.388, top: 0.85, width: 6.1, height: 3.826, go: () => onNavigate('/contact') },
+      { label: 'Track Order', left: 73.206, top: 0.85, width: 5.861, height: 3.826, go: () => onOpenAccountTab('orders') },
+      { label: 'Contact', left: 79.665, top: 0.85, width: 4.545, height: 3.826, go: () => onNavigate('/contact') },
+      // ===== Header main row =====
+      { label: 'PlayBeat Digital home', left: 1.794, top: 7.439, width: 16.268, height: 8.714, go: onNavigateHome },
+      { label: 'Wishlist', left: 69.079, top: 9.564, width: 3.768, height: 5.951, go: onOpenWishlist },
       {
         label: 'Sign In',
-        left: 75.597,
-        top: 10.037,
-        width: 6.542,
-        height: 6.12,
+        left: 74.88,
+        top: 9.777,
+        width: 5.981,
+        height: 5.101,
         go: () => (user ? onOpenAccountTab('profile') : onOpenAuth()),
       },
       {
         label: 'Sign Up',
-        left: 83.489,
-        top: 8.69,
-        width: 7.892,
-        height: 8.201,
-        radius: 16,
+        left: 82.536,
+        top: 9.352,
+        width: 9.569,
+        height: 6.376,
+        radius: 999,
         go: () => (user ? onOpenAccountTab('profile') : onOpenAuth()),
       },
-      { label: 'Cart', left: 92.939, top: 10.037, width: 4.777, height: 5.141, go: onOpenCart },
-      // Hero CTAs
-      { label: 'Shop Now', left: 4.258, top: 88.005, width: 14.278, height: 7.589, radius: 50, go: onExploreProducts },
-      { label: 'Explore Categories', left: 20.042, top: 88.005, width: 15.421, height: 7.589, radius: 50, go: onBrowseCategories },
+      { label: 'Cart', left: 93.66, top: 9.352, width: 4.426, height: 5.313, go: onOpenCart },
+      // ===== Hero CTAs =====
+      { label: 'Shop Now', left: 2.153, top: 77.258, width: 14.474, height: 5.845, radius: 50, go: onExploreProducts },
+      { label: 'Explore Categories', left: 18.301, top: 77.258, width: 16.388, height: 5.845, radius: 50, go: onBrowseCategories },
+      // ===== Support (floating gold button, bottom-right of artwork) =====
+      { label: 'Support', left: 95.096, top: 90.648, width: 3.589, height: 6.376, radius: 999, go: () => onNavigate('/contact') },
     ]
 
     const submitSearch = (e?: React.FormEvent) => {
@@ -131,16 +143,21 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
       onSearchSubmit()
     }
 
+    const selectedCategory = CATEGORY_OPTIONS.find((o) => o.value === category)
+
     return (
-      <div className="pbhs-scroll relative w-full overflow-x-auto [scrollbar-width:none]">
+      <div className="pbhs-scroll relative w-full overflow-x-auto bg-[#000b1d] [scrollbar-width:none]">
         <main
           ref={stageRef}
           className="pbhs-stage relative"
-          style={{ backgroundImage: 'url(/hero_header_v2.webp)' }}
+          style={{ backgroundImage: 'url(/hero_header_v3.webp)' }}
         >
           <h1 className="sr-only">PlayBeat Digital — Your World of Digital Possibilities</h1>
 
-          {/* ===== Search pill overlays (real inputs, design coordinates) ===== */}
+          {/* ===== Search pill overlays (real inputs, design coordinates).
+               The artwork bakes the placeholder + "All Categories" labels, so
+               the live input/select mask that zone while idle-transparent
+               states let the baked art show. ===== */}
           <form
             role="search"
             onSubmit={submitSearch}
@@ -152,13 +169,13 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
                 type="search"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search for Netflix, ChatGPT, YouTube, Games, Software..."
+                placeholder=" "
                 aria-label="Search products"
                 autoComplete="off"
               />
             </div>
             <label className="pbhs-c">
-              <span>{CATEGORY_OPTIONS.find((o) => o.value === category)?.label || 'All Categories'}</span>
+              {category !== '' && <span>{selectedCategory?.label}</span>}
               <select
                 aria-label="Category"
                 value={category}
@@ -182,25 +199,13 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
             </button>
           </form>
 
-          {/* ===== "Services" pill in the baked nav-row gap (72.0%→76.05%) =====
-               Real button styled 1:1 with the Trending/Deals/Best Value pill
-               group — Business Solutions on the storefront nav bar. */}
-          <button
-            type="button"
-            className="pbhs-svc"
-            onClick={() => onNavigate('/services')}
-            aria-label="Business Services"
-            title="Business Services — websites, CRM, automation, design & more"
-          >
-            <Briefcase strokeWidth={2.4} />
-            <span>Services</span>
-          </button>
-
-          {/* ===== Live badges over the baked "0" badges ===== */}
+          {/* ===== Live badges (gold, matching the baked cart "0") =====
+               Cart: covers the baked gold "0" badge (center 97.488%/10.68%).
+               Wishlist: no baked badge — appears top-right of the heart. */}
           {wishlistCount > 0 && (
             <span
               className="pbhs-badge"
-              style={{ left: '73.46%', top: '10.41%' }}
+              style={{ left: '72.3%', top: '10.3%' }}
               aria-label={`${wishlistCount} items in wishlist`}
             >
               {wishlistCount > 99 ? '99+' : wishlistCount}
@@ -209,7 +214,7 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
           {cartCount > 0 && (
             <span
               className="pbhs-badge"
-              style={{ left: '97.06%', top: '10.41%' }}
+              style={{ left: '97.488%', top: '10.68%' }}
               aria-label={`${cartCount} items in cart`}
             >
               {cartCount > 99 ? '99+' : cartCount}

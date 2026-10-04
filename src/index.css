@@ -884,16 +884,19 @@
 }
 
 /* ============================================================
-   Hero Header Stage v2 — image-based header+hero with hotspots
-   ("PlayBeat Digital — Hero Header (2)" artifact; 1926×817 grid,
-   container-query units so overlays scale with the artwork)
+   Hero Header Stage v3 — image-based header+hero with hotspots
+   ("playb11eat-screenshot-exact" artifact; 1672×941 grid,
+   container-query units so overlays scale with the artwork.
+   Stage caps at the artifact's native 1672px .page width so the
+   art always renders 1:1 or downscaled — never upscaled/soft;
+   wrapper bg #000b1d blends ultrawide gutters into the edges.)
    ============================================================ */
 .pbhs-stage {
   position: relative;
   min-width: 1000px;
-  max-width: 2400px;
+  max-width: 1672px;
   margin: auto;
-  aspect-ratio: 1926 / 817;
+  aspect-ratio: 1672 / 941;
   background-position: center;
   background-size: 100% 100%;
   background-repeat: no-repeat;
@@ -911,12 +914,18 @@
 .pbhs-h:focus-visible {
   outline: 2px solid #12d3ff;
 }
+/* Text zone between the baked magnifier (ends 24.28%) and the baked
+   "All Categories" select (starts 53.828%). The artwork bakes the
+   placeholder, so the input is transparent while idle (design shows
+   1:1) and only masks with the pill's own sampled gradient when
+   focused/typing — no double text, no flat patch. Box insets avoid
+   the pill's baked border strokes (y=90 top, y=146-147 bottom). */
 .pbhs-s {
   position: absolute;
-  left: 25.805%;
-  top: 10.771%;
-  width: 26.532%;
-  height: 4.406%;
+  left: 24.4%;
+  top: 9.777%;
+  width: 29.428%;
+  height: 5.74%;
 }
 .pbhs-s input {
   width: 100%;
@@ -925,18 +934,23 @@
   border: 0;
   outline: 0;
   color: #fff;
-  font: 500 0.8cqw Montserrat, system-ui, sans-serif;
+  font: 500 0.92cqw Montserrat, system-ui, sans-serif;
+  padding-left: 2.1cqw;
 }
 .pbhs-s input::placeholder {
-  color: #8095c4;
+  color: transparent;
   opacity: 1;
+}
+.pbhs-s input:focus,
+.pbhs-s input:not(:placeholder-shown) {
+  background: linear-gradient(90deg, #001231 0%, #01173a 22%, #021b42 45%, #021e48 66%, #021f4b 82%, #022250 100%);
 }
 .pbhs-sb {
   position: absolute;
-  left: 63.24%;
-  top: 8.568%;
-  width: 4.673%;
-  height: 8.446%;
+  left: 61.962%;
+  top: 9.352%;
+  width: 4.187%;
+  height: 6.589%;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -951,21 +965,27 @@
 }
 .pbhs-c {
   position: absolute;
-  left: 52.752%;
-  top: 10.282%;
-  width: 9.553%;
-  height: 5.141%;
-  border-radius: 14px;
+  left: 53.828%;
+  top: 10.627%;
+  width: 7.057%;
+  height: 4.038%;
+  border-radius: 8px;
 }
+/* Rendered only when a category is picked — masks the baked
+   "All Categories" label with the select zone's own bg (#012253). */
 .pbhs-c span {
   position: absolute;
-  left: 13.59%;
-  top: 50%;
-  translate: 0 -50%;
-  font: 600 0.83cqw Montserrat, system-ui, sans-serif;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 6%;
+  background: #012253;
+  border-radius: 8px;
+  font: 600 0.96cqw Montserrat, system-ui, sans-serif;
   color: #fff;
   pointer-events: none;
   white-space: nowrap;
+  overflow: hidden;
 }
 .pbhs-c select {
   position: absolute;
@@ -979,59 +999,20 @@
 .pbhs-c:hover {
   background: rgba(255, 255, 255, 0.06);
 }
-/* Real "Services" pill sitting in the baked nav-row gap (72.0%→76.05%) —
-   styled 1:1 with the Trending/Deals/Best Value pill group so it reads as
-   part of the artwork. cqw units scale with the stage (min 1000px). */
-.pbhs-svc {
-  position: absolute;
-  left: 72.02%;
-  top: 22.032%;
-  width: 4.02%;
-  height: 6.242%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.18cqw;
-  padding: 0 0.26cqw;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #0d1c42, #081226);
-  border: 0.075cqw solid #2f4c8f;
-  color: #fff;
-  font: 700 0.6cqw Montserrat, system-ui, sans-serif;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  z-index: 3;
-}
-.pbhs-svc svg {
-  width: 0.64cqw;
-  height: 0.64cqw;
-  color: #5db3ff;
-  flex-shrink: 0;
-}
-.pbhs-svc:hover {
-  border-color: #3d8bff;
-  background: linear-gradient(180deg, #12265a, #0a1634);
-  box-shadow: 0 0 1.2cqw rgba(61, 139, 255, 0.45);
-}
-.pbhs-svc:focus-visible {
-  outline: 2px solid #12d3ff;
-  outline-offset: 1px;
-}
+/* Gold live badges matching the design's baked cart "0" (17px on the
+   1672 grid ≈ 1.02cqw): slightly larger so they fully cover it. */
 .pbhs-badge {
   position: absolute;
   translate: -50% -50%;
-  min-width: 2.1cqw;
-  height: 2.1cqw;
-  padding: 0 0.45cqw;
+  min-width: 1.4cqw;
+  height: 1.4cqw;
+  padding: 0 0.3cqw;
   border-radius: 999px;
-  background: #ff2d2d;
-  color: #fff;
-  font: 800 1.05cqw/2.1cqw Montserrat, system-ui, sans-serif;
+  background: #ffc21c;
+  color: #201600;
+  font: 800 0.72cqw/1.4cqw Montserrat, system-ui, sans-serif;
   text-align: center;
-  box-shadow: 0 0 0.8cqw rgba(255, 45, 45, 0.53);
+  box-shadow: 0 0 0.5cqw rgba(255, 194, 28, 0.45);
   z-index: 5;
   pointer-events: none;
 }
