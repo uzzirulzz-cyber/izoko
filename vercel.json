@@ -272,6 +272,26 @@
       "destination": "/index.html"
     },
     {
+      "source": "/services/build",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/services/demos",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/services/company",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/services/package/:slug",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/services/demo/:slug",
+      "destination": "/index.html"
+    },
+    {
       "source": "/social-media",
       "destination": "/index.html"
     },

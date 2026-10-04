@@ -224,6 +224,11 @@ type Route =
   | 'service-detail'
   | 'service-request'
   | 'services-portfolio'
+  | 'service-package'
+  | 'service-demo'
+  | 'service-demos'
+  | 'service-build'
+  | 'service-company'
   | 'digital-services'
   | 'social-media'
   | 'web-hosting'
@@ -417,6 +422,11 @@ function parseRoute(): Route {
   if (path === 'services/request' || path.startsWith('services/request/')) return 'service-request'
   if (path === 'services/portfolio' || path.startsWith('services/portfolio/')) return 'services-portfolio'
   if (path === 'services') return 'services'
+  if (path === 'services/build' || path.startsWith('services/build/')) return 'service-build'
+  if (path === 'services/demos') return 'service-demos'
+  if (path === 'services/company') return 'service-company'
+  if (path.startsWith('services/package/')) return 'service-package'
+  if (path.startsWith('services/demo/')) return 'service-demo'
   if (path.startsWith('services/') && path.split('/').length === 2) return 'service-detail'
   if (POLICY_ROUTES.includes(path as Route)) return path as Route
   if (CATEGORY_ROUTE_KEYS.includes(path as Route)) return path as Route
@@ -451,6 +461,11 @@ function routeToPath(route: Route): string {
   if (route === 'service-detail') return window.location.pathname || '/services'
   if (route === 'service-request') return '/services/request'
   if (route === 'services-portfolio') return '/services/portfolio'
+  if (route === 'service-build') return '/services/build'
+  if (route === 'service-demos') return '/services/demos'
+  if (route === 'service-company') return '/services/company'
+  if (route === 'service-package') return window.location.pathname || '/services'
+  if (route === 'service-demo') return window.location.pathname || '/services'
   if (route === 'services') return '/services'
   // Category slug URLs keep their /category/:slug address
   if (route === 'category') return window.location.pathname || '/category'
@@ -557,7 +572,7 @@ export function App() {
       setServiceSlugParam(
         (() => {
           const parts = p.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
-          if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio'].includes(parts[1])) {
+          if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio', 'build', 'demos', 'company'].includes(parts[1])) {
             return decodeURIComponent(parts[1] || '')
           }
           return ''
@@ -672,7 +687,7 @@ export function App() {
   const [serviceSlugParam, setServiceSlugParam] = useState<string>(() => {
     if (typeof window === 'undefined') return ''
     const parts = window.location.pathname.toLowerCase().replace(/^\/+|\/+$/g, '').split('/')
-    if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio'].includes(parts[1])) {
+    if (parts.length === 2 && parts[0] === 'services' && !['request', 'portfolio', 'build', 'demos', 'company'].includes(parts[1])) {
       return decodeURIComponent(parts[1] || '')
     }
     return ''
@@ -956,6 +971,16 @@ export function App() {
 
   // Home hero flag — after selectedCategory is declared (stage scroll effect below reads it)
   const isStorefrontHome = route === 'storefront' && selectedCategory === 'all'
+
+  // Business Solutions v2 — full-viewport engine pages with their own chrome
+  const isServicesSectionRoute = [
+    'services',
+    'service-package',
+    'service-demo',
+    'service-demos',
+    'service-build',
+    'service-company',
+  ].includes(route as string)
 
   // Slide the fixed header in once the image stage has scrolled past the viewport top
   useEffect(() => {
@@ -1917,7 +1942,7 @@ export function App() {
           BUSINESS SOLUTIONS — /services hub + detail + request + portfolio
           Public pages; each manages its own SEO (title/canonical/OG/JSON-LD).
           ============================================ */}
-      {route === 'services' && <ServicesPage />}
+      {isServicesSectionRoute && <ServicesPage />}
       {route === 'service-detail' && <ServiceDetailPage slug={serviceSlugParam} />}
       {route === 'service-request' && <ServiceRequestPage />}
       {route === 'services-portfolio' && <ServicesPortfolioPage />}
@@ -2095,7 +2120,7 @@ export function App() {
       {isStorefrontRoute && (
         <>
           {/* CMS Announcement Bar — editable via Website Builder CMS */}
-          {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && (
+          {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && !isServicesSectionRoute && (
             <div
               className="w-full bg-gradient-to-r from-amber-400/15 via-[#0A122E] to-amber-400/15 border-b border-amber-400/25 text-center py-2 px-4 cursor-pointer group"
               onClick={() => {
