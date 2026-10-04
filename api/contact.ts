@@ -13,7 +13,9 @@ import { sendMetaLead } from "./_lib/metaCapi.js";
 // Contract (developers.facebook.com/docs/development/create-an-app/app-dashboard/data-deletion-callback):
 //   Meta POSTs application/x-www-form-urlencoded `signed_request` =
 //     base64url( HMAC_SHA256(payload, app_secret) ) + "." + base64url(payload)
-//   payload JSON: { algorithm, user_id, confirmation_code, issued_at }
+//   payload JSON: { algorithm, user_id, issued_at, expires?, oauth_token? }
+//   NOTE: Meta does NOT send a confirmation_code — per the official PHP sample,
+//   THIS endpoint generates the unique code and returns it.
 //   Required 200 response (TOP-LEVEL fields, not wrapped):
 //     { "url": "<status page>", "confirmation_code": "<code>" }
 async function handleMetaDataDeletion(req: VercelRequest, res: VercelResponse) {
@@ -54,10 +56,15 @@ async function handleMetaDataDeletion(req: VercelRequest, res: VercelResponse) {
     return jsonError(res, "Unsupported algorithm.", 400);
   }
   const metaUserId = String(data.user_id ?? "").trim();
-  const confirmationCode = String(data.confirmation_code ?? "").trim();
-  if (!metaUserId || !confirmationCode) {
-    return jsonError(res, "Missing user_id or confirmation_code.", 400);
+  if (!metaUserId) {
+    return jsonError(res, "Missing user_id.", 400);
   }
+  // Meta's payload carries only user_id/issued_at (plus oauth_token/expires) —
+  // the confirmation code is generated HERE (16-char alphanumeric), matching
+  // Meta's reference implementation. Accept theirs if one is ever supplied.
+  const confirmationCode =
+    String(data.confirmation_code ?? "").trim() ||
+    crypto.randomBytes(8).toString("hex").toUpperCase();
 
   // Persist the request for the admin trail. Best-effort: Meta only needs the
   // contract response; a DB hiccup must not fail the deletion handshake.
