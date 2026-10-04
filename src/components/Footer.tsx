@@ -52,13 +52,13 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const [infoType, setInfoType] = useState<InfoType | null>(null)
   const [apps, setApps] = useState<StorefrontAppsConfig | null>(null)
   const supportEmail = cms?.contact?.supportEmail || 'support@playbeat.pro'
-  const whatsapp = cms?.contact?.whatsapp || '923321049333'
+  const whatsapp = cms?.contact?.whatsapp || '923321029333'
   const uptimeNote = cms?.footer?.uptimeNote || 'Fulfillment Systems Active (99.99% Uptime)'
 
   // ---- Complete contact section values (CMS-driven with the same fallbacks
   // as /contact so the footer always shows the real channels) ----
   const contactEmail = cms?.contact?.email || 'support@playbeat.digital'
-  const contactPhone = cms?.contact?.phone || '+92 332 1049333'
+  const contactPhone = cms?.contact?.phone || '+92 332 1029333'
   const contactAddress =
     cms?.contact?.address ||
     'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
@@ -68,8 +68,8 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
   const prettyWa = `+${waDigits.replace(/^92/, '92 ')}`
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactAddress)}`
   const waLines = [
-    { label: 'WhatsApp Line 1 — Orders', num: '923321049333', pretty: '+92 332 1049333' },
-    { label: 'WhatsApp Line 2 — Support', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 1 — Orders', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 2 — Support', num: '923321049333', pretty: '+92 332 1049333' },
     { label: 'WhatsApp Line 3 — Escalations', num: '923341079333', pretty: '+92 334 1079333' },
   ]
   const messagingHandle = '@playbeatdigital01'

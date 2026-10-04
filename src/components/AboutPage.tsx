@@ -42,7 +42,7 @@ const REGISTERED_COMPANY = 'Playbeat Digital Private Limited'
 const REGISTERED_ADDRESS =
   'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
 const CONTACT_EMAIL = 'support@playbeat.digital'
-const CONTACT_PHONE = '+92 332 1049333'
+const CONTACT_PHONE = '+92 332 1029333'
 
 function Section({
   icon,

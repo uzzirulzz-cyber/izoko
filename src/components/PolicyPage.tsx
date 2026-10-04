@@ -53,7 +53,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export const PolicyPage: React.FC<PolicyPageProps> = ({ type, contact }) => {
   const meta = META[type]
   const supportEmail = contact?.email || 'support@playbeat.digital'
-  const whatsapp = contact?.whatsapp || '923321049333'
+  const whatsapp = contact?.whatsapp || '923321029333'
   const address = contact?.address || 'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
 
   const body: Record<PolicyType, React.ReactNode> = {

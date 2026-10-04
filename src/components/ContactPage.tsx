@@ -36,16 +36,16 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 export const ContactPage: React.FC<ContactPageProps> = ({ contact, social }) => {
   const email = contact?.email || 'support@playbeat.digital'
   const supportEmail = contact?.supportEmail || 'playbeatdiigital@proton.me'
-  const whatsapp = contact?.whatsapp || '923321049333'
-  const phone = contact?.phone || '+92 332 1049333'
+  const whatsapp = contact?.whatsapp || '923321029333'
+  const phone = contact?.phone || '+92 332 1029333'
   const address =
     contact?.address ||
     'HOUSE 334, Street 6, Jinnahabad, Abbottabad, Pakistan'
   const hours = contact?.hours || 'Support: 24/7 Automated — Live agents 10AM-10PM PKT'
   const company = 'Playbeat Digital Private Limited'
   const waLines = [
-    { label: 'WhatsApp Line 1 — Orders', num: '923321049333', pretty: '+92 332 1049333' },
-    { label: 'WhatsApp Line 2 — Support', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 1 — Orders', num: '923321029333', pretty: '+92 332 1029333' },
+    { label: 'WhatsApp Line 2 — Support', num: '923321049333', pretty: '+92 332 1049333' },
     { label: 'WhatsApp Line 3 — Escalations', num: '923341079333', pretty: '+92 334 1079333' },
   ]
   const messagingHandle = '@playbeatdigital01'
