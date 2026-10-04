@@ -184,6 +184,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [currencyDropdownOpen, setCurrencyDropdownOpen] = useState(false)
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false)
   const [bsMenuOpen, setBsMenuOpen] = useState(false)
+  // Fixed-viewport coordinates for the Business Solutions mega menu. The nav
+  // row is an overflow-x-auto scroll container, which CLIPS absolutely
+  // positioned dropdown panels — position:fixed is the only way to escape.
+  const [bsMenuPos, setBsMenuPos] = useState({ left: 0, top: 0 })
   const [bsMobileOpen, setBsMobileOpen] = useState(false)
   const bsMenuRef = useRef<HTMLDivElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -258,6 +262,20 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [selectedCategory, searchQuery])
+
+  // Mega menu is viewport-fixed (nav overflow clipping) — close it on any
+  // scroll (window OR the pill nav's inner horizontal scroll, via capture)
+  // /resize so it never visually detaches from its trigger
+  useEffect(() => {
+    if (!bsMenuOpen) return
+    const close = () => setBsMenuOpen(false)
+    document.addEventListener('scroll', close, { capture: true, passive: true })
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('scroll', close, { capture: true } as EventListenerOptions)
+      window.removeEventListener('resize', close)
+    }
+  }, [bsMenuOpen])
 
   const homeActive = selectedCategory === 'all' && !searchQuery
 
@@ -692,10 +710,21 @@ export const Header: React.FC<HeaderProps> = ({
           <Star className="w-4 h-4" /> Best Value
         </button>
 
-        {/* Business Solutions mega menu — grouped internal service routes */}
+        {/* Business Solutions mega menu — grouped internal service routes.
+            Panel renders position:fixed (see bsMenuPos) because the pill nav
+            is an overflow-x-auto container that clips absolute dropdowns. */}
         <div className="relative" ref={bsMenuRef}>
           <button
-            onClick={() => setBsMenuOpen(!bsMenuOpen)}
+            onClick={() => {
+              if (!bsMenuOpen && bsMenuRef.current) {
+                const r = bsMenuRef.current.getBoundingClientRect()
+                setBsMenuPos({
+                  left: Math.max(12, Math.min(r.left, window.innerWidth - 740)),
+                  top: r.bottom + 8,
+                })
+              }
+              setBsMenuOpen(!bsMenuOpen)
+            }}
             className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full border text-[13.5px] font-semibold transition whitespace-nowrap ${
               bsMenuOpen
                 ? 'border-[#3d8bff]/60 bg-[#13275a] text-[#7db4ff]'
@@ -707,7 +736,10 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {bsMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-[min(720px,88vw)] rounded-2xl bg-[#091330] border border-[#1b2f63] shadow-2xl backdrop-blur-2xl p-5 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div
+              className="fixed w-[min(720px,88vw)] rounded-2xl bg-[#091330] border border-[#1b2f63] shadow-2xl backdrop-blur-2xl p-5 z-[80] animate-in fade-in zoom-in-95 duration-150"
+              style={{ left: bsMenuPos.left, top: bsMenuPos.top }}
+            >
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
                 {BS_MENU.map((col) => (
                   <div key={col.group}>
@@ -770,6 +802,7 @@ export const Header: React.FC<HeaderProps> = ({
               { label: 'All Products', icon: <ShoppingBag className="w-4 h-4" />, action: () => onSelectCategory('all'), active: selectedCategory === 'all' && !!searchQuery },
               { label: 'Subscriptions / IPTV', icon: <Repeat className="w-4 h-4" />, action: () => onSelectCategory('Subscriptions'), active: selectedCategory === 'Subscriptions' },
               { label: 'Offers / Deals', icon: <BadgePercent className="w-4 h-4" />, action: onOpenOffers, active: false },
+              { label: 'Services / Business', icon: <Briefcase className="w-4 h-4" />, action: () => onNavigate('/services'), active: false },
               { label: 'Support / Contact', icon: <Mail className="w-4 h-4" />, action: () => onNavigate('/contact'), active: false },
             ].map((item) => (
               <button

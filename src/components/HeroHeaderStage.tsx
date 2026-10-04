@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { Briefcase, Search } from 'lucide-react'
 
 /**
  * HeroHeaderStage — "PlayBeat Digital — Hero Header (2)" design implementation.
@@ -80,6 +80,7 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
       { value: 'streaming-accounts', label: 'Streaming Accounts', path: '/streaming' },
       { value: 'iptv', label: 'IPTV', path: '/subscriptions' },
       { value: 'smart-projectors', label: 'Smart Projectors', path: '/smart-projectors' },
+      { value: 'business-services', label: 'Business Services', path: '/services' },
     ]
 
     const hotspots: Hotspot[] = [
@@ -180,6 +181,20 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
               <Search className="w-[55%] h-[55%] text-white" strokeWidth={2.4} />
             </button>
           </form>
+
+          {/* ===== "Services" pill in the baked nav-row gap (72.0%→76.05%) =====
+               Real button styled 1:1 with the Trending/Deals/Best Value pill
+               group — Business Solutions on the storefront nav bar. */}
+          <button
+            type="button"
+            className="pbhs-svc"
+            onClick={() => onNavigate('/services')}
+            aria-label="Business Services"
+            title="Business Services — websites, CRM, automation, design & more"
+          >
+            <Briefcase strokeWidth={2.4} />
+            <span>Services</span>
+          </button>
 
           {/* ===== Live badges over the baked "0" badges ===== */}
           {wishlistCount > 0 && (

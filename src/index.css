@@ -979,6 +979,47 @@
 .pbhs-c:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+/* Real "Services" pill sitting in the baked nav-row gap (72.0%→76.05%) —
+   styled 1:1 with the Trending/Deals/Best Value pill group so it reads as
+   part of the artwork. cqw units scale with the stage (min 1000px). */
+.pbhs-svc {
+  position: absolute;
+  left: 72.02%;
+  top: 22.032%;
+  width: 4.02%;
+  height: 6.242%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18cqw;
+  padding: 0 0.28cqw;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0d1c42, #081226);
+  border: 0.075cqw solid #2f4c8f;
+  color: #fff;
+  font: 700 0.56cqw Montserrat, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  z-index: 3;
+}
+.pbhs-svc svg {
+  width: 0.62cqw;
+  height: 0.62cqw;
+  color: #5db3ff;
+  flex-shrink: 0;
+}
+.pbhs-svc:hover {
+  border-color: #3d8bff;
+  background: linear-gradient(180deg, #12265a, #0a1634);
+  box-shadow: 0 0 1.2cqw rgba(61, 139, 255, 0.45);
+}
+.pbhs-svc:focus-visible {
+  outline: 2px solid #12d3ff;
+  outline-offset: 1px;
+}
 .pbhs-badge {
   position: absolute;
   translate: -50% -50%;
