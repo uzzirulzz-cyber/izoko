@@ -90,7 +90,7 @@ export interface ProductEditorPageProps {
     product: Product,
     isNew: boolean
   ) => Promise<{ ok: boolean; error?: string; saved?: Product }> | void
-  onDeleteProduct: (productId: string) => Promise<{ ok: boolean; error?: string }> | void
+  onDeleteProduct: (productId: string) => Promise<{ ok: boolean; error?: string }> | Promise<void> | void
   onToast: (msg: string, ms?: number) => void
   onDone: () => void
   /** navigate to another admin URL (used after Duplicate) */

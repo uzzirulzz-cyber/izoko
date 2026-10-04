@@ -142,7 +142,7 @@ interface AdminInsightsViewProps {
     product: Product,
     isNew: boolean
   ) => Promise<{ ok: boolean; error?: string; saved?: Product }> | void
-  onDeleteProduct?: (productId: string) => Promise<{ ok: boolean; error?: string }> | void
+  onDeleteProduct?: (productId: string) => Promise<{ ok: boolean; error?: string }> | Promise<void> | void
   /** sub-path after /admin (e.g. "/products/new", "/products/<id>/edit") — enables
    *  real URL product editor routes: /admin/products/new · /admin/products/:id/edit */
   adminSubPath?: string
