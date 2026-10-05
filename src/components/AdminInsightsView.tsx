@@ -66,6 +66,7 @@ import {
   MessageCircle,
   Briefcase,
   Inbox,
+  Palette,
 } from 'lucide-react'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
@@ -82,7 +83,7 @@ import '../admin-theme.css'
 import '../admin/themes.css'
 import {
   useAdminPrefs, prefsToRootProps, adminToast, AdminToastHost,
-  CommandPalette, ThemePicker, QuickActionsFAB, MetricCard, Funnel, RangeChips,
+  CommandPalette, ThemeStudioLauncher, QuickActionsFAB, MetricCard, Funnel, RangeChips,
   SkeletonKPIs, EmptyState, ErrorState, StatusBadge, exportCsv,
   type CmdkAction, type QuickAction,
   LayoutDashboard as KitDashboard, Package as KitPackage, ShoppingBag as KitOrders,
@@ -862,6 +863,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCsvImporterModal(true) },
       { id: 'issue-key', label: 'Issue License Key', icon: <KitKey className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowLicenseKeyModal(true) },
       { id: 'campaign', label: 'Launch Campaign', icon: <KitMega className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCampaignModal(true) },
+      { id: 'theme-studio', label: 'Open Theme Studio', icon: <Palette className="w-4 h-4" />, group: 'Quick Actions', keywords: 'appearance mode dark light custom color', run: () => window.dispatchEvent(new CustomEvent('pb:theme-studio')) },
       ...productActs,
     ]
   }, [products])
@@ -1841,8 +1843,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              {/* Theme & density picker */}
-              <ThemePicker prefs={prefs} onChange={updatePrefs} />
+              {/* Theme Studio — presets, custom builder, appearance mode */}
+              <ThemeStudioLauncher prefs={prefs} onChange={updatePrefs} />
 
               {/* Fullscreen */}
               <button className="pa-iconbtn p-2 hidden sm:flex" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>

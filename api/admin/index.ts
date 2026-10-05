@@ -2138,16 +2138,39 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (preferences !== undefined && (typeof preferences !== "object" || preferences === null || Array.isArray(preferences))) {
         return jsonError(res, "preferences must be an object.", 400);
       }
-      // Whitelist preference keys — theme/density/dashboard widget layout only.
+      // Whitelist preference keys — theme/mode/custom builder/density/dashboard widget layout only.
       let cleanPreferences: any;
       if (preferences !== undefined) {
         cleanPreferences = {};
         if (typeof (preferences as any).theme === "string") cleanPreferences.theme = String((preferences as any).theme).slice(0, 40);
         if (typeof (preferences as any).density === "string") cleanPreferences.density = String((preferences as any).density).slice(0, 20);
+        if (typeof (preferences as any).mode === "string" && ["light", "dark", "auto"].includes((preferences as any).mode)) {
+          cleanPreferences.mode = (preferences as any).mode;
+        }
         if ((preferences as any).widgets && typeof (preferences as any).widgets === "object" && !Array.isArray((preferences as any).widgets)) {
           cleanPreferences.widgets = {};
           for (const [k, v] of Object.entries((preferences as any).widgets)) {
             if (typeof v === "boolean") cleanPreferences.widgets[String(k).slice(0, 40)] = v;
+          }
+        }
+        // Custom Theme Studio spec — 12 hex colors + bounded layout options.
+        const rawCustom = (preferences as any).custom;
+        if (rawCustom && typeof rawCustom === "object" && !Array.isArray(rawCustom)) {
+          const isHex = (v: any) => typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v);
+          const colorKeys = ["primary", "secondary", "background", "surface", "sidebar", "text", "muted", "border", "success", "warning", "danger", "info"];
+          const rc = rawCustom.colors;
+          if (rc && typeof rc === "object" && !Array.isArray(rc) && colorKeys.every((k) => isHex(rc[k]))) {
+            const num = (v: any, lo: number, hi: number, dflt: number) => {
+              const n = Math.round(Number(v));
+              return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+            };
+            cleanPreferences.custom = {
+              colors: Object.fromEntries(colorKeys.map((k) => [k, rc[k]])),
+              radius: num(rawCustom.radius, 0, 24, 12),
+              shadow: [0, 1, 2].includes(rawCustom.shadow) ? rawCustom.shadow : 1,
+              sideW: num(rawCustom.sideW, 208, 320, 256),
+              bgStyle: ["solid", "gradient", "mesh", "glow"].includes(rawCustom.bgStyle) ? rawCustom.bgStyle : "gradient",
+            };
           }
         }
       }
