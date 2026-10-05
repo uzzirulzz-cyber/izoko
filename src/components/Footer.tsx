@@ -141,6 +141,31 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
                 <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping"></span>
                 {uptimeNote}
               </div>
+              {/* Sister site — playbeat.live */}
+              <a
+                href="https://playbeat.live"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 p-2.5 pr-4 rounded-2xl bg-[#0A122E]/80 border border-slate-400/15 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-0.5 max-w-[260px]"
+              >
+                <img
+                  src="/playbeat-live-icon.webp"
+                  alt="Playbeat.live"
+                  width={40}
+                  height={40}
+                  loading="lazy"
+                  className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/10 shrink-0"
+                />
+                <span className="min-w-0 leading-tight">
+                  <span className="block text-[9px] font-mono uppercase tracking-wider text-slate-500">
+                    Explore Our Network
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-white group-hover:text-sky-300 transition">
+                    playbeat.live
+                    <ExternalLink className="w-3 h-3 text-slate-500 group-hover:text-sky-300 transition" />
+                  </span>
+                </span>
+              </a>
             </div>
 
             {/* Quick Links — every link is a real, indexable URL */}
