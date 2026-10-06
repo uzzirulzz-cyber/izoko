@@ -1,42 +1,25 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import DOMPurify from "isomorphic-dompurify";
+import {
+  sanitizeDescriptionHtml,
+  hasHtmlTags,
+  descriptionHasH1,
+} from "../../lib/description";
 
 /**
- * WooCommerce-style HTML editor for product descriptions.
- * Visual mode (contentEditable) + HTML code mode (textarea).
- * Preserves semantic HTML (h1-h4, p, ul, ol, li, a, blockquote, table) on round-trip.
- * XSS-safe: isomorphic-dompurify strips scripts, iframes, on* handlers, javascript: URLs.
+ * WooCommerce-style editor for product descriptions.
+ *
+ * - Visual mode (contentEditable): write normal text or use the toolbar for
+ *   headings, bold/italic, lists, links, blockquotes and tables. Paste rich
+ *   content directly. Plain text typed here keeps its line breaks.
+ * - HTML mode (textarea): paste/edit full raw HTML (h1-h4, p, ul/ol, tables,
+ *   images, links …). Nothing is converted or stripped while editing.
+ * - Switching modes preserves the content EXACTLY — no rewriting.
+ * - Saved to MongoDB exactly as entered; sanitization happens on render.
+ * - Non-blocking SEO hint when an <h1> is written inside the description
+ *   (the product title is the page's main H1).
  */
 
-const ALLOWED_TAGS = [
-  "h1","h2","h3","h4","h5","h6","p","br","hr",
-  "strong","b","em","i","u","s","span","div",
-  "ul","ol","li","a","blockquote","code","pre",
-  "table","thead","tbody","tfoot","tr","th","td","img",
-];
-const ALLOWED_ATTR = ["href","title","target","rel","src","alt","width","height","colspan","rowspan","class","style"];
-
-const PURIFY_CONFIG = {
-  ALLOWED_TAGS,
-  ALLOWED_ATTR,
-  ALLOW_DATA_ATTR: false,
-  FORBID_TAGS: ["script","iframe","object","embed","form","input","button","style","link","meta","base"],
-  FORBID_ATTR: ["onerror","onload","onclick","onmouseover","onmouseout","onfocus","onblur","onchange","onsubmit","formaction"],
-  ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-};
-
-export function sanitizeDescription(html: string): string {
-  if (!html) return "";
-  return DOMPurify.sanitize(html, PURIFY_CONFIG);
-}
-
-if (typeof window !== "undefined") {
-  DOMPurify.addHook("afterSanitizeAttributes", (node: any) => {
-    if (node.tagName === "A" && node.getAttribute("target") === "_blank") {
-      node.setAttribute("rel", "noopener noreferrer");
-    }
-  });
-}
+export { sanitizeDescriptionHtml as sanitizeDescription };
 
 type Mode = "visual" | "code";
 
@@ -47,25 +30,38 @@ export function HtmlEditor({ value, onChange, placeholder = "Write product descr
   const editorRef = useRef<HTMLDivElement>(null);
   const lastEmitted = useRef<string>(value);
   const suppress = useRef(false);
+  const prevMode = useRef<Mode>(mode);
 
-  useEffect(() => {
-    if (mode !== "visual" || !editorRef.current) return;
-    if (value === lastEmitted.current) return;
-    suppress.current = true;
-    editorRef.current.innerHTML = sanitizeDescription(value);
-    lastEmitted.current = value;
-    suppress.current = false;
-  }, [value, mode]);
-
-  const syncVisual = useCallback(() => {
+  const paintVisual = useCallback((html: string) => {
     if (!editorRef.current) return;
     suppress.current = true;
-    editorRef.current.innerHTML = sanitizeDescription(value || "");
-    lastEmitted.current = value || "";
+    const isPlain = !hasHtmlTags(html || "");
+    editorRef.current.classList.toggle("whitespace-pre-wrap", isPlain);
+    if (isPlain) {
+      // Plain text — render with textContent so line breaks stay visible,
+      // and emit it back verbatim (never converted to HTML behind the admin's back).
+      editorRef.current.textContent = html || "";
+    } else {
+      editorRef.current.innerHTML = sanitizeDescriptionHtml(html || "");
+    }
+    lastEmitted.current = html || "";
     suppress.current = false;
-  }, [value]);
+  }, []);
 
-  useEffect(() => { if (mode === "visual") syncVisual(); }, [mode, syncVisual]);
+  // Repaint the visual surface ONLY when it would lose data:
+  //  - the FIRST time the surface mounts (editing an existing description),
+  //  - switching back to Visual mode (code-mode edits must show up), or
+  //  - the value changed from OUTSIDE the editor (product loaded async).
+  // Typing must never repaint, otherwise the caret would reset every keystroke.
+  const paintedOnce = useRef(false);
+  useEffect(() => {
+    const switchedToVisual = mode === "visual" && prevMode.current !== "visual";
+    prevMode.current = mode;
+    if (mode !== "visual" || !editorRef.current) return;
+    if (paintedOnce.current && !switchedToVisual && value === lastEmitted.current) return;
+    paintedOnce.current = true;
+    paintVisual(value || "");
+  }, [value, mode, paintVisual]);
 
   const emit = useCallback(() => {
     if (suppress.current || !editorRef.current) return;
@@ -116,7 +112,7 @@ export function HtmlEditor({ value, onChange, placeholder = "Write product descr
 
   const switchMode = (next: Mode) => {
     if (next === mode) return;
-    if (mode === "visual") emit();
+    if (mode === "visual") emit(); // flush visual edits before showing code
     setMode(next);
   };
 
@@ -170,13 +166,21 @@ export function HtmlEditor({ value, onChange, placeholder = "Write product descr
           style={{ minHeight }} />
       ) : (
         <textarea value={value || ""} onChange={(e) => { lastEmitted.current = e.target.value; onChange(e.target.value); }}
-          placeholder="<h1>Product title</h1>\n<p>Introduction…</p>\n\n<h2>Key Features</h2>\n<ul>\n  <li>Feature one</li>\n</ul>"
+          placeholder={"<h1>Product title</h1>\n<p>Introduction…</p>\n\n<h2>Key Features</h2>\n<ul>\n  <li>Feature one</li>\n</ul>"}
           className="w-full resize-y border-0 bg-white dark:bg-zinc-900 px-4 py-3 font-mono text-xs leading-relaxed outline-none"
           style={{ minHeight }} spellCheck={false} />
       )}
 
+      {/* Non-blocking SEO hint — description-level H1 vs the product title */}
+      {descriptionHasH1(value) && (
+        <div className="flex items-start gap-2 border-t border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+          <span aria-hidden>⚠</span>
+          <span>Product title already uses H1. Prefer H2 for sections and H3/H4 for subsections.</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1 text-[10px] text-zinc-500">
-        <span>{mode === "visual" ? "Visual mode — use toolbar or paste rich content" : "HTML mode — edit raw HTML. Saved as-is to MongoDB."}</span>
+        <span>{mode === "visual" ? "Visual mode — plain text & rich content, line breaks kept" : "HTML mode — edit raw HTML. Saved as-is to MongoDB."}</span>
         <span>{value ? `${value.length} chars` : "0 chars"}</span>
       </div>
     </div>

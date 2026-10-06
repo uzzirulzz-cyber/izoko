@@ -39,6 +39,7 @@ import { CheckoutPage } from './components/CheckoutPage'
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { ensureProductSlug } from './lib/slug'
+import { stripHtmlToText } from './lib/description'
 
 // Client-side slugify for the breadcrumb category URL (kept tiny — full
 // slugify lives in lib/slug.ts for product slugs)
@@ -1097,7 +1098,11 @@ export function App() {
             window.location.replace(d.redirectTo)
             return
           }
-          if (d?.success?.product) setQuickViewProduct(d.success.product)
+          // API shape: { success: boolean, product: {...} } — product sits at
+          // the TOP level (d.success is a boolean, so d.success.product is
+          // undefined — that regression 404'd deep links for DB-only products).
+          const fetched = d?.product ?? (d as any)?.success?.product
+          if (fetched) setQuickViewProduct(fetched)
           else setRoute('notfound') // URL stays as-is; direct set (navigate() would re-parse back to 'product')
         })
         .catch(() => {
@@ -1136,7 +1141,7 @@ export function App() {
       description: (
         seo.description ||
         p.shortDescription ||
-        p.description ||
+        stripHtmlToText(p.description || '').slice(0, 155) ||
         `${p.name} — instant delivery from PlayBeat Digital.`
       ).slice(0, 155),
       path: slugPath,

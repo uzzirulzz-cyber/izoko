@@ -32,6 +32,7 @@ import {
   isDataImageUrl,
 } from '../../lib/uploadImage'
 import { HtmlEditor } from './HtmlEditor'
+import { stripHtmlToText } from '../../lib/description'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
@@ -257,8 +258,11 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       .then((r) => r.json().catch(() => null))
       .then((d) => {
         if (!alive) return
-        if (d?.success?.product) {
-          adopt(d.success.product)
+        // API shape: { success: boolean, product: {...} } — product sits at the
+        // TOP level (d.success is a boolean, so d.success.product is undefined).
+        const fetched = (d as any)?.product ?? (d as any)?.success?.product
+        if (fetched) {
+          adopt(fetched)
         } else {
           setNotFound(true)
         }
@@ -385,8 +389,7 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
     const effectiveDesc = (
       seo.description ||
       form.shortDescription ||
-      form.description ||
-      ''
+      stripHtmlToText(form.description || '')
     ).slice(0, 155)
     const checks: SeoCheck[] = []
     const add = (level: SeoCheck['level'], message: string) => checks.push({ level, message })
@@ -526,7 +529,7 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       galleryMeta: galleryMeta.length ? galleryMeta : undefined,
       tags: finalTags,
       features: finalFeatures,
-      shortDescription: form.shortDescription || form.description.slice(0, 140),
+      shortDescription: form.shortDescription || stripHtmlToText(form.description).slice(0, 140),
       productType: form.digital ? 'digital' : 'physical',
       stock: Number(form.stock) || 0,
       status: form.stock === 0 ? 'out_of_stock' : form.status || 'in_stock',
@@ -713,8 +716,7 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
   const effectiveSeoDesc = (
     form.seo?.description ||
     form.shortDescription ||
-    form.description ||
-    ''
+    stripHtmlToText(form.description || '')
   ).slice(0, 165)
   const effectiveSlug = form.slug || slugify(form.name || '')
   const margin = form.costPrice ? Math.round(form.price - form.costPrice) : null

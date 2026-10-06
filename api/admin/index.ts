@@ -43,7 +43,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
 import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
-import { formatProduct } from "../_lib/product.js";
+import { formatProduct, stripHtmlText } from "../_lib/product.js";
 import { slugify } from "../_lib/config.js";
 import {
   handleOptions,
@@ -1762,7 +1762,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         category: body.category || "Digital Products",
         productType: body.productType || (body.digital !== false ? "digital" : "physical"),
         description: body.description || "",
-        shortDescription: body.shortDescription || (body.description ? body.description.slice(0, 140) : ""),
+        shortDescription: body.shortDescription || (body.description ? stripHtmlText(body.description).slice(0, 140) : ""),
         detailedDescription: body.detailedDescription || body.description || "",
         price: Number(body.price) || 0,
         originalPrice: body.originalPrice ? Number(body.originalPrice) : undefined,

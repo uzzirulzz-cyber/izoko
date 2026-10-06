@@ -1,6 +1,31 @@
 // Shared product formatting helper
 import { slugify } from "./config.js";
 
+/**
+ * Strip HTML down to plain single-line text — used ONLY for derived fallback
+ * values (auto short description / meta snippets) so raw tags from an
+ * HTML-formatted description never leak into card snippets or SEO meta.
+ * The stored description itself is NEVER modified.
+ */
+export function stripHtmlText(html: string): string {
+  const value = (html || "").toString();
+  if (!value) return "";
+  if (!/<[a-z!/][^>]*>/i.test(value)) return value.replace(/\s+/g, " ").trim();
+  return value
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function formatProduct(doc: any) {
   if (!doc) return null;
   const { _id, ...rest } = doc;
@@ -68,7 +93,7 @@ export function formatProduct(doc: any) {
     description: rest.description || "",
     shortDescription:
       rest.shortDescription ||
-      (rest.description ? rest.description.slice(0, 140) + (rest.description.length > 140 ? "..." : "") : ""),
+      (rest.description ? stripHtmlText(rest.description).slice(0, 140) + (stripHtmlText(rest.description).length > 140 ? "..." : "") : ""),
     detailedDescription: rest.detailedDescription || rest.description || "",
     price: typeof rest.price === "number" ? rest.price : Number(rest.price) || 0,
     originalPrice: rest.originalPrice ? Number(rest.originalPrice) : rest.compareAtPrice ? Number(rest.compareAtPrice) : undefined,

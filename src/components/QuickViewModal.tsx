@@ -9,6 +9,7 @@
 // creation prices it server-side.
 
 import React, { useEffect, useState } from 'react'
+import { renderDescription } from '../lib/description'
 import {
   X,
   Star,
@@ -304,10 +305,12 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 </button>
               </div>
 
-              {/* Title */}
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-snug mb-2.5 font-sans">
+              {/* Title — the product name is the main page H1 (SEO):
+                  an extra H1 inside the description is allowed but flagged
+                  in the admin editor with a non-blocking warning. */}
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-snug mb-2.5 font-sans">
                 {product.name}
-              </h2>
+              </h1>
 
               {/* Rating & Region */}
               <div className="flex items-center gap-4 text-xs text-slate-400 mb-3.5 font-mono">
@@ -478,20 +481,8 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 {activeTab === 'overview' && (
                   <div>
                     <div
-                      className="pb-rendered-description mb-2 text-slate-200"
-                      dangerouslySetInnerHTML={{
-                        __html: (() => {
-                          const raw = product.detailedDescription || product.description || '';
-                          // Inline import to avoid SSR issues — isomorphic-dompurify handles both
-                          const DOMPurify = require('isomorphic-dompurify').default || require('isomorphic-dompurify');
-                          return DOMPurify.sanitize(raw, {
-                            ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','strong','b','em','i','u','s','span','div','ul','ol','li','a','blockquote','code','pre','table','thead','tbody','tfoot','tr','th','td','img'],
-                            ALLOWED_ATTR: ['href','title','target','rel','src','alt','width','height','colspan','rowspan','class','style'],
-                            FORBID_TAGS: ['script','iframe','object','embed','form','input','button','style','link','meta','base'],
-                            FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onmouseout','onfocus','onblur','onchange','onsubmit','formaction'],
-                          });
-                        })()
-                      }}
+                      className="pb-rendered-description pb-desc-dark mb-2 text-slate-200"
+                      dangerouslySetInnerHTML={{ __html: renderDescription(product.detailedDescription || product.description || '') }}
                     />
                     {product.features && (
                       <ul className="space-y-1.5">

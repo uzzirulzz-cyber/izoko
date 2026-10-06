@@ -1240,6 +1240,35 @@
 .pb-rendered-description strong, .pb-rendered-description b { font-weight: 700; }
 .pb-rendered-description em, .pb-rendered-description i { font-style: italic; }
 .pb-rendered-description img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+.pb-rendered-description hr { border: 0; border-top: 1px solid rgb(223 227 232); margin: 1rem 0; }
+.pb-rendered-description code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em;
+  background: rgb(244 246 248); padding: 0.1rem 0.35rem; border-radius: 0.25rem;
+}
+.pb-rendered-description pre {
+  background: rgb(244 246 248); border-radius: 0.5rem; padding: 0.75rem 1rem;
+  overflow-x: auto; margin: 0 0 0.625rem;
+}
+.pb-rendered-description pre code { background: transparent; padding: 0; }
+.pb-rendered-description h1 > img, .pb-rendered-description h2 > img { display: block; }
+
+/* ---- Dark-context variant (QuickViewModal / product page, bg #060B1E) ---- */
+.pb-rendered-description.pb-desc-dark { color: rgb(226 232 240); }
+.pb-desc-dark h1, .pb-desc-dark h2, .pb-desc-dark h3,
+.pb-desc-dark h4, .pb-desc-dark h5, .pb-desc-dark h6 { color: #ffffff; }
+.pb-desc-dark a { color: #a5b0ff; text-decoration-color: rgb(165 176 255 / 0.5); }
+.pb-desc-dark a:hover { color: #c3caff; }
+.pb-desc-dark blockquote {
+  border-left-color: #facc15;
+  background: rgb(255 255 255 / 0.05); color: rgb(203 213 225);
+}
+.pb-desc-dark table { border-collapse: collapse; }
+.pb-desc-dark th, .pb-desc-dark td { border-color: rgb(148 163 184 / 0.3); }
+.pb-desc-dark thead th { background: rgb(255 255 255 / 0.06); color: #f8fafc; }
+.pb-desc-dark tbody tr:nth-child(even) { background: rgb(255 255 255 / 0.03); }
+.pb-desc-dark hr { border-top-color: rgb(148 163 184 / 0.3); }
+.pb-desc-dark code { background: rgb(255 255 255 / 0.08); color: #e2e8f0; }
+.pb-desc-dark pre { background: rgb(255 255 255 / 0.06); color: #e2e8f0; }
 
 @media (max-width: 640px) {
   .pb-html-editor h1, .pb-rendered-description h1 { font-size: 1.375rem; }
@@ -1248,4 +1277,12 @@
   .pb-html-editor table, .pb-rendered-description table { font-size: 0.75rem; }
   .pb-html-editor th, .pb-rendered-description th,
   .pb-html-editor td, .pb-rendered-description td { padding: 0.35rem 0.5rem; }
+  /* Tables on mobile: let long content wrap instead of overflowing the card */
+  .pb-html-editor td, .pb-rendered-description td,
+  .pb-html-editor th, .pb-rendered-description th {
+    overflow-wrap: anywhere; word-break: break-word;
+  }
+  .pb-html-editor ul, .pb-rendered-description ul,
+  .pb-html-editor ol, .pb-rendered-description ol { margin-left: 1.25rem; }
+  .pb-html-editor img, .pb-rendered-description img { height: auto; }
 }

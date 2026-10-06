@@ -47,6 +47,28 @@ function slugify(text: string): string {
     .replace(/-+$/, "");
 }
 
+// Strip HTML to plain single-line text — mirrors api/_lib/product.ts. Used ONLY
+// for derived fallbacks (auto short description) so raw tags from an HTML
+// description never leak into card snippets. Stored description is untouched.
+function stripHtmlText(html: string): string {
+  const value = (html || "").toString();
+  if (!value) return "";
+  if (!/<[a-z!\/][^>]*>/i.test(value)) return value.replace(/\s+/g, " ").trim();
+  return value
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // MongoDB Client Singleton
 let mongoClient: MongoClient | null = null;
 
@@ -158,7 +180,7 @@ function formatProduct(doc: any) {
     description: rest.description || "",
     shortDescription:
       rest.shortDescription ||
-      (rest.description ? rest.description.slice(0, 140) + (rest.description.length > 140 ? "..." : "") : ""),
+      (rest.description ? stripHtmlText(rest.description).slice(0, 140) + (stripHtmlText(rest.description).length > 140 ? "..." : "") : ""),
     detailedDescription: rest.detailedDescription || rest.description || "",
     price: typeof rest.price === "number" ? rest.price : Number(rest.price) || 0,
     originalPrice: rest.originalPrice ? Number(rest.originalPrice) : rest.compareAtPrice ? Number(rest.compareAtPrice) : undefined,
@@ -429,7 +451,7 @@ async function startServer() {
         category: body.category || "Digital Products",
         productType: body.productType || (body.digital !== false ? "digital" : "physical"),
         description: body.description || "",
-        shortDescription: body.shortDescription || (body.description ? body.description.slice(0, 140) : ""),
+        shortDescription: body.shortDescription || (body.description ? stripHtmlText(body.description).slice(0, 140) : ""),
         detailedDescription: body.detailedDescription || body.description || "",
         price: Number(body.price) || 0,
         originalPrice: body.originalPrice ? Number(body.originalPrice) : undefined,

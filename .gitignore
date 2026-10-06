@@ -9,3 +9,4 @@ coverage/
 .vercel
 _verify_*.png
 tsconfig.tsbuildinfo
+e2e-artifacts/
