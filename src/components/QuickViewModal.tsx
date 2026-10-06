@@ -477,7 +477,22 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <div className="text-xs text-slate-300 leading-relaxed mb-6 min-h-[80px]">
                 {activeTab === 'overview' && (
                   <div>
-                    <p className="mb-2 text-slate-200">{product.detailedDescription || product.description}</p>
+                    <div
+                      className="pb-rendered-description mb-2 text-slate-200"
+                      dangerouslySetInnerHTML={{
+                        __html: (() => {
+                          const raw = product.detailedDescription || product.description || '';
+                          // Inline import to avoid SSR issues — isomorphic-dompurify handles both
+                          const DOMPurify = require('isomorphic-dompurify').default || require('isomorphic-dompurify');
+                          return DOMPurify.sanitize(raw, {
+                            ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','strong','b','em','i','u','s','span','div','ul','ol','li','a','blockquote','code','pre','table','thead','tbody','tfoot','tr','th','td','img'],
+                            ALLOWED_ATTR: ['href','title','target','rel','src','alt','width','height','colspan','rowspan','class','style'],
+                            FORBID_TAGS: ['script','iframe','object','embed','form','input','button','style','link','meta','base'],
+                            FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onmouseout','onfocus','onblur','onchange','onsubmit','formaction'],
+                          });
+                        })()
+                      }}
+                    />
                     {product.features && (
                       <ul className="space-y-1.5">
                         {product.features.map((f, i) => (

@@ -31,6 +31,7 @@ import {
   ensureImageUrl,
   isDataImageUrl,
 } from '../../lib/uploadImage'
+import { HtmlEditor } from './HtmlEditor'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
@@ -1000,13 +1001,16 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
           </div>
           <div>
             <label className={labelCls}>Full Description</label>
-            <textarea
+            <HtmlEditor
               value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              rows={5}
-              placeholder="What the customer gets, duration, compatibility, delivery details…"
-              className={inputCls}
+              onChange={(html) => set('description', html)}
+              placeholder="Write product description… Use H2 for sections, H3 for FAQs. Supports bold, italic, lists, links, tables & blockquotes."
+              minHeight={280}
             />
+            <p className="text-[10px] text-zinc-500 mt-1">
+              Supports H1–H4, paragraphs, <strong>bold</strong>, <em>italic</em>, lists, links, tables &amp; blockquotes.
+              Switch to <strong>HTML</strong> mode to paste raw HTML. Saved as-is to MongoDB.
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
