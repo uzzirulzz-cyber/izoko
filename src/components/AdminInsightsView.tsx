@@ -919,6 +919,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       return
     }
     await onDeleteProduct(productId)
+    // Drop the row from the merged draft/archived list immediately — deleted
+    // docs no longer exist in MongoDB and must not linger until the next
+    // active=all refetch.
+    setInactiveProducts((prev) => prev.filter((p) => String(p._id || p.id) !== String(productId)))
     fetchAdminHealth()
   }
 
@@ -961,8 +965,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   // and published without needing a deep link.
   // ------------------------------------------------------------------
   const [inactiveProducts, setInactiveProducts] = useState<Product[]>([])
+  // productEditorRoute is recomputed on every render (fresh object), so
+  // serialize it: the refetch below must fire exactly when the editor closes
+  // back into the Products list (e.g. right after Save Draft or Publish) —
+  // otherwise a freshly saved draft/published product would only appear
+  // after navigating away and back or reloading the page.
+  const editorRouteKey = productEditorRoute
+    ? `${productEditorRoute.mode}:${productEditorRoute.ref}`
+    : ''
   useEffect(() => {
-    if (activeNav !== 'products') return
+    if (activeNav !== 'products' || editorRouteKey) return
     let alive = true
     fetch(`${API_BASE}/api/products?active=all&limit=200`, { credentials: 'include' })
       .then((r) => r.json().catch(() => null))
@@ -975,7 +987,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     return () => {
       alive = false
     }
-  }, [activeNav])
+  }, [activeNav, editorRouteKey])
   // Standalone inactive products first (drafts are what admins look for),
   // then the published catalog in its existing order. Dedupe by id so a
   // freshly published draft that still lingers in inactiveProducts is

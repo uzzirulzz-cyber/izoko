@@ -1426,10 +1426,22 @@ export function App() {
       const canonical = sync.saved || product
       // UI updates from the RETURNED database product — not from local state
       setProducts((prev) => {
+        // Drafts/archived must NEVER enter the shared catalog state — the same
+        // array feeds the public storefront, so an unpublished (often
+        // price-less) product would render publicly until the next page load.
+        // The admin catalog surfaces drafts via its own active=all fetch.
+        if (canonical.active === false) {
+          return prev.filter((p) => p.id !== product.id && p._id !== canonical._id)
+        }
         if (isNew) {
           const withoutDup = prev.filter((p) => p.id !== product.id && p._id !== canonical._id)
           return [canonical, ...withoutDup]
         }
+        // Publish from the deep-linked editor: a draft loaded straight from
+        // the API was never in the storefront feed, so upsert it here or it
+        // would vanish from the admin list until the next reload.
+        const exists = prev.some((p) => p.id === product.id || p._id === product._id)
+        if (!exists) return [canonical, ...prev]
         return prev.map((p) => (p.id === product.id || p._id === product._id ? { ...p, ...canonical } : p))
       })
       showToast(
