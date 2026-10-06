@@ -949,7 +949,44 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     triggerToast('Product inventory level successfully updated')
   }
 
-  const filteredProducts = products.filter((p) => {
+  // ------------------------------------------------------------------
+  // DRAFT / ARCHIVED VISIBILITY (admin-only)
+  // The `products` prop is the storefront feed — it excludes inactive
+  // products, so unpublished drafts never reached this catalog table and
+  // were invisible to admins. GET /api/products supports active=all: fetch
+  // the full catalog each time the Products view opens and keep ONLY
+  // standalone inactive docs — consolidated variant children (active=false
+  // by design) stay hidden. Merged rows render with the existing
+  // draft/archived badge and a working Edit action, so drafts can be priced
+  // and published without needing a deep link.
+  // ------------------------------------------------------------------
+  const [inactiveProducts, setInactiveProducts] = useState<Product[]>([])
+  useEffect(() => {
+    if (activeNav !== 'products') return
+    let alive = true
+    fetch(`${API_BASE}/api/products?active=all&limit=200`, { credentials: 'include' })
+      .then((r) => r.json().catch(() => null))
+      .then((d) => {
+        if (!alive) return
+        const docs: Product[] = Array.isArray(d?.products) ? d.products : []
+        setInactiveProducts(docs.filter((p: any) => p.active === false && !p.consolidatedParentId))
+      })
+      .catch(() => { /* fetch failed — table keeps showing published products only */ })
+    return () => {
+      alive = false
+    }
+  }, [activeNav])
+  // Standalone inactive products first (drafts are what admins look for),
+  // then the published catalog in its existing order. Dedupe by id so a
+  // freshly published draft that still lingers in inactiveProducts is
+  // superseded by its live copy from the storefront feed.
+  const adminProducts = useMemo(() => {
+    const known = new Set(products.map((p) => String(p._id || p.id || p.sku)))
+    const extras = inactiveProducts.filter((p) => !known.has(String(p._id || p.id || p.sku)))
+    return [...extras, ...products]
+  }, [products, inactiveProducts])
+
+  const filteredProducts = adminProducts.filter((p) => {
     const matchSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchQuery.toLowerCase())
@@ -3361,7 +3398,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   icon={<Package className="w-5 h-5" />}
                   tone="gold"
                   title="Catalog Products"
-                  desc={`${products.length} products synced with live MongoDB — edit pricing, stock, images and variants.`}
+                  desc={`${adminProducts.length} products synced with live MongoDB — edit pricing, stock, images and variants.`}
                 />
                 <div className="p-4 rounded-2xl pa-card pa-card--slate flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1 relative">
