@@ -218,7 +218,15 @@ export async function runPageSpeed(strategy: "mobile" | "desktop" = "mobile", ta
     diagnostics: [],
   };
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(55000) });
+    // Server-to-server PSI calls carry no browser Referer, and API keys saved
+    // with an "HTTP referrers" application restriction reject referer-less
+    // requests ("Requests from referer <empty> are blocked"). This key exists
+    // for THIS site's server-side audits, so declare the site as the referer —
+    // matching the restriction the owner configured for playbeat.digital.
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(55000),
+      headers: { Referer: `${SITE}/` },
+    });
     const data: any = await res.json().catch(() => null);
     if (!res.ok) {
       out.reason = data?.error?.message || `PageSpeed API ${res.status}`;
