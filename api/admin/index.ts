@@ -2302,6 +2302,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         }
         if (body.slug != null && String(body.slug).trim()) body.slug = slugify(String(body.slug));
         else if (body.slug !== undefined) delete body.slug; // empty string would nuke the URL
+        // Region (region-field upgrade task §29): same server-side guard as
+        // create — whitespace collapse + malformed-value fallback. Legacy and
+        // alias values (UK/UAE/…) pass through verbatim.
+        if (body.region !== undefined) body.region = normalizeRegionValue(body.region);
 
         // ---- Slug history (audit §26): renaming a product preserves the old
         // slug so /product/<old-slug> permanently redirects to the new URL ----
