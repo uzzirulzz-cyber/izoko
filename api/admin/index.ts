@@ -962,7 +962,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         const runId = String(req.body?.runId || "");
         const run = runId
           ? await db.collection("seoAuditRuns").findOne({ _id: new ObjectId(runId) })
-          : await db.collection("seoAuditRuns").findOne({ status: "completed" }, { sort: { startedAt: -1 } });
+          : await db.collection("seoAuditRuns").findOne({ status: "completed", mode: { $ne: "page" } }, { sort: { startedAt: -1 } });
         if (!run) return jsonError(res, "No completed audit run available to export.", 404);
         const stamp = (run.completedAt || run.startedAt || new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-");
         if (format === "csv") {
