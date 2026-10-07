@@ -344,6 +344,10 @@
       "destination": "/api/products?pbRender=1&pbPath=/creative-software"
     },
     {
+      "source": "/digital-services",
+      "destination": "/api/products?pbRender=1&pbPath=/digital-services"
+    },
+    {
       "source": "/privacy",
       "destination": "/privacy.html"
     },
