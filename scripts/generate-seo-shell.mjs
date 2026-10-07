@@ -22,18 +22,20 @@ const distIndex = path.join(root, "dist", "index.html");
 const outFile = path.join(root, "api", "_lib", "seoShell.generated.ts");
 
 const HOMEPAGE_BLOCK = `
-      <!-- Perf (task §5): STATIC HERO REPLICA. The measured mobile LCP element
-           is the hero stage <main class="pbhs-stage"> whose background is
-           /hero_header_v3.webp (preloaded above with fetchpriority=high).
-           Previously that element only existed once React finished rendering
-           the ENTIRE app, which under Lighthouse's 4x-CPU simulation pushed
-           LCP to 13-26s. This server-rendered replica uses the SAME classes
-           (pbhs-scroll/pbhs-stage) and the SAME aspect-ratio geometry as the
-           live component, so the artwork paints as part of the initial HTML
-           and the React commit replaces it pixel-identically (same classes,
-           same size, same image — zero layout shift, zero visual change).
-           It is interactive ~0.5s later when React mounts, exactly the same
-           interaction surface as before. -->
+      <!-- Perf (task §5/§10): STATIC HERO + ANNOUNCEMENT REPLICA. The measured
+           mobile LCP element is the hero stage <main class="pbhs-stage"> whose
+           background is /hero_header_v3.webp (preloaded above with
+           fetchpriority=high). Previously that element only existed once React
+           finished rendering the ENTIRE app, which under Lighthouse's 4x-CPU
+           simulation pushed LCP to 13-26s. The announcement-bar replica below
+           reserves its exact rendered height (same classes, same CMS text) so
+           the live bar inserts with ZERO layout shift on slow networks.
+           React's commit replaces the whole block pixel-identically — verified
+           locally: identical hero rect pre/post mount, exactly 1 H1.
+           NOTE: if the admin edits the CMS announcement text or toggles it
+           off, rebuild/redeploy to refresh this replica (otherwise the live
+           bar swaps in ~0.3s later with a possible small reflow). -->
+      <div class="w-full bg-gradient-to-r from-amber-400/15 via-[#0A122E] to-amber-400/15 border-b border-amber-400/25 text-center py-2 px-4"><span class="text-[11px] sm:text-xs font-semibold text-amber-300 font-mono">🔥 Global Best Prices 🌍 | ⚡ Instant Delivery 🚀 | 🔒 Secure Payments 💳 | 🌎 Available Worldwide ✨ | 💎 Trusted Premium Products⭐</span></div>
       <div class="pbhs-scroll relative w-full overflow-x-auto bg-[#000b1d] [scrollbar-width:none]"><main class="pbhs-stage relative" style="background-image:url(/hero_header_v3.webp)"></main></div>
       <div style="min-height:100vh;background:#050814;color:#e5e7eb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px 16px;box-sizing:border-box"><div style="max-width:920px;margin:0 auto">
       <h1 style="color:#fff;font-size:26px;line-height:1.25;margin:10px 0 14px;font-weight:800">Premium Digital Marketplace &amp; Smart Projectors</h1>
