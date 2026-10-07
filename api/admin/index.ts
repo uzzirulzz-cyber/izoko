@@ -1044,7 +1044,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (action === "pagespeed") {
         const strategy = String(req.body?.strategy || "mobile") === "desktop" ? "desktop" : "mobile";
         const requested = String(req.body?.url || "").trim();
-        const target = /^https:\/\/playbeat\.digital([/?#]|$)/.test(requested) ? requested : SITE;
+        const target = /^https:\/\/playbeat\.digital([/?#]|$)/.test(requested) ? requested : SEO_SITE;
         const result = await runPageSpeed(strategy, target);
         await storePsiResult(result);
         return jsonOk(res, { success: true, pagespeed: result });
