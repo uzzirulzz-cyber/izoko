@@ -1037,9 +1037,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
 
       // ---- Core Web Vitals: fresh live PageSpeed run ----
+      // An admin may pass a same-origin target URL (used as a PSI cache-buster
+      // when taking repeated measurements of the same page). Anything that is
+      // not an https://playbeat.digital URL falls back to the site root —
+      // the endpoint must never become a generic PSI proxy.
       if (action === "pagespeed") {
         const strategy = String(req.body?.strategy || "mobile") === "desktop" ? "desktop" : "mobile";
-        const result = await runPageSpeed(strategy);
+        const requested = String(req.body?.url || "").trim();
+        const target = /^https:\/\/playbeat\.digital([/?#]|$)/.test(requested) ? requested : SITE;
+        const result = await runPageSpeed(strategy, target);
         await storePsiResult(result);
         return jsonOk(res, { success: true, pagespeed: result });
       }
