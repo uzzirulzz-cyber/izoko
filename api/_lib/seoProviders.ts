@@ -198,6 +198,26 @@ export interface PsiMetric {
     ttfbMs: number | null;
   };
   diagnostics: string[];
+  detail?: {
+    lcpPhases?: Array<{ id: string; label: string; ms: number }>;
+    lcpElement?: {
+      url: string | null;
+      selector: string | null;
+      nodeLabel: string | null;
+      snippet: string | null;
+      /* bytes of the LCP resource when the element is an image/background-image */
+      resourceBytes?: number | null;
+    } | null;
+    unusedJs?: Array<{ url: string; totalBytes: number; wastedBytes: number }>;
+    clsElements?: Array<{ nodeLabel: string | null; score: number | null; url: string | null; extra: string | null }>;
+    renderBlocking?: Array<{ url: string; totalBytes: number; wastedMs: number }>;
+    bootup?: Array<{ url: string; totalMs: number; scriptingMs: number }>;
+    mainThread?: Array<{ group: string; ms: number }>;
+    thirdParty?: Array<{ entity: string; blockingMs: number; mainThreadMs: number; transferBytes: number }>;
+    heaviestResources?: Array<{ url: string; totalBytes: number }>;
+    networkRequests?: number | null;
+    totalByteWeight?: number | null;
+  };
 }
 
 function ms(v: any): number | null {
@@ -250,6 +270,83 @@ export async function runPageSpeed(strategy: "mobile" | "desktop" = "mobile", ta
           out.diagnostics.push(`${audit.title} — ${audit.displayValue || `${Math.round(audit.numericValue || 0)}`}`);
         }
       }
+      // ---- deep per-audit artifacts (kept for before/after attribution) ------
+      // Everything below is REAL measured Lighthouse output — no synthesis.
+      try {
+        const detail: PsiMetric["detail"] = {};
+        const lcpPhasesAudit = a["lcp-phases"];
+        if (lcpPhasesAudit?.details?.items) {
+          detail.lcpPhases = lcpPhasesAudit.details.items.map((it: any) => ({
+            id: it.phase || it.id || "phase",
+            label: it.phaseTitle || it.title || it.phase || "phase",
+            ms: Math.round(Number(it.numericValue) || 0),
+          }));
+        }
+        const lcpElAudit = a["largest-contentful-paint-element"];
+        const lcpItem = lcpElAudit?.details?.items?.[0]?.items?.[0] || lcpElAudit?.details?.items?.[0];
+        if (lcpItem?.node) {
+          detail.lcpElement = {
+            url: lcpItem.node.url || lcpItem.url || null,
+            selector: lcpItem.node.selector || null,
+            nodeLabel: lcpItem.node.nodeLabel || null,
+            snippet: (lcpItem.node.snippet || "").slice(0, 300),
+            resourceBytes: Number(lcpItem.node.totalBytes ?? lcpItem.totalBytes) || null,
+          };
+        }
+        const ujAudit = a["unused-javascript"];
+        if (ujAudit?.details?.items) {
+          detail.unusedJs = ujAudit.details.items
+            .map((it: any) => ({ url: it.url, totalBytes: Number(it.totalBytes) || 0, wastedBytes: Number(it.wastedBytes) || 0 }))
+            .sort((x: any, y: any) => y.wastedBytes - x.wastedBytes)
+            .slice(0, 14);
+        }
+        const clsAudit = a["layout-shift-elements"];
+        if (clsAudit?.details?.items) {
+          detail.clsElements = clsAudit.details.items.slice(0, 8).map((it: any) => ({
+            nodeLabel: it.node?.nodeLabel || null,
+            score: Number(it.score) || null,
+            url: it.node?.url || it.url || null,
+            extra: it.extra?.rootCause ? String(it.extra.rootCause).slice(0, 200) : (it.subItems?.items?.[0]?.extra?.rootCause ? String(it.subItems.items[0].extra.rootCause).slice(0, 200) : null),
+          }));
+        }
+        const rbAudit = a["render-blocking-resources"];
+        if (rbAudit?.details?.items) {
+          detail.renderBlocking = rbAudit.details.items.slice(0, 12).map((it: any) => ({
+            url: it.url, totalBytes: Number(it.totalBytes) || 0, wastedMs: Math.round(Number(it.wastedMs) || 0),
+          }));
+        }
+        const buAudit = a["bootup-time"];
+        if (buAudit?.details?.items) {
+          detail.bootup = buAudit.details.items.slice(0, 10).map((it: any) => ({
+            url: it.url, totalMs: Math.round(Number(it.total) || 0), scriptingMs: Math.round(Number(it.scripting) || 0),
+          }));
+        }
+        const mtAudit = a["mainthread-work-breakdown"];
+        if (mtAudit?.details?.items) {
+          detail.mainThread = mtAudit.details.items.map((it: any) => ({ group: it.groupLabel || it.group, ms: Math.round(Number(it.duration) || 0) }));
+        }
+        const tpAudit = a["third-party-summary"];
+        if (tpAudit?.details?.items) {
+          detail.thirdParty = tpAudit.details.items
+            .map((it: any) => ({
+              entity: it.entity?.text || it.entity || "unknown",
+              blockingMs: Math.round(Number(it.blockingTime) || 0),
+              mainThreadMs: Math.round(Number(it.mainThreadTime) || 0),
+              transferBytes: Number(it.transferSize) || 0,
+            }))
+            .filter((t: any) => t.blockingMs > 0 || t.mainThreadMs > 0)
+            .sort((x: any, y: any) => y.mainThreadMs - x.mainThreadMs)
+            .slice(0, 10);
+        }
+        const tbwAudit = a["total-byte-weight"];
+        if (tbwAudit?.details?.items) {
+          detail.heaviestResources = tbwAudit.details.items.slice(0, 10).map((it: any) => ({ url: it.url, totalBytes: Number(it.totalBytes) || 0 }));
+          detail.totalByteWeight = Math.round(Number(tbwAudit.numericValue) || 0) || null;
+        }
+        const nrAudit = a["network-requests"];
+        if (nrAudit?.details?.items) detail.networkRequests = nrAudit.details.items.length;
+        out.detail = detail;
+      } catch { /* detail capture is best-effort; lab metrics already stored */ }
     }
     const le = data?.loadingExperience;
     if (le && le.overall_category && le.metrics) {
@@ -293,6 +390,7 @@ export async function storePsiResult(result: PsiMetric): Promise<void> {
       ? { lcp: result.field.lcpMs, inp: result.field.inpMs, cls: result.field.cls, fcp: result.field.fcpMs, ttfb: result.field.ttfbMs }
       : null,
     diagnostics: result.diagnostics,
+    detail: result.detail || null,
     available: result.available,
     reason: result.reason || null,
   } as any);
