@@ -2850,6 +2850,9 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   if (isPublicMediaGet) {
     const mediaUrl = new URL(req.url || "", "http://localhost");
     const mediaId = String(mediaUrl.searchParams.get("id") || "").trim();
+    // ?t=1 — the ≤600px product-card variant (perf task §7). Falls back to
+    // the original bytes when the asset predates thumbnails.
+    const wantThumb = mediaUrl.searchParams.get("t") === "1";
     if (!ObjectId.isValid(mediaId)) {
       return jsonError(res, "Media not found.", 404);
     }
@@ -2858,28 +2861,36 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         .collection("media_assets")
         .findOne({ _id: new ObjectId(mediaId) });
       if (!mediaDoc) return jsonError(res, "Media not found.", 404);
-      const stored: any = mediaDoc.bytes;
-      let mediaBytes: Buffer;
-      if (Buffer.isBuffer(stored)) {
-        mediaBytes = stored;
-      } else if (stored && Buffer.isBuffer(stored.buffer)) {
-        mediaBytes = stored.buffer.subarray(0, stored.position || stored.buffer.length);
-      } else if (stored && stored.buffer instanceof ArrayBuffer) {
-        mediaBytes = Buffer.from(
-          new Uint8Array(stored.buffer, 0, stored.position || stored.buffer.byteLength)
-        );
-      } else if (stored instanceof Uint8Array) {
-        mediaBytes = Buffer.from(stored);
-      } else {
-        mediaBytes = Buffer.from(String(stored || ""), "base64");
-      }
+      const pickBytes = (stored: any): Buffer => {
+        if (Buffer.isBuffer(stored)) return stored;
+        if (stored && Buffer.isBuffer(stored.buffer)) {
+          return stored.buffer.subarray(0, stored.position || stored.buffer.length);
+        }
+        if (stored && stored.buffer instanceof ArrayBuffer) {
+          return Buffer.from(new Uint8Array(stored.buffer, 0, stored.position || stored.buffer.byteLength));
+        }
+        if (stored instanceof Uint8Array) return Buffer.from(stored);
+        return Buffer.from(String(stored || ""), "base64");
+      };
+      const thumbStored: any = (mediaDoc as any).thumbBytes;
+      const hasThumb =
+        wantThumb &&
+        !!thumbStored &&
+        (() => {
+          try {
+            return pickBytes(thumbStored).length > 0;
+          } catch {
+            return false;
+          }
+        })();
+      const mediaBytes = hasThumb ? pickBytes(thumbStored) : pickBytes(mediaDoc.bytes);
       if (!mediaBytes || mediaBytes.length === 0) {
         return jsonError(res, "Stored media is unreadable.", 500);
       }
       // Raw Node response API — the VercelResponse helper does not reliably
       // transmit binary bodies in this runtime (see avatar endpoint note).
       res.writeHead(200, {
-        "Content-Type": String(mediaDoc.mime || "application/octet-stream"),
+        "Content-Type": String(hasThumb ? (mediaDoc as any).thumbMime || (mediaDoc as any).mime : mediaDoc.mime || "application/octet-stream"),
         // Assets are immutable: re-uploads create new ids, so a year of
         // immutable caching is safe for the storefront.
         "Cache-Control": "public, max-age=31536000, immutable",
@@ -2945,11 +2956,37 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
       const admin = verifyAdmin(req);
       const now = new Date();
+      // Perf (task §7): optional ≤600px product-card thumbnail uploaded in the
+      // SAME request — stored on the SAME asset doc so Media Manager metadata
+      // (filename/uploader/purpose) stays single-sourced. Served via ?t=1.
+      let thumbBytes: Buffer | null = null;
+      let thumbMime: string | null = null;
+      const thumbDataUrl = String(body.thumbDataUrl || "");
+      if (thumbDataUrl) {
+        const tm = /^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$/.exec(thumbDataUrl);
+        if (tm) {
+          const tDeclared = tm[1] === "image/jpg" ? "image/jpeg" : tm[1];
+          const tBuf = Buffer.from(tm[2], "base64");
+          const tWebp = tBuf.subarray(0, 4).toString("ascii") === "RIFF" && tBuf.subarray(8, 12).toString("ascii") === "WEBP";
+          const tJpeg = tBuf[0] === 0xff && tBuf[1] === 0xd8 && tBuf[2] === 0xff;
+          const tPng = tBuf[0] === 0x89 && tBuf[1] === 0x50 && tBuf[2] === 0x4e && tBuf[3] === 0x47;
+          const tSniffed = tWebp ? "image/webp" : tJpeg ? "image/jpeg" : tPng ? "image/png" : null;
+          // Best-effort: an invalid/oversized thumbnail never fails the upload —
+          // ?t=1 then falls back to the main bytes.
+          if (tSniffed && tSniffed === tDeclared && tBuf.length >= 64 && tBuf.length <= 200 * 1024) {
+            thumbBytes = tBuf;
+            thumbMime = tSniffed;
+          }
+        }
+      }
       const insertResult = await db.collection("media_assets").insertOne({
         filename,
         mime: sniffed,
         bytes,
         size: bytes.length,
+        thumbBytes,
+        thumbMime,
+        thumbSize: thumbBytes ? thumbBytes.length : null,
         uploader: String(admin?.email || "admin"),
         purpose: String(body.purpose || "product").slice(0, 40),
         createdAt: now,
@@ -2959,14 +2996,16 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         action: "media.upload",
         targetType: "media",
         targetId: insertResult.insertedId.toString(),
-        detail: `Image "${filename}" uploaded (${sniffed}, ${(bytes.length / 1024).toFixed(0)} KB)`,
+        detail: `Image "${filename}" uploaded (${sniffed}, ${(bytes.length / 1024).toFixed(0)} KB${thumbBytes ? `, thumb ${(thumbBytes.length / 1024).toFixed(0)} KB` : ""})`,
       });
       return jsonOk(res, {
         success: true,
         message: "Image uploaded successfully",
         url: `/api/admin/media?id=${insertResult.insertedId.toString()}`,
+        thumbUrl: `/api/admin/media?id=${insertResult.insertedId.toString()}&t=1`,
         publicId: insertResult.insertedId.toString(),
         size: bytes.length,
+        thumbSize: thumbBytes ? thumbBytes.length : null,
         mime: sniffed,
       }, 201);
     } catch (err: any) {

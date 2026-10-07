@@ -5,7 +5,7 @@ import {
   Search, Globe, Eye,
 } from 'lucide-react'
 import { Product, ProductSeo } from '../../types'
-import { compressImageFile, uploadProductImage, ensureImageUrl, isDataImageUrl } from '../../lib/uploadImage'
+import { compressImageFileWithThumb, uploadProductImage, ensureImageUrl, isDataImageUrl } from '../../lib/uploadImage'
 
 interface ProductEditorModalProps {
   product: Product | null // null = create mode
@@ -144,8 +144,9 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
     setUploadingImg(true)
     setErrorMsg(null)
     try {
-      const compressed = await compressImageFile(file)
-      const uploaded = await uploadProductImage(compressed, file.name || 'product-main-image')
+      // Perf (task §7): WebP main + ≤600px card thumbnail in one upload
+      const compressed = await compressImageFileWithThumb(file)
+      const uploaded = await uploadProductImage(compressed.dataUrl, file.name || 'product-main-image', 'product', compressed.thumbDataUrl)
       if (!uploaded.ok) {
         setErrorMsg(uploaded.error || 'Image upload failed — please try again.')
       } else {
@@ -172,8 +173,8 @@ export const ProductEditorModal: React.FC<ProductEditorModalProps> = ({
         continue
       }
       try {
-        const compressed = await compressImageFile(file)
-        const uploaded = await uploadProductImage(compressed, file.name || 'product-gallery-image')
+        const compressed = await compressImageFileWithThumb(file)
+        const uploaded = await uploadProductImage(compressed.dataUrl, file.name || 'product-gallery-image', 'product', compressed.thumbDataUrl)
         if (uploaded.ok && uploaded.url) uploadedUrls.push(uploaded.url)
         else failed.push(`${file.name}: ${uploaded.error || 'upload failed'}`)
       } catch (e: any) {

@@ -26,10 +26,11 @@ import {
 } from 'lucide-react'
 import { Product, ProductSeo, ProductVariant } from '../../types'
 import {
-  compressImageFile,
+  compressImageFileWithThumb,
   uploadProductImage,
   ensureImageUrl,
   isDataImageUrl,
+  mediaThumbUrl,
 } from '../../lib/uploadImage'
 import { HtmlEditor } from './HtmlEditor'
 import { RegionCombobox } from './RegionCombobox'
@@ -315,8 +316,11 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       setErrorMsg(`"${file.name}" is too large (max 15MB before compression).`)
       return null
     }
-    const compressed = await compressImageFile(file)
-    const uploaded = await uploadProductImage(compressed, file.name || hint)
+    // Perf (task §7): WebP q85 main (≤1600px) + ≤600px card thumbnail in
+    // one upload. The hero purpose keeps artwork detail (≤1920px).
+    const purpose = hint.includes('hero') ? 'hero' : 'product'
+    const compressed = await compressImageFileWithThumb(file, purpose)
+    const uploaded = await uploadProductImage(compressed.dataUrl, file.name || hint, 'product', compressed.thumbDataUrl)
     if (!uploaded.ok || !uploaded.url) {
       setErrorMsg(uploaded.error || 'Image upload failed — please try again.')
       return null
@@ -529,6 +533,9 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       costPrice: form.costPrice ? Number(form.costPrice) : undefined,
       currency: form.currency || 'PKR',
       image: mainUrl || '/playbeat-logo.png',
+      // Perf (task §7): card-size variant for grid rendering (same artwork,
+      // ≤600px). null for non-media URLs — no visual change, pure byte win.
+      imageThumb: mediaThumbUrl(mainUrl) || undefined,
       galleryImages: galleryUrls,
       gallery: [mainUrl || '/playbeat-logo.png', ...galleryUrls],
       additionalImages: galleryUrls,

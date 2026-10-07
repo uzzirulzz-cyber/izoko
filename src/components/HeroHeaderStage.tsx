@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react'
+import React, { forwardRef, useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 
 /**
@@ -37,6 +37,15 @@ interface HeroHeaderStageProps {
   onBrowseCategories: () => void
   cartCount: number
   wishlistCount: number
+  /**
+   * Perf (task §5): when the hero is server-replicated and adopted via
+   * hydrateRoot, the replica renders WITHOUT the sr-only H1 so the homepage
+   * keeps exactly ONE crawler-visible H1 (the transitional SEO block's).
+   * The client initial render must match that replica byte-for-byte, so the
+   * H1 is inserted in a post-hydration effect. The in-app render path (no
+   * replica) keeps the default (immediate) — unchanged behavior.
+   */
+  deferSrH1?: boolean
 }
 
 // Design hotspot grid (percentages of the 1672×941 stage) — ported 1:1 from
@@ -76,11 +85,20 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
       onBrowseCategories,
       cartCount,
       wishlistCount,
+      deferSrH1 = false,
     },
     stageRef
   ) => {
     // Category select overlay — design options mapped to real storefront routes
     const [category, setCategory] = useState('')
+    // sr-only H1 timing for the hydrated-replica path (see props doc):
+    // the server replica omits the H1 so the homepage keeps exactly ONE
+    // crawler-visible H1; the client initial render must match the replica
+    // byte-for-byte, so the H1 is inserted in a post-hydration effect.
+    const [showSrH1, setShowSrH1] = useState(!deferSrH1)
+    useEffect(() => {
+      if (deferSrH1) setShowSrH1(true)
+    }, [deferSrH1])
     const CATEGORY_OPTIONS: { value: string; label: string; path?: string }[] = [
       { value: '', label: 'All Categories' },
       { value: 'ai-productivity', label: 'AI & Productivity', path: '/ai-subscriptions' },
@@ -152,7 +170,7 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
           className="pbhs-stage relative"
           style={{ backgroundImage: 'url(/hero_header_v3.webp)' }}
         >
-          <h1 className="sr-only">PlayBeat Digital — Your World of Digital Possibilities</h1>
+          {showSrH1 && <h1 className="sr-only">PlayBeat Digital — Your World of Digital Possibilities</h1>}
 
           {/* ===== Search pill overlays (real inputs, design coordinates).
                The artwork bakes the placeholder + "All Categories" labels, so

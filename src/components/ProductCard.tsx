@@ -111,8 +111,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         {/* Media */}
         <div className="relative aspect-[16/10] sm:aspect-[4/3] w-full rounded-2xl overflow-hidden bg-[#060D26]">
           <div className="relative w-full h-full overflow-hidden">
+            {/* Perf (task §7): card grid renders the ≤600px thumbnail variant
+                when the asset has one — identical artwork, smaller transfer. */}
             <img
-              src={product.image}
+              src={product.imageThumb || product.image}
               alt={product.name}
               loading="lazy"
               className="w-full h-full object-cover object-center group-hover:scale-[1.06] transition-transform duration-700 ease-out"

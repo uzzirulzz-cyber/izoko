@@ -100,6 +100,8 @@ export interface Product {
   currency?: string
   discountPercent?: number
   image: string
+  /** Perf (task §7): ≤600px card-grid variant served from media_assets (?t=1) */
+  imageThumb?: string
   galleryImages?: string[]
   gallery?: string[]
   additionalImages?: string[]

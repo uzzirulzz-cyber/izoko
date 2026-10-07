@@ -1,6 +1,7 @@
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import React from 'react';
 import App from './App.tsx';
+import { HeroSurfaceBridge, heroReplicaPresent } from './heroBridge';
 import './index.css';
 
 // Error boundary to catch render crashes and show a fallback
@@ -37,6 +38,25 @@ class ErrorBoundary extends React.Component<
 }
 
 const root = document.getElementById('root')!;
+
+// ---- Perf (task §5): ADOPT the static hero replica instead of re-creating
+// it. On the homepage the server shipped <div id="hero-root"> with the exact
+// markup HeroSurfaceBridge renders. Hydrating it keeps the same DOM node the
+// browser already painted (early LCP); createRoot below then never has to
+// re-create the hero. On non-home routes the static replica is stripped
+// immediately (same pre-mount flash window as the old in-#root block) and
+// the surface renders on demand after client-side navigation to home.
+const heroRoot = document.getElementById('hero-root');
+if (heroRoot && heroReplicaPresent()) {
+  const p = window.location.pathname.toLowerCase().replace(/\/+$/, '').replace(/^\//, '');
+  const isHome = p === '' || p === 'storefront';
+  if (isHome) {
+    hydrateRoot(heroRoot, React.createElement(HeroSurfaceBridge));
+  } else {
+    heroRoot.innerHTML = '';
+  }
+}
+
 createRoot(root).render(
   React.createElement(ErrorBoundary, null, React.createElement(App))
 );

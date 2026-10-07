@@ -241,6 +241,7 @@ const slugify = (t: string) => breadcrumbSlugify(t || '')
 import { applyRouteSeo } from './lib/seo'
 import { applyProductJsonLd, applyBreadcrumbJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
+import { setHeroState, setHeroHandlers, getHeroStageEl, heroReplicaPresent } from './heroBridge'
 import { initGoogleTracking, trackAddToCart, trackSearch, trackViewItem } from './lib/googleTag'
 // NOTE: ConsentBanner, AdSlot, DownloadPage, AppDownloadSection,
 // InstallPwaChip, InvoicePage, CmsHomepageSections, CRMApp and the four
@@ -785,13 +786,18 @@ export function App() {
 
   // Sync selectedCategory with the route — category pages like /streaming
   // automatically filter to that category. Homepage shows all products.
+  const initialRouteRef = useRef(true)
   useEffect(() => {
     if (CATEGORY_ROUTE_KEYS.includes(route)) {
       setSelectedCategory(CATEGORY_ROUTES[route as string] || 'all')
-    } else if (route === 'storefront') {
-      // Only reset to 'all' when navigating to the homepage explicitly,
-      // not on initial load (which might be a deep link to a category)
+    } else if (route === 'storefront' && !initialRouteRef.current) {
+      // Returning to the homepage (browser back / popstate / logo) — restore
+      // the unfiltered home. Before this fix a back-navigation from a
+      // category page left '/' stuck in the category filter: no hero, no
+      // home sections (measured on production, pre-existing bug).
+      setSelectedCategory('all')
     }
+    initialRouteRef.current = false
   }, [route])
 
   // /category/:slug deep links — map the URL slug to the category name and
@@ -828,6 +834,14 @@ export function App() {
   // selectedCategory is declared.)
   const heroStageRef = useRef<HTMLDivElement>(null)
   const [showFloatedHeader, setShowFloatedHeader] = useState(false)
+  // Perf (task §5): when the served document shipped the static hero replica
+  // (homepage only), the hero + announcement bar are OWNED by the hydrated
+  // surface in #hero-root (see heroBridge.tsx) — React adopts the server
+  // nodes instead of re-creating them, which is what kept mobile LCP at
+  // 9.8-13.2s under PSI throttling (measured: LCP = React commit time).
+  // main.tsx clears #hero-root before this component renders on non-home
+  // routes, so this flag is stable for the whole session.
+  const heroReplica = useMemo(() => heroReplicaPresent(), [])
 
   // When navigating to admin, check if a stored admin session is still valid.
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
@@ -1196,7 +1210,9 @@ export function App() {
     const onScroll = () => {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
-        const el = heroStageRef.current
+        // With the static hero replica the <main> lives in #hero-root (outside
+        // this component) — measure the adopted node via the bridge.
+        const el = heroReplica ? getHeroStageEl() : heroStageRef.current
         if (!el) return
         setShowFloatedHeader(el.getBoundingClientRect().bottom < 72)
       })
@@ -2038,6 +2054,66 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // ---- Perf (task §5): hydrated hero surface sync (see heroBridge.tsx). ----
+  // Stage callbacks — same bodies as the in-app hero's inline props (the
+  // fallback path below still uses those), extracted so the bridge can bind
+  // identical behavior to the adopted hero.
+  const handleStageNavigateHome = () => {
+    setSearchQuery('')
+    setSelectedCategory('all')
+    setPriceFilter('all')
+    navigate('storefront')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  const handleStageWishlistOpen = () => {
+    if (!user) {
+      setIsAuthOpen(true)
+      showToast('Please sign in to view your wishlist')
+      return
+    }
+    setIsWishlistOpen(true)
+  }
+  const handleStageScrollToProducts = () => {
+    document.getElementById('popular-products-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
+  const handleStageScrollToCategories = () => {
+    document.getElementById('shop-by-category')?.scrollIntoView({ behavior: 'smooth' })
+  }
+  // Handlers refresh every render (silent — never re-renders the hero);
+  // render-affecting state diffs inside setHeroState and only notify on
+  // actual changes.
+  useEffect(() => {
+    if (!heroReplica) return
+    setHeroHandlers({
+      onSearchChange: setSearchQuery,
+      onNavigate: onStageNavigate,
+      onNavigateHome: handleStageNavigateHome,
+      onSelectCategory: handleSelectCategory,
+      onOpenCart: handleOpenCart,
+      onOpenWishlist: handleStageWishlistOpen,
+      onOpenAuth: () => setIsAuthOpen(true),
+      onOpenAccountTab: handleOpenAccountTab,
+      onOpenOffers: onStageOffers,
+      onOpenTrending: handleStageScrollToProducts,
+      onOpenBestValue: onStageBestValue,
+      onSearchSubmit: handleStageScrollToProducts,
+      onExploreProducts: handleStageScrollToProducts,
+      onBrowseCategories: handleStageScrollToCategories,
+    })
+    setHeroState({
+      visible: isStorefrontHome,
+      // Only propagate the announcement once the CMS settings have actually
+      // loaded — until then the bridge keeps the build-time snapshot, which
+      // is pixel-identical and avoids the announce-bar flash (the old
+      // behavior was: replica bar → blank → bar again when CMS arrived).
+      ...(cmsSettings ? { announcement: cmsSettings.announcement ?? null } : {}),
+      user,
+      cartCount,
+      wishlistCount: wishlist.length,
+      searchQuery,
+    })
+  })
+
   return (
     <div className="pb-store min-h-screen bg-[#070B12] text-[#F5F7FA] font-sans selection:bg-yellow-400 selection:text-slate-950 flex flex-col relative overflow-x-hidden">
       {/* Toast Notification */}
@@ -2399,8 +2475,11 @@ export function App() {
       {/* STOREFRONT (homepage + category pages) — completely separate from admin */}
       {isStorefrontRoute && (
         <>
-          {/* CMS Announcement Bar — editable via Website Builder CMS */}
-          {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && !isServicesSectionRoute && (
+          {/* CMS Announcement Bar — editable via Website Builder CMS.
+              With the static hero replica (homepage), the hydrated surface
+              in #hero-root owns the bar — App skips it here to avoid a
+              duplicate (bridge state is synced from the same cmsSettings). */}
+          {cmsSettings?.announcement?.enabled && cmsSettings.announcement.text && !isServicesSectionRoute && !(heroReplica && isStorefrontHome) && (
             <div
               className="w-full bg-gradient-to-r from-amber-400/15 via-[#0A122E] to-amber-400/15 border-b border-amber-400/25 text-center py-2 px-4 cursor-pointer group"
               onClick={() => {
@@ -2418,8 +2497,10 @@ export function App() {
           {/* HERO HEADER STAGE — "PlayBeat Digital — Hero Header (2)" design:
               the whole header + hero as one pixel-perfect artwork with real
               search / category / hotspot interactions. Home only — the CSS
-              Header below floats in (fixed) once the stage scrolls away. */}
-          {isStorefrontHome && (
+              Header below floats in (fixed) once the stage scrolls away.
+              With the static hero replica this in-app render is SKIPPED —
+              #hero-root owns it (perf §5, see heroBridge.tsx). */}
+          {isStorefrontHome && !heroReplica && (
             <HeroHeaderStage
               ref={heroStageRef}
               searchQuery={searchQuery}

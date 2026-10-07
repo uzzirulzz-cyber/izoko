@@ -3,6 +3,7 @@ import {
   ImageIcon, Search, UploadCloud, Trash2, ArrowUpCircle, Check, Loader2, AlertTriangle,
 } from 'lucide-react'
 import { Product } from '../../types'
+import { compressImageFileWithThumb, uploadProductImage, mediaThumbUrl } from '../../lib/uploadImage'
 
 interface MediaLibraryPanelProps {
   products: Product[]
@@ -46,14 +47,6 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
     [products]
   )
 
-  const readFileAsDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-
   const handleQuickReplace = async (product: Product, files: FileList | null) => {
     if (!files || files.length === 0) return
     const file = files[0]
@@ -66,19 +59,33 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
       return
     }
     try {
-      const dataUrl = await readFileAsDataUrl(file)
+      // Perf (task §7): quick-replace goes through the SAME compression +
+      // upload pipeline as the product editor (WebP main + ≤600px thumbnail,
+      // media-library URL in the payload) instead of embedding raw base64.
+      const compressed = await compressImageFileWithThumb(file)
+      const uploaded = await uploadProductImage(
+        compressed.dataUrl,
+        file.name || `${product.sku || product.name || 'product'}-main`,
+        'product',
+        compressed.thumbDataUrl
+      )
+      if (!uploaded.ok || !uploaded.url) {
+        triggerToast(uploaded.error || 'Image upload failed')
+        return
+      }
       const oldMain = product.image
       const updated: Product = {
         ...product,
-        image: dataUrl,
+        image: uploaded.url,
+        imageThumb: mediaThumbUrl(uploaded.url) || undefined,
         galleryImages: oldMain ? [oldMain, ...(product.galleryImages || [])] : product.galleryImages,
-        gallery: [dataUrl, oldMain, ...(product.galleryImages || [])].filter(Boolean),
+        gallery: [uploaded.url, oldMain, ...(product.galleryImages || [])].filter(Boolean),
       }
       setSavingId(product.id)
       await onSaveProduct(updated, false)
       triggerToast(`Image updated for ${product.name}`)
     } catch {
-      triggerToast('Failed to read image file')
+      triggerToast('Failed to process image file')
     } finally {
       setSavingId(null)
       if (fileRef.current) fileRef.current.value = ''
