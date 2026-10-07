@@ -146,6 +146,9 @@ export function formatProduct(doc: any) {
     ...(rest.backorder ? { backorder: rest.backorder } : {}),
     ...(rest.deliveryEstimate ? { deliveryEstimate: String(rest.deliveryEstimate) } : {}),
     ...(Array.isArray(rest.galleryMeta) && rest.galleryMeta.length ? { galleryMeta: rest.galleryMeta } : {}),
+    // ≤600px card thumbnail URL (perf task §7): derived at save time from the
+    // media/image route; the card renders it instead of the full-size original.
+    ...(rest.imageThumb ? { imageThumb: String(rest.imageThumb) } : {}),
     createdAt: rest.createdAt || new Date(),
     updatedAt: rest.updatedAt || new Date(),
   };
