@@ -45,6 +45,26 @@ import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
 import { formatProduct, stripHtmlText } from "../_lib/product.js";
 import { slugify } from "../_lib/config.js";
+// SEO Live Audit engine (crawls production, MongoDB-backed runs) + providers
+import {
+  startAudit,
+  crawlBatch,
+  finalizeAudit,
+  getRunStatus,
+  crawlOne,
+} from "../_lib/seoAuditEngine.js";
+import {
+  gscSnapshot,
+  gscInspectUrl,
+  runPageSpeed,
+  storePsiResult,
+  storeGscSnapshot,
+} from "../_lib/seoProviders.js";
+import { SEO_SITE, loadRobots, parseHtmlSeo, resolveUrlChain } from "../_lib/seoCrawler.js";
+
+// Live audit crawls and PageSpeed runs need more than the default function
+// window — admin routes are authenticated so the raise is safe.
+export const maxDuration = 60;
 import {
   handleOptions,
   jsonOk,
@@ -118,6 +138,48 @@ import {
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Automatic duplicate-metadata detection for product saves.
+ * Compares the incoming seo.title + effective meta description against every
+ * other product in MongoDB. Advisory only — the caller includes the result as
+ * `seoWarnings` in the API response; nothing is blocked or overwritten.
+ */
+async function checkProductSeoDuplicates(
+  db: any,
+  incoming: { excludeId?: string | null; seoTitle?: string; metaDescription?: string; shortDescription?: string; description?: string }
+): Promise<Array<{ type: string; message: string; usedBy: Array<{ id: string; name: string; slug: string; sku: string }> }>> {
+  const norm = (s: any) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const incomingDesc =
+    norm(incoming.metaDescription) ||
+    norm(stripHtmlText(String(incoming.shortDescription || ""))) ||
+    norm(stripHtmlText(String(incoming.description || "")));
+  const incomingTitle = norm(incoming.seoTitle);
+  if (!incomingTitle && incomingDesc.length < 30) return [];
+  const docs = await db
+    .collection("products")
+    .find(
+      incoming.excludeId ? { _id: { $ne: new ObjectId(incoming.excludeId) } } : {},
+      { projection: { name: 1, slug: 1, sku: 1, seo: 1, shortDescription: 1, description: 1 } }
+    )
+    .toArray();
+  const warnings: Array<{ type: string; message: string; usedBy: Array<{ id: string; name: string; slug: string; sku: string }> }> = [];
+  const view = (d: any) => ({ id: String(d._id), name: d.name || d.sku || String(d._id), slug: d.slug || "", sku: d.sku || "" });
+  if (incomingTitle) {
+    const usedBy = docs.filter((d: any) => norm(d.seo?.title || "") === incomingTitle).map(view);
+    if (usedBy.length) warnings.push({ type: "duplicate-title", message: `Duplicate SEO title detected — already used by ${usedBy.length} product(s).`, usedBy: usedBy.slice(0, 10) });
+  }
+  if (incomingDesc.length >= 30) {
+    const usedBy = docs
+      .filter((d: any) => {
+        const other = norm(d.seo?.description || "") || norm(stripHtmlText(String(d.shortDescription || ""))) || norm(stripHtmlText(String(d.description || "")));
+        return other && other === incomingDesc;
+      })
+      .map(view);
+    if (usedBy.length) warnings.push({ type: "duplicate-description", message: `Duplicate meta description detected — already used by ${usedBy.length} product(s).`, usedBy: usedBy.slice(0, 10) });
+  }
+  return warnings;
 }
 
 // =====================================================================
@@ -789,6 +851,255 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       return jsonError(res, "Unknown action — use audit | broken-links | regenerate | redirects-list | redirect-add | redirect-delete | gsc-status | gsc-submit-sitemap | merchant-audit.", 400);
     } catch (err: any) {
       return jsonError(res, err.message || "SEO action failed", 500);
+    }
+  }
+
+  // ===========================================================================
+  // SEO LIVE AUDIT ENGINE (/api/admin/seo/audit)
+  // Crawls real production URLs, stores runs in MongoDB, computes the SEO
+  // Health Score from measured results only. Chunked execution keeps each
+  // request inside serverless limits; the client drives batches.
+  // ===========================================================================
+  if (route === "seo/audit" && req.method === "GET") {
+    try {
+      const runId = (req.query.runId as string) || "";
+      const status = await getRunStatus(db, runId || undefined);
+      const history = await db
+        .collection("seoAuditRuns")
+        .find({ mode: { $ne: "page" } }, { projection: { startedAt: 1, completedAt: 1, status: 1, mode: 1, trigger: 1, totalUrls: 1, crawledUrls: 1, score: 1, summary: 1 } })
+        .sort({ startedAt: -1 })
+        .limit(20)
+        .toArray();
+      const openFindings = await db
+        .collection("seoAuditFindings")
+        .find({ resolved: false, ignored: { $ne: true } })
+        .sort({ severity: 1, category: 1 })
+        .limit(500)
+        .toArray();
+      const sevRank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+      openFindings.sort((a: any, b: any) => (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9));
+      return jsonOk(res, {
+        success: true,
+        run: status,
+        history: history.map((h: any) => ({ ...h, _id: h._id.toString() })),
+        findings: openFindings.map((x: any) => ({ ...x, _id: x._id.toString() })),
+      });
+    } catch (err: any) {
+      return jsonError(res, err.message || "SEO audit status failed", 500);
+    }
+  }
+
+  if (route === "seo/audit" && req.method === "POST") {
+    try {
+      const action = String((req.body || {}).action || "").toLowerCase();
+
+      // ---- discover + create run ----
+      if (action === "start") {
+        const mode = (req.body?.mode as "full" | "recheck") === "recheck" ? "recheck" : "full";
+        const urlFilter = Array.isArray(req.body?.urlFilter) ? req.body.urlFilter.map(String).slice(0, 500) : undefined;
+        const started = await startAudit(db, { mode, trigger: String(req.body?.trigger || "admin"), urlFilter });
+        return jsonOk(res, { success: true, ...started });
+      }
+
+      // ---- crawl the next batch of URLs ----
+      if (action === "crawl-batch") {
+        const runId = String(req.body?.runId || "");
+        if (!/^[a-f\d]{24}$/i.test(runId)) return jsonError(res, "Valid runId required.", 400);
+        const batchSize = Math.max(1, Math.min(parseInt(String(req.body?.batchSize || "10"), 10) || 10, 20));
+        const result = await crawlBatch(db, runId, batchSize);
+        return jsonOk(res, { success: true, ...result });
+      }
+
+      // ---- duplicates + sitemap validation + score + findings ----
+      if (action === "finalize") {
+        const runId = String(req.body?.runId || "");
+        if (!/^[a-f\d]{24}$/i.test(runId)) return jsonError(res, "Valid runId required.", 400);
+        const result = await finalizeAudit(db, runId);
+        return jsonOk(res, { success: true, ...result });
+      }
+
+      // ---- single-URL page audit (Run Page Audit) ----
+      if (action === "page-audit") {
+        const url = String(req.body?.url || "").trim();
+        const full = /^https?:\/\//.test(url) ? url : `${SEO_SITE}${url.startsWith("/") ? url : `/${url}`}`;
+        if (!full.startsWith(SEO_SITE)) return jsonError(res, "URL must be on playbeat.digital.", 400);
+        const robots = await loadRobots();
+        const published = new Set<string>();
+        const docs = await db.collection("products").find({ active: { $ne: false } }).project({ slug: 1 }).toArray();
+        for (const d of docs) if (d.slug) published.add(String(d.slug));
+        const type = full === `${SEO_SITE}/` ? "homepage" : full.includes("/product/") ? "product" : "page";
+        const page = await crawlOne({ url: full.replace(/\/$/, "") || `${SEO_SITE}/`, type, source: ["manual"] }, robots, published);
+        const runDoc = {
+          trigger: "admin", mode: "page", status: "completed",
+          startedAt: new Date(), completedAt: new Date(),
+          totalUrls: 1, crawledUrls: 1, failedUrls: page.httpStatus >= 400 || page.httpStatus === 0 ? 1 : 0,
+          pages: [page], urls: [{ url: page.url, type, source: ["manual"], crawled: true }],
+          summary: { counts: { http200: page.httpStatus === 200 ? 1 : 0 }, findingsCount: page.issues.length, severityCounts: { critical: page.issues.filter((i) => i.severity === "critical").length, high: page.issues.filter((i) => i.severity === "high").length, medium: page.issues.filter((i) => i.severity === "medium").length, low: page.issues.filter((i) => i.severity === "low").length, info: 0 } },
+          score: { total: page.score, breakdown: page.scoreNotes, partial: true, note: "Single-URL page score (page-level breakdown)." },
+        };
+        const ins = await db.collection("seoAuditRuns").insertOne(runDoc as any);
+        return jsonOk(res, { success: true, runId: ins.insertedId.toString(), page });
+      }
+
+      // ---- re-check every URL that failed in a previous run ----
+      if (action === "recheck-failed") {
+        const refRunId = String(req.body?.runId || "");
+        const src = refRunId
+          ? await db.collection("seoAuditRuns").findOne({ _id: new ObjectId(refRunId) })
+          : await db.collection("seoAuditRuns").findOne({ mode: { $ne: "page" }, status: "completed" }, { sort: { startedAt: -1 } });
+        if (!src) return jsonError(res, "No previous audit run found to recheck.", 404);
+        const failed = (src.pages || [])
+          .filter((p: any) => p.httpStatus === 0 || p.httpStatus >= 400 || p.soft404Suspected || p.redirectLoop)
+          .map((p: any) => p.url);
+        if (!failed.length) return jsonOk(res, { success: true, message: "No failed URLs in the selected run — nothing to recheck.", failedCount: 0 });
+        const started = await startAudit(db, { mode: "recheck", trigger: "admin-recheck", urlFilter: failed });
+        return jsonOk(res, { success: true, sourceRun: src._id.toString(), failedCount: failed.length, ...started });
+      }
+
+      // ---- export the latest (or given) run as CSV / JSON ----
+      if (action === "export") {
+        const format = String(req.body?.format || "json").toLowerCase();
+        const runId = String(req.body?.runId || "");
+        const run = runId
+          ? await db.collection("seoAuditRuns").findOne({ _id: new ObjectId(runId) })
+          : await db.collection("seoAuditRuns").findOne({ status: "completed" }, { sort: { startedAt: -1 } });
+        if (!run) return jsonError(res, "No completed audit run available to export.", 404);
+        const stamp = (run.completedAt || run.startedAt || new Date()).toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        if (format === "csv") {
+          const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+          const cols = ["url", "type", "httpStatus", "indexable", "indexReason", "title", "titleLength", "metaDescriptionLength", "canonical", "h1Count", "wordCount", "imagesTotal", "imagesMissingAlt", "jsonLdTypes", "spaShell", "soft404Suspected", "score"];
+          const rows = (run.pages || []).map((p: any) =>
+            cols.map((c) => (c === "jsonLdTypes" ? (p.jsonLd || []).flatMap((b: any) => b.types).join("|") : esc(p[c]))).join(",")
+          );
+          const csv = `${cols.join(",")}\n${rows.join("\n")}\n`;
+          res.setHeader("Content-Type", "text/csv; charset=utf-8");
+          res.setHeader("Content-Disposition", `attachment; filename="seo-audit-${stamp}.csv"`);
+          return res.status(200).send(csv);
+        }
+        const payload = {
+          exportedAt: new Date().toISOString(),
+          run: { ...run, _id: run._id.toString() },
+        };
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="seo-audit-${stamp}.json"`);
+        return res.status(200).send(JSON.stringify(payload, null, 2));
+      }
+
+      // ---- findings list (severity-filterable) ----
+      if (action === "findings") {
+        const severity = String(req.body?.severity || "");
+        const q: any = { resolved: false, ignored: { $ne: true } };
+        if (severity && ["critical", "high", "medium", "low", "info"].includes(severity)) q.severity = severity;
+        const list = await db.collection("seoAuditFindings").find(q).sort({ severity: 1, lastSeenAt: -1 }).limit(500).toArray();
+        return jsonOk(res, { success: true, findings: list.map((x: any) => ({ ...x, _id: x._id.toString() })) });
+      }
+
+      // ---- ignore a finding (admin decision, never auto-hidden) ----
+      if (action === "finding-ignore") {
+        const fid = String(req.body?.id || "");
+        if (!/^[a-f\d]{24}$/i.test(fid)) return jsonError(res, "Valid finding id required.", 400);
+        await db.collection("seoAuditFindings").updateOne({ _id: new ObjectId(fid) }, { $set: { ignored: true, ignoredAt: new Date() } });
+        await writeAudit(db, { actor: verifyAdmin(req), action: "seo.finding.ignore", targetType: "seoFinding", targetId: fid, detail: "Finding marked ignored by admin" });
+        return jsonOk(res, { success: true });
+      }
+
+      // ---- Search Console refresh (official API, env-configured) ----
+      if (action === "gsc-refresh") {
+        const snap = await gscSnapshot();
+        await storeGscSnapshot(snap);
+        return jsonOk(res, { success: true, gsc: snap });
+      }
+
+      // ---- URL Inspection API for one URL ----
+      if (action === "gsc-inspect") {
+        const url = String(req.body?.url || "").trim();
+        if (!url) return jsonError(res, "url required", 400);
+        const inspection = await gscInspectUrl(url);
+        return jsonOk(res, { success: true, inspection });
+      }
+
+      // ---- Core Web Vitals: fresh live PageSpeed run ----
+      if (action === "pagespeed") {
+        const strategy = String(req.body?.strategy || "mobile") === "desktop" ? "desktop" : "mobile";
+        const result = await runPageSpeed(strategy);
+        await storePsiResult(result);
+        return jsonOk(res, { success: true, pagespeed: result });
+      }
+
+      // ---- stored CWV history (only real measurements) ----
+      if (action === "cwv-history") {
+        const rows = await db
+          .collection("seoPerformanceHistory")
+          .find({ source: "pagespeed" })
+          .sort({ measuredAt: -1 })
+          .limit(30)
+          .toArray();
+        return jsonOk(res, { success: true, history: rows.map((r: any) => ({ ...r, _id: r._id.toString() })) });
+      }
+
+      // ---- integrations status (booleans only — never secret values) ----
+      if (action === "integrations-status") {
+        const gsc = gscEnv();
+        const gscSettings = await db.collection("seoSettings").findOne({ key: "gsc" });
+        const psiKeyConfigured = Boolean(process.env.PAGESPEED_API_KEY);
+        const lastPsi = await db.collection("seoPerformanceHistory").findOne({ source: "pagespeed" }, { sort: { measuredAt: -1 } });
+        const lastGscSync = await db.collection("seoPerformanceHistory").findOne({ source: "gsc" }, { sort: { measuredAt: -1 } });
+        // merchant feed health — real HTTP check of the public feed endpoint
+        let merchant: any = { available: false };
+        try {
+          const started = Date.now();
+          const res2 = await fetch(`${SEO_SITE}/api/products?pbFeed=google&limit=1`, { headers: { "User-Agent": "PlayBeatSEOAudit/1.0" }, signal: AbortSignal.timeout(9000) });
+          merchant = { available: res2.ok, status: res2.status, latencyMs: Date.now() - started, note: res2.ok ? "Google Merchant feed endpoint reachable" : `feed responded ${res2.status}` };
+        } catch (e: any) {
+          merchant = { available: false, note: e?.message || "feed unreachable" };
+        }
+        return jsonOk(res, {
+          success: true,
+          integrations: [
+            {
+              id: "gsc",
+              name: "Google Search Console",
+              description: "Official Search Console API — search analytics (clicks, impressions, CTR, position) and URL inspection. Service-account credentials are read from server environment variables only.",
+              configured: gsc.configured,
+              status: gsc.configured ? "Connected" : "Disconnected",
+              envVars: ["GOOGLE_SEARCH_CONSOLE_PROPERTY", "GOOGLE_SERVICE_ACCOUNT_EMAIL", "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"],
+              lastSync: lastGscSync?.measuredAt || gscSettings?.lastSyncAt || null,
+            },
+            {
+              id: "psi",
+              name: "Google PageSpeed Insights",
+              description: "Live Lighthouse lab tests + Chrome UX field data for Core Web Vitals. Works without an API key (shared quota); set PAGESPEED_API_KEY for higher limits.",
+              configured: true,
+              status: psiKeyConfigured ? "Connected (API key)" : "Connected (keyless shared quota)",
+              envVars: ["PAGESPEED_API_KEY (optional)"],
+              lastSync: lastPsi?.measuredAt || null,
+            },
+            {
+              id: "lighthouse",
+              name: "Lighthouse",
+              description: "Performance audits delivered through the PageSpeed Insights API — no separate credentials required.",
+              configured: true,
+              status: "Connected (via PageSpeed API)",
+              envVars: [],
+              lastSync: lastPsi?.measuredAt || null,
+            },
+            {
+              id: "merchant",
+              name: "Google Merchant Center",
+              description: "Existing Google Merchant feed (pbFeed=google) — the audit checks the public feed endpoint reachability and product readiness from catalog data.",
+              configured: true,
+              status: merchant.available ? "Connected" : "API Error",
+              envVars: [],
+              lastSync: merchant.available ? new Date().toISOString() : null,
+            },
+          ],
+          merchant,
+        });
+      }
+
+      return jsonError(res, "Unknown seo/audit action — use start | crawl-batch | finalize | page-audit | recheck-failed | export | findings | finding-ignore | gsc-refresh | gsc-inspect | pagespeed | cwv-history | integrations-status.", 400);
+    } catch (err: any) {
+      return jsonError(res, err.message || "SEO audit action failed", 500);
     }
   }
 
@@ -1702,6 +2013,29 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
+  // ============ POST /api/admin/products/check-seo-duplicates ============
+  // Pre-publish duplicate metadata check (title + effective meta description).
+  // Non-destructive: returns the REAL products already using the same values.
+  if (route === "products/check-seo-duplicates" && req.method === "POST") {
+    try {
+      const body = req.body || {};
+      if (!String(body.seoTitle || "").trim() && !String(body.metaDescription || "").trim()) {
+        return jsonError(res, "Provide seoTitle and/or metaDescription to check.", 400);
+      }
+      const warnings = await checkProductSeoDuplicates(db, {
+        excludeId: body.excludeId ? String(body.excludeId) : null,
+        seoTitle: String(body.seoTitle || ""),
+        metaDescription: String(body.metaDescription || ""),
+        shortDescription: String(body.shortDescription || ""),
+        description: String(body.description || ""),
+      });
+      const checked = await db.collection("products").countDocuments();
+      return jsonOk(res, { success: true, warnings, checked });
+    } catch (err: any) {
+      return jsonError(res, err.message || "Duplicate check failed", 500);
+    }
+  }
+
   // ============ POST /api/admin/products (create) ============
   if (route === "products" && req.method === "POST") {
     // Power authority gate: creating catalog products requires Manager or higher.
@@ -1832,10 +2166,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         targetId: finalSlug,
         detail: `Product "${newProductDoc.name}" created (PKR ${newProductDoc.price})`,
       });
+      // Automatic duplicate detection (spec: warn before publish, never block silently)
+      const seoWarnings = await checkProductSeoDuplicates(db, {
+        excludeId: String(insertResult.insertedId),
+        seoTitle: newProductDoc.seo?.title || "",
+        metaDescription: newProductDoc.seo?.description || "",
+        shortDescription: newProductDoc.shortDescription || "",
+        description: newProductDoc.description || "",
+      });
       return jsonOk(res, {
         success: true,
         message: "Product created successfully in MongoDB",
         product: formatProduct({ _id: insertResult.insertedId, ...newProductDoc }),
+        ...(seoWarnings.length ? { seoWarnings } : {}),
       }, 201);
     } catch (err: any) {
       console.error("POST /api/admin/products error:", err);
@@ -1957,10 +2300,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           targetId: id,
           detail: `Product updated (${Object.keys(body || {}).slice(0, 8).join(", ")})`,
         });
+        // Automatic duplicate detection on save (never blocks — advisory)
+        const seoWarnings = await checkProductSeoDuplicates(db, {
+          excludeId: String(updateResult._id),
+          seoTitle: updateResult.seo?.title || "",
+          metaDescription: updateResult.seo?.description || "",
+          shortDescription: updateResult.shortDescription || "",
+          description: updateResult.description || "",
+        });
         return jsonOk(res, {
           success: true,
           message: "Product updated successfully",
           product: formatProduct(updateResult),
+          ...(seoWarnings.length ? { seoWarnings } : {}),
         });
       } catch (err: any) {
         console.error("PUT /api/admin/products/:id error:", err);

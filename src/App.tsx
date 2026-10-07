@@ -122,7 +122,7 @@ const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 async function syncProductToMongo(
   product: Product,
   isNew: boolean
-): Promise<{ ok: boolean; error?: string; status?: number; saved?: Product }> {
+): Promise<{ ok: boolean; error?: string; status?: number; saved?: Product; seoWarnings?: Array<{ type: string; message: string; usedBy: Array<{ id: string; name: string; slug: string; sku: string }> }> }> {
   try {
     const token = getAdminToken()
     if (!token) {
@@ -145,7 +145,9 @@ async function syncProductToMongo(
       body: JSON.stringify(product),
     })
     const data = await res.json().catch(() => null)
-    if (res.ok && data?.success) return { ok: true, saved: data.product }
+    if (res.ok && data?.success) {
+      return { ok: true, saved: data.product, ...(Array.isArray(data.seoWarnings) && data.seoWarnings.length ? { seoWarnings: data.seoWarnings } : {}) }
+    }
     if (res.status === 401) {
       return {
         ok: false,
@@ -1406,7 +1408,7 @@ export function App() {
   const handleSaveProduct = async (
     product: Product,
     isNew: boolean
-  ): Promise<{ ok: boolean; error?: string; saved?: Product }> => {
+  ): Promise<{ ok: boolean; error?: string; saved?: Product; seoWarnings?: Array<{ type: string; message: string; usedBy: Array<{ id: string; name: string; slug: string; sku: string }> }> }> => {
     // Defense-in-depth: refuse to send base64 image data (the 413 cause).
     const productJson = JSON.stringify(product)
     if (/"data:image\//i.test(productJson)) {
@@ -1449,7 +1451,8 @@ export function App() {
           ? `Product "${product.name}" saved to database successfully`
           : `Product "${product.name}" updated successfully`
       )
-      return { ok: true, saved: canonical }
+      const warnings = sync.seoWarnings
+      return { ok: true, saved: canonical, ...(Array.isArray(warnings) && warnings.length ? { seoWarnings: warnings } : {}) }
     }
 
     // REAL failure — say so plainly, keep the form open with its contents.

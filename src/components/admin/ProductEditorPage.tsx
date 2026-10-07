@@ -91,7 +91,7 @@ export interface ProductEditorPageProps {
   onSaveProduct: (
     product: Product,
     isNew: boolean
-  ) => Promise<{ ok: boolean; error?: string; saved?: Product }> | void
+  ) => Promise<{ ok: boolean; error?: string; saved?: Product; seoWarnings?: Array<{ message: string }> }> | void
   onDeleteProduct: (productId: string) => Promise<{ ok: boolean; error?: string }> | Promise<void> | void
   onToast: (msg: string, ms?: number) => void
   onDone: () => void
@@ -541,6 +541,34 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
     }
   }
 
+  // Server-side duplicate metadata check (authoritative — covers drafts and
+  // any records absent from the local catalog state). Advisory only: it never
+  // blocks Save Draft, and publishing proceeds via "Publish anyway".
+  const fetchSeoDuplicateWarnings = async (): Promise<SeoCheck[]> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/products/check-seo-duplicates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken()}` },
+        credentials: 'include',
+        body: JSON.stringify({
+          excludeId: (form as any)._id || undefined,
+          seoTitle: form.seo?.title || '',
+          metaDescription: form.seo?.description || '',
+          shortDescription: form.shortDescription || '',
+          description: form.description || '',
+        }),
+      })
+      const d = await res.json().catch(() => null)
+      if (!d?.success || !Array.isArray(d.warnings) || d.warnings.length === 0) return []
+      return d.warnings.map((w: any) => {
+        const usedBy = (w.usedBy || []).map((u: any) => `${u.name}${u.sku ? ` (${u.sku})` : ''}`).join(', ')
+        return { level: 'warning' as const, message: `${w.message} Already used by: ${usedBy}` }
+      })
+    } catch {
+      return [] // advisory — a network error here must not block publishing
+    }
+  }
+
   const doSave = async (cmsStatus: 'draft' | 'published' | 'archived', force = false) => {
     if (saving || uploading) return
     if (publishWarnings && !force) return // must click "Publish anyway" (or fix)
@@ -564,6 +592,18 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       if (soft.length > 0 && !force) {
         setPublishWarnings(soft)
         return
+      }
+      // Automatic duplicate detection against the FULL catalog (server-side).
+      // Runs before the publish confirm dialog so the admin sees exactly which
+      // products already use the same SEO title / meta description.
+      if (!force) {
+        setSaving(true)
+        const dupWarnings = await fetchSeoDuplicateWarnings()
+        setSaving(false)
+        if (dupWarnings.length > 0) {
+          setPublishWarnings([...soft, ...dupWarnings])
+          return
+        }
       }
     }
     if (cmsStatus !== 'published' && !form.name.trim()) {
@@ -614,7 +654,12 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
       // editor is clean, then return to the products list.
       const saved = (result as any)?.saved as Product | undefined
       setBaseline(snapshot(saved || payload, mainUrl || payload.image, gallery, tagsInput, featuresInput))
-      onToast(cmsStatus === 'draft' ? 'Draft saved to database' : isNew ? 'Product saved successfully.' : 'Product updated successfully.')
+      const serverWarnings = (result as any)?.seoWarnings as Array<{ message: string }> | undefined
+      if (Array.isArray(serverWarnings) && serverWarnings.length > 0) {
+        onToast(`Saved — but ${serverWarnings.length} duplicate metadata warning${serverWarnings.length === 1 ? '' : 's'}: ${serverWarnings[0].message}`, 9000)
+      } else {
+        onToast(cmsStatus === 'draft' ? 'Draft saved to database' : isNew ? 'Product saved successfully.' : 'Product updated successfully.')
+      }
       setSaving(false)
       onDone()
     } catch (e: any) {

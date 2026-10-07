@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Product } from '../../types'
 import { SeoPanel } from './SeoPanel'
+import { SeoLiveAudit, SeoIntegrations } from './SeoLiveAudit'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
@@ -64,6 +65,7 @@ const STATIC_PAGES: { url: string; type: string; title: string }[] = [
 type Section =
   | 'overview' | 'pages' | 'products' | 'sitemap' | 'indexability' | 'schema'
   | 'meta' | 'broken' | 'redirects' | 'gsc' | 'merchant' | 'cwv'
+  | 'liveaudit' | 'integrations'
 
 export const SeoControlCenter: React.FC<SeoControlCenterProps> = ({ products, onAdminNavigate, onToast }) => {
   const [section, setSection] = React.useState<Section>('overview')
@@ -248,6 +250,8 @@ export const SeoControlCenter: React.FC<SeoControlCenterProps> = ({ products, on
     { key: 'gsc', label: 'Search Console', icon: <Globe className="w-3.5 h-3.5" /> },
     { key: 'merchant', label: 'Merchant SEO', icon: <ShoppingBag className="w-3.5 h-3.5" /> },
     { key: 'cwv', label: 'Core Web Vitals', icon: <MonitorSmartphone className="w-3.5 h-3.5" /> },
+    { key: 'liveaudit', label: 'Live SEO Audit', icon: <ScanLine className="w-3.5 h-3.5" /> },
+    { key: 'integrations', label: 'Integrations', icon: <Globe className="w-3.5 h-3.5" /> },
   ]
 
   return (
@@ -879,6 +883,12 @@ export const SeoControlCenter: React.FC<SeoControlCenterProps> = ({ products, on
           </div>
         </div>
       )}
+
+      {/* ============ LIVE SEO AUDIT ENGINE ============ */}
+      {section === 'liveaudit' && <SeoLiveAudit onToast={onToast} products={products} />}
+
+      {/* ============ SEO INTEGRATIONS / PLUGINS ============ */}
+      {section === 'integrations' && <SeoIntegrations onToast={onToast} products={products} />}
     </div>
   )
 }
