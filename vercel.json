@@ -88,10 +88,6 @@
   ],
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/api/products?pbRender=1&pbPath=/"
-    },
-    {
       "source": "/sitemap.xml",
       "destination": "/api/products?pbSitemap=index"
     },

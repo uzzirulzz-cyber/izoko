@@ -121,10 +121,10 @@ export const SEO_SHELL_HTML = `<!doctype html>
     fbq('track', 'PageView');
     </script>
     <!-- End Meta Pixel Code -->
-    <script type="module" crossorigin src="/assets/index-DBpitSCR.js"></script>
+    <script type="module" crossorigin src="/assets/index-C7JYypfv.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-icons-9LwQIMG3.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-TDEt5WUy.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-DOuyC_Rh.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-Cn_x-g5v.css">
   </head>
   <body class="bg-[#0A0A0B] text-[#E0E0E0] antialiased selection:bg-emerald-500 selection:text-black">
     <!-- Meta Pixel Code (noscript fallback) -->
@@ -132,7 +132,30 @@ export const SEO_SHELL_HTML = `<!doctype html>
     src="https://www.facebook.com/tr?id=1971402550484565&ev=PageView&noscript=1"
     /></noscript>
     <!-- End Meta Pixel Code -->
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height:100vh;background:#050814;color:#e5e7eb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px 16px;box-sizing:border-box"><div style="max-width:920px;margin:0 auto">
+      <h1 style="color:#fff;font-size:26px;line-height:1.25;margin:10px 0 14px;font-weight:800">Premium Digital Marketplace &amp; Smart Projectors</h1>
+      <p style="line-height:1.7;color:#c7ccd6;margin:0 0 14px;font-size:15px">Instant digital keys, gaming accounts, subscriptions, AI tools, SaaS licenses, and high-performance 4K Smart Projectors with 24/7 automated delivery.</p>
+      <h2 style="color:#fff;font-size:18px;margin:6px 0 10px;font-weight:700">Browse by category</h2>
+      <ul style="list-style:disc;padding-left:20px;margin:0 0 14px;color:#c7ccd6">
+        <li><a href="/streaming" style="color:#7dd3fc">Streaming</a></li>
+        <li><a href="/subscriptions" style="color:#7dd3fc">Subscriptions</a></li>
+        <li><a href="/gift-cards" style="color:#7dd3fc">Gift Cards</a></li>
+        <li><a href="/gaming" style="color:#7dd3fc">Gaming</a></li>
+        <li><a href="/software" style="color:#7dd3fc">Software</a></li>
+        <li><a href="/smart-projectors" style="color:#7dd3fc">Smart Projectors</a></li>
+        <li><a href="/smart-4k-projectors" style="color:#7dd3fc">Smart 4K Projectors</a></li>
+        <li><a href="/ai-subscriptions" style="color:#7dd3fc">AI Subscriptions</a></li>
+        <li><a href="/steam-game-keys" style="color:#7dd3fc">Steam &amp; Game Keys</a></li>
+        <li><a href="/windows-office" style="color:#7dd3fc">Windows &amp; Office</a></li>
+        <li><a href="/creative-software" style="color:#7dd3fc">Creative Software</a></li>
+        <li><a href="/digital-services" style="color:#7dd3fc">Digital Services</a></li>
+        <li><a href="/social-media" style="color:#7dd3fc">Social Media</a></li>
+        <li><a href="/web-hosting" style="color:#7dd3fc">Web Hosting</a></li>
+        <li><a href="/digital-marketing" style="color:#7dd3fc">Digital Marketing</a></li>
+        <li><a href="/web3" style="color:#7dd3fc">Web3</a></li>
+      </ul>
+      </div></div></div>
   </body>
 </html>
 `;

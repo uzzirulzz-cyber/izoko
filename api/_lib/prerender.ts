@@ -97,6 +97,9 @@ function sanitizeHtmlLite(html: string): string {
     // drop dangerous containers entirely (content included for script/style)
     .replace(/<(script|style|iframe|object|embed|noscript|template)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<(link|meta|base|frame|frameset|applet|svg|math|form|input|button|select|textarea|video|audio|source|track)\b[^>]*>/gi, " ")
+    // structural document tags must never appear inside a description (the
+    // prerender injection anchors on </body>)
+    .replace(/<\/?(body|html|head)\b[^>]*>/gi, " ")
     // strip every on*= event handler and javascript:/vbscript: URLs
     .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, " ")
     .replace(/\s(href|src|action|formaction)\s*=\s*(?:"\s*(?:javascript|vbscript):[^"]*"|'\s*(?:javascript|vbscript):[^']*'|(?:javascript|vbscript):[^\s>]*)/gi, ' $1="#"');
@@ -239,12 +242,19 @@ function applyHeadToShell(shell: string, head: SeoHead): string {
 
 /** Inject the pre-mount SEO content inside <div id="root"> (replaced by React on mount). */
 function injectRootContent(html: string, rootHtml: string): string {
-  if (/<div id="root"><\/div>/.test(html)) {
+  // #root is the LAST element in <body> (vite moves module scripts to <head>),
+  // so anchor on the root's closing tag + </body>. Greedy body match keeps
+  // this working whether the shell root is empty or pre-filled (the build now
+  // prerenders the homepage into dist/index.html).
+  const re = /(<div id="root">)([\s\S]*)(<\/div>\s*<\/body>)/i;
+  if (re.test(html)) {
+    return html.replace(re, (_m, open: string, _mid: string, close: string) => open + rootHtml + close);
+  }
+  // last resort: empty-root exact match
+  if (html.includes('<div id="root"></div>')) {
     return html.replace('<div id="root"></div>', `<div id="root">${rootHtml}</div>`);
   }
-  const re = /(<div id="root">)([\s\S]*?)(<\/div>\s*<script)/i;
-  if (re.test(html)) return html.replace(re, `$1${rootHtml}$3`);
-  // last resort: leave the shell untouched rather than corrupt it
+  // otherwise: leave the shell untouched rather than corrupt it
   return html;
 }
 
