@@ -178,7 +178,7 @@ export const SEO_SHELL_HTML = `<!doctype html>
       setTimeout(loadThirdParty, 8000); // absolute cap — tags always load
     })();
     </script>
-    <script type="module" crossorigin src="/assets/index-Bl60PpnZ.js"></script>
+    <script type="module" crossorigin src="/assets/index-B3A1RzB8.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react--0c04lxM.js">
     <link rel="stylesheet" crossorigin href="/assets/index-DWAH5Bfv.css">
       <script>window.__PB_ANNOUNCEMENT__={"enabled":true,"text":"🔥 Global Best Prices 🌍 | ⚡ Instant Delivery 🚀 | 🔒 Secure Payments 💳 | 🌎 Available Worldwide ✨ | 💎 Trusted Premium Products⭐","link":""};</script>
@@ -401,7 +401,7 @@ export const SEO_HOME_SHELL_HTML = `<!doctype html>
       setTimeout(loadThirdParty, 8000); // absolute cap — tags always load
     })();
     </script>
-    <script type="module" crossorigin src="/assets/index-Bl60PpnZ.js"></script>
+    <script type="module" crossorigin src="/assets/index-B3A1RzB8.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react--0c04lxM.js">
     <link rel="stylesheet" crossorigin href="/assets/index-DWAH5Bfv.css">
       <script>window.__PB_ANNOUNCEMENT__={"enabled":true,"text":"🔥 Global Best Prices 🌍 | ⚡ Instant Delivery 🚀 | 🔒 Secure Payments 💳 | 🌎 Available Worldwide ✨ | 💎 Trusted Premium Products⭐","link":""};</script>
