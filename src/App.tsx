@@ -1059,6 +1059,7 @@ export function App() {
         rating: quickViewProduct.rating,
         reviewCount: quickViewProduct.reviewCount,
         saleEndsAt: p.saleEndsAt,
+        variants: Array.isArray(quickViewProduct.variants) ? quickViewProduct.variants : [],
       })
     } else {
       applyProductJsonLd(null)

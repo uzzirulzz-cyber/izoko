@@ -17,6 +17,7 @@ import {
   AuthenticatedRequest,
 } from "../_lib/auth.js";
 import { handleSitemapRequest } from "../_lib/sitemap.js";
+import { handlePbRender } from "../_lib/prerender.js";
 
 const REVIEW_STATUSES = new Set(["pending", "approved", "hidden"]);
 
@@ -178,6 +179,19 @@ async function handleReviews(req: AuthenticatedRequest, res: VercelResponse): Pr
 
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
   if (handleOptions(req, res)) return;
+
+  // ---- pbRender: server-side SEO HTML rendering ("dynamic prerender layer").
+  // vercel.json rewrites public page routes (/product/:slug, category routes,
+  // static pages, /services/*) to this function with pbRender=1&pbPath=….
+  // The renderer injects unique title/description/canonical/OG/Twitter/
+  // JSON-LD/H1/content straight from MongoDB into the raw HTML — the SPA then
+  // boots exactly as before (React replaces the injected #root content).
+  // API/data requests never carry pbRender, so they are unaffected. ----
+  const pbRenderQ = String((req.query as Record<string, string>).pbRender || "").trim();
+  if (pbRenderQ && (req.method === "GET" || req.method === "HEAD")) {
+    await handlePbRender(req, res);
+    return;
+  }
 
   // ---- GET /api/products/images/:id — REAL product images from MongoDB ----
   // product_images docs: { _id (24-hex STRING), filename, mime, size, bytes(binary) }.

@@ -238,6 +238,8 @@ export interface ParsedHtml {
   textLength: number;
   jsonLdBlocks: Array<{ valid: boolean; types: string[]; error?: string }>;
   images: Array<{ src: string; alt: string | null }>;
+  /** Decorative assets (favicons, PWA icons, tracking pixels) — excluded from images. */
+  decorativeImages: number;
   anchors: Array<{ href: string; text: string; rel?: string }>;
   htmlBytes: number;
   notFoundMarkers: string[];
@@ -345,15 +347,35 @@ export function parseHtmlSeo(html: string): ParsedHtml {
     }
   }
 
-  // images (with alt presence)
+  // images (with alt presence) — CONTENT images only:
+  // - scanned in <body> (head <link rel=icon>/PWA icons are <link>, not <img>,
+  //   but noscript tracking pixels ARE <img> in the document)
+  // - <noscript> blocks removed first (Meta Pixel / analytics fallback pixels
+  //   are decorative trackers, not content)
+  // - known decorative asset URLs excluded (favicons, PWA icons, ad/tracking)
+  // A separate decorativeImages counter keeps the finding honest without
+  // counting favicon/PWA/pixel assets as "product images missing ALT".
+  const bodyNoNoScript = body
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ");
   const images: ParsedHtml["images"] = [];
   const imgRe = /<img\b[^>]*>/gi;
-  while ((m = imgRe.exec(html))) {
-    const tag = m[0];
-    const src = attrValue(tag, "src") || attrValue(tag, "data-src") || "";
-    const altAttr = attrValue(tag, "alt");
-    images.push({ src, alt: altAttr === null ? null : altAttr });
-    if (images.length >= 400) break;
+  let decorativeImages = 0;
+  const DECORATIVE_SRC_RE =
+    /(^|\/)(favicon[^/]*|apple-touch-icon[^/]*|android-chrome[^/]*|mstile[^/]*|maskable[^/]*|pwa-[0-9]+\.png|safari-pinned-tab[^/]*)$|\/pwa\/|facebook\.com\/tr|google-analytics\.com|googletagmanager\.com|doubleclick\.net|\/playbeat-logo\.png(\?|$)/i;
+  {
+    const scope = bodyNoNoScript;
+    while ((m = imgRe.exec(scope))) {
+      const tag = m[0];
+      const src = attrValue(tag, "src") || attrValue(tag, "data-src") || "";
+      const altAttr = attrValue(tag, "alt");
+      if (!src || DECORATIVE_SRC_RE.test(src)) {
+        decorativeImages++;
+        continue;
+      }
+      images.push({ src, alt: altAttr === null ? null : altAttr });
+      if (images.length >= 400) break;
+    }
   }
 
   // anchors
@@ -393,6 +415,7 @@ export function parseHtmlSeo(html: string): ParsedHtml {
     textLength: text.length,
     jsonLdBlocks,
     images,
+    decorativeImages,
     anchors,
     htmlBytes: Buffer.byteLength(html, "utf8"),
     notFoundMarkers,

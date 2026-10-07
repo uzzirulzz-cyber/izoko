@@ -107,6 +107,9 @@ export function applyProductJsonLd(product: {
   reviewCount?: number
   /** ISO date — surfaces as the Offer's priceValidUntil when a sale window is set. */
   saleEndsAt?: string
+  /** Priced variants drive an AggregateOffer (lowPrice/highPrice/offerCount)
+   *  identical to the server-rendered schema — metadata never flips on mount. */
+  variants?: Array<{ price?: number | string }>
 } | null) {
   const id = 'product-jsonld'
   let el = document.getElementById(id) as HTMLScriptElement | null
@@ -123,6 +126,50 @@ export function applyProductJsonLd(product: {
   const images = [product.image, ...(product.additionalImages || [])]
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
     .map((v) => (v.startsWith('http') ? v : `${SITE}${v}`))
+  const offerBase = {
+    url: product.url ? `${SITE}${product.url}` : `${SITE}/`,
+    availability: product.inStock === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+    itemCondition: 'https://schema.org/NewCondition',
+    seller: { '@id': `${SITE}/#organization` },
+  }
+  const priceValidUntil =
+    product.saleEndsAt && !isNaN(new Date(product.saleEndsAt).getTime())
+      ? new Date(product.saleEndsAt).toISOString().slice(0, 10)
+      : undefined
+  // Variant products: AggregateOffer from the REAL priced variants only.
+  // Unpriced products: NO offers node at all — a fabricated/placeholder price
+  // would violate Google's product-data policies.
+  const pricedVariants = (product.variants || [])
+    .map((v) => Number(v?.price))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => a - b)
+  let offers: Record<string, unknown> | null = null
+  if (pricedVariants.length >= 2) {
+    offers = {
+      '@type': 'AggregateOffer',
+      lowPrice: pricedVariants[0],
+      highPrice: pricedVariants[pricedVariants.length - 1],
+      offerCount: pricedVariants.length,
+      priceCurrency: product.currency || 'PKR',
+      ...offerBase,
+    }
+  } else if (pricedVariants.length === 1) {
+    offers = {
+      '@type': 'Offer',
+      price: pricedVariants[0],
+      priceCurrency: product.currency || 'PKR',
+      ...(priceValidUntil ? { priceValidUntil } : {}),
+      ...offerBase,
+    }
+  } else if (Number(product.price) > 0) {
+    offers = {
+      '@type': 'Offer',
+      price: String(product.price),
+      priceCurrency: product.currency || 'PKR',
+      ...(priceValidUntil ? { priceValidUntil } : {}),
+      ...offerBase,
+    }
+  }
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -132,18 +179,7 @@ export function applyProductJsonLd(product: {
     sku: product.sku,
     brand: { '@type': 'Brand', name: product.brand || 'PlayBeat Digital' },
     itemCondition: 'https://schema.org/NewCondition',
-    offers: {
-      '@type': 'Offer',
-      url: product.url ? `${SITE}${product.url}` : `${SITE}/`,
-      priceCurrency: product.currency || 'PKR',
-      price: String(product.price),
-      availability: product.inStock === false ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
-      itemCondition: 'https://schema.org/NewCondition',
-      ...(product.saleEndsAt && !isNaN(new Date(product.saleEndsAt).getTime())
-        ? { priceValidUntil: new Date(product.saleEndsAt).toISOString().slice(0, 10) }
-        : {}),
-      seller: { '@id': `${SITE}/#organization` },
-    },
+    ...(offers ? { offers } : {}),
   }
   // AggregateRating ONLY from real, owner-curated rating data — never fabricated
   const rating = Number(product.rating || 0)

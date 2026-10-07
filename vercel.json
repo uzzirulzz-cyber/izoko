@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "node scripts/generate-legal-pages.mjs && node scripts/generate-ads-txt.mjs && vite build",
+  "buildCommand": "node scripts/generate-legal-pages.mjs && node scripts/generate-ads-txt.mjs && vite build && node scripts/generate-seo-shell.mjs",
   "outputDirectory": "dist",
   "redirects": [
     {
@@ -217,11 +217,11 @@
     },
     {
       "source": "/download",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/download"
     },
     {
       "source": "/download/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/download/:path*"
     },
     {
       "source": "/admin",
@@ -245,67 +245,67 @@
     },
     {
       "source": "/streaming",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/streaming"
     },
     {
       "source": "/subscriptions",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/subscriptions"
     },
     {
       "source": "/gift-cards",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/gift-cards"
     },
     {
       "source": "/services",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services"
     },
     {
       "source": "/services/request",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/request"
     },
     {
       "source": "/services/portfolio",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/portfolio"
     },
     {
       "source": "/services/:slug",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/:slug"
     },
     {
       "source": "/services/build",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/build"
     },
     {
       "source": "/services/demos",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/demos"
     },
     {
       "source": "/services/company",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/company"
     },
     {
       "source": "/services/package/:slug",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/package/:slug"
     },
     {
       "source": "/services/demo/:slug",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/services/demo/:slug"
     },
     {
       "source": "/social-media",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/social-media"
     },
     {
       "source": "/web-hosting",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/web-hosting"
     },
     {
       "source": "/digital-marketing",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/digital-marketing"
     },
     {
       "source": "/web3",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/web3"
     },
     {
       "source": "/invoice/:path*",
@@ -313,35 +313,35 @@
     },
     {
       "source": "/gaming",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/gaming"
     },
     {
       "source": "/software",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/software"
     },
     {
       "source": "/smart-projectors",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/smart-projectors"
     },
     {
       "source": "/smart-4k-projectors",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/smart-4k-projectors"
     },
     {
       "source": "/ai-subscriptions",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/ai-subscriptions"
     },
     {
       "source": "/steam-game-keys",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/steam-game-keys"
     },
     {
       "source": "/windows-office",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/windows-office"
     },
     {
       "source": "/creative-software",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/creative-software"
     },
     {
       "source": "/privacy",
@@ -373,47 +373,47 @@
     },
     {
       "source": "/about",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/about"
     },
     {
       "source": "/contact",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/contact"
     },
     {
       "source": "/compare",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/compare"
     },
     {
       "source": "/product/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/product/:path*"
     },
     {
       "source": "/streaming/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/streaming/:path*"
     },
     {
       "source": "/subscriptions/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/subscriptions/:path*"
     },
     {
       "source": "/gift-cards/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/gift-cards/:path*"
     },
     {
       "source": "/gaming/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/gaming/:path*"
     },
     {
       "source": "/software/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/software/:path*"
     },
     {
       "source": "/smart-projectors/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/smart-projectors/:path*"
     },
     {
       "source": "/category/:path*",
-      "destination": "/index.html"
+      "destination": "/api/products?pbRender=1&pbPath=/category/:path*"
     },
     {
       "source": "/metacrm",

@@ -113,7 +113,10 @@ const CATEGORY_ROUTE_META: Record<string, { changefreq: string; priority: string
   "windows-office": { changefreq: "weekly", priority: "0.8" },
   "creative-software": { changefreq: "weekly", priority: "0.8" },
   "digital-services": { changefreq: "weekly", priority: "0.8" },
-  "services": { changefreq: "weekly", priority: "0.8" },
+  // NOTE: "services" is deliberately ABSENT — /services belongs to
+  // sitemap-services.xml (serviceUrls() below). Emitting it here too made the
+  // URL appear in TWO sitemaps, which the live SEO audit correctly reports as
+  // a duplicate-sitemap entry.
   "social-media": { changefreq: "weekly", priority: "0.7" },
   "web-hosting": { changefreq: "weekly", priority: "0.7" },
   "digital-marketing": { changefreq: "weekly", priority: "0.7" },
