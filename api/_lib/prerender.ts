@@ -924,6 +924,27 @@ function buildNotFoundPage(): { status: number; html: string } {
 }
 
 // ---------------------------------------------------------------------------
+// HOMEPAGE renderer — the shell IS the homepage metadata (title/canonical/
+// OG are already homepage-correct), but the raw HTML carried zero visible
+// text. Inject the storefront H1 + description + real category links so
+// crawlers without JS see actual content (React replaces the block on mount).
+// ---------------------------------------------------------------------------
+
+function buildHomePage(): { status: number; html: string } {
+  const parts: string[] = [
+    `<h1 ${H1_STYLE}>${escapeHtml("Premium Digital Marketplace & Smart Projectors")}</h1>`,
+    `<p ${P_STYLE}>${escapeHtml(DEFAULT_DESC)}</p>`,
+    `<h2 ${'style="color:#fff;font-size:18px;margin:6px 0 10px;font-weight:700"'}>Browse by category</h2>`,
+    `<ul ${LIST_STYLE}>${Object.entries(CATEGORY_PRESETS)
+      .map(([slug, p]) => `<li><a href="${escapeHtml(p.path)}" ${DESC_LINK}>${escapeHtml(p.label)}</a></li>`)
+      .join("")}</ul>`,
+  ];
+  // no head injection needed — the built shell already IS the homepage head
+  const html = injectRootContent(loadShellHtml(), `<div ${BLOCK}><div ${INNER}>${parts.join("\n      ")}</div></div>`);
+  return { status: 200, html };
+}
+
+// ---------------------------------------------------------------------------
 // Entry — called from the /api/products handler when pbRender is present
 // (vercel.json rewrites public routes here; the query param keeps the original
 // path, because Vercel strips sub-path destinations on rewrites).
@@ -953,6 +974,13 @@ export async function handlePbRender(req: VercelRequest, res: VercelResponse): P
     }
 
     const db = await getDb();
+
+    // ---- homepage: inject H1 + content into the (already homepage-correct) shell ----
+    if (path === "/" || path === "") {
+      const page = buildHomePage();
+      sendHtml(res, page.html, page.status);
+      return;
+    }
 
     // ---- /product/:slug (and legacy /{category}/:slug product deep links) ----
     let productSlug = "";
