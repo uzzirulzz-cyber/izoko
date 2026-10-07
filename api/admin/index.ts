@@ -141,6 +141,24 @@ function escapeRegExp(s: string): string {
 }
 
 /**
+ * Server-side region normalization (region-field upgrade task §29).
+ * Mirrors the client editor's isValidRegionValue rules: collapse internal
+ * whitespace, then reject values that are blank, control-character-bearing,
+ * letter-less or longer than 60 chars by falling back to "Global" — the same
+ * default the editor uses. Valid values (legacy regions, canonical countries
+ * and admin-created custom regions) pass through EXACTLY as submitted —
+ * nothing is renamed or auto-migrated server-side.
+ */
+function normalizeRegionValue(raw: any): string {
+  const text = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return "Global";
+  if (text.length < 2 || text.length > 60) return "Global";
+  if (/[\u0000-\u001F\u007F]/.test(text)) return "Global";
+  if (!/\p{L}/u.test(text)) return "Global";
+  return text;
+}
+
+/**
  * Automatic duplicate-metadata detection for product saves.
  * Compares the incoming seo.title + effective meta description against every
  * other product in MongoDB. Advisory only — the caller includes the result as
@@ -2137,7 +2155,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         deliveryType: body.deliveryType || "Instant Auto-Email",
         deliveryInfo: body.deliveryInfo || "Instant 15-Second Key Delivery",
         deliveryEstimate: body.deliveryEstimate ? String(body.deliveryEstimate).trim().slice(0, 200) : undefined,
-        region: body.region || "Global",
+        // Region (region-field upgrade task §29): server-side normalization —
+        // collapse whitespace and reject obviously malformed values (blank,
+        // control chars, no letter, >60 chars) by falling back to "Global",
+        // mirroring the client editor's isValidRegionValue. Legacy stored
+        // values (USA/Europe/…) pass through UNCHANGED — nothing is renamed
+        // server-side; normalization only applies to values being written.
+        region: normalizeRegionValue(body.region),
         features: Array.isArray(body.features) ? body.features : [],
         // Product CMS enrichment (Pricing/Advanced) — additive fields
         costPrice: body.costPrice != null && !isNaN(Number(body.costPrice)) ? Number(body.costPrice) : undefined,

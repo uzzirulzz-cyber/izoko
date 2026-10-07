@@ -951,8 +951,26 @@ export function App() {
 
   // Google business tracking (GA4 / GTM / AdSense / Ads) — boot once on mount.
   // Consent-aware: tags only load per the public config + stored consent.
+  // Perf (task §9/§14): the auto-boot is deferred until the page has loaded
+  // and the browser is idle (3s cap) — Lighthouse measured the GTM/GA4 work
+  // as ~0.9s of main-thread long tasks during the critical window. The
+  // consent-driven path (ConsentBanner) still calls initGoogleTracking()
+  // IMMEDIATELY — the shared promise means whichever happens first wins, so
+  // Consent Mode v2 defaults are always installed before any consent update.
   useEffect(() => {
-    initGoogleTracking().catch(() => {})
+    let cancelled = false
+    const boot = () => { if (!cancelled) initGoogleTracking().catch(() => {}) }
+    const idle: number = (window as any).requestIdleCallback
+      ? (window as any).requestIdleCallback(boot, { timeout: 3000 })
+      : (window.setTimeout(boot, 1200) as unknown as number)
+    return () => {
+      cancelled = true
+      if ((window as any).cancelIdleCallback && idle && typeof idle === 'number') {
+        (window as any).cancelIdleCallback(idle)
+      } else if (typeof idle === 'number') {
+        window.clearTimeout(idle)
+      }
+    }
   }, [])
 
 
@@ -1866,7 +1884,11 @@ export function App() {
           const matchesCat = p.category.toLowerCase().includes(q)
           const matchesSku = p.sku.toLowerCase().includes(q)
           const matchesDesc = p.description.toLowerCase().includes(q)
-          if (!matchesName && !matchesCat && !matchesSku && !matchesDesc) {
+          // Region (region-field upgrade task §27): the internal search must
+          // surface the same region values the editor stores — searching
+          // "france" finds a France-region product exactly as stored.
+          const matchesRegion = (p.region || 'Global').toLowerCase().includes(q)
+          if (!matchesName && !matchesCat && !matchesSku && !matchesDesc && !matchesRegion) {
             return false
           }
         }

@@ -316,6 +316,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             d.brand && String(d.brand).trim() && d.brand !== d.name
               ? d.brand
               : "PlayBeat Digital";
+          // Region (region-field upgrade task §27-§28): the feed must carry
+          // the EXACT normalized region stored in MongoDB — a France product
+          // must never read as Global. Region is not a first-class Merchant
+          // Center attribute, so it is emitted as a product_detail entry,
+          // which Merchant Center accepts verbatim for digital goods.
+          const region = String(d.region || "Global").trim() || "Global";
+          const regionDetail = [
+            "    <g:product_detail>",
+            "      <g:section_name>Product Highlights</g:section_name>",
+            "      <g:attribute_name>Region</g:attribute_name>",
+            `      <g:attribute_value>${xmlEscape(region)}</g:attribute_value>`,
+            "    </g:product_detail>",
+          ].join("\n");
           return [
             "  <item>",
             `    <title>${xmlEscape(title)}</title>`,
@@ -332,6 +345,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             // fabricated data under Google's product-data policy — declare
             // `no` truthfully instead. (SKU remains in g:id.)
             `    <g:identifier_exists>no</g:identifier_exists>`,
+            regionDetail,
             "  </item>",
           ]
             .filter(Boolean)
