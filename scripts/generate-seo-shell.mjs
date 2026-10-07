@@ -37,7 +37,11 @@ const HOMEPAGE_BLOCK = `
            bar swaps in ~0.3s later with a possible small reflow). -->
       <div class="w-full bg-gradient-to-r from-amber-400/15 via-[#0A122E] to-amber-400/15 border-b border-amber-400/25 text-center py-2 px-4"><span class="text-[11px] sm:text-xs font-semibold text-amber-300 font-mono">🔥 Global Best Prices 🌍 | ⚡ Instant Delivery 🚀 | 🔒 Secure Payments 💳 | 🌎 Available Worldwide ✨ | 💎 Trusted Premium Products⭐</span></div>
       <div class="pbhs-scroll relative w-full overflow-x-auto bg-[#000b1d] [scrollbar-width:none]"><main class="pbhs-stage relative" style="background-image:url(/hero_header_v3.webp)"></main></div>
-      <div style="min-height:100vh;background:#050814;color:#e5e7eb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px 16px;box-sizing:border-box"><div style="max-width:920px;margin:0 auto">
+      <!-- system-ui only (NO webfont) on the transitional block: with Inter,
+           the slow-network font swap reflowed this in-viewport text and
+           Lighthouse measured it as CLS. This block is replaced by the React
+           app within ~1s, so the transitional typeface is imperceptible. -->
+      <div style="min-height:100vh;background:#050814;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:24px 16px;box-sizing:border-box"><div style="max-width:920px;margin:0 auto">
       <h1 style="color:#fff;font-size:26px;line-height:1.25;margin:10px 0 14px;font-weight:800">Premium Digital Marketplace &amp; Smart Projectors</h1>
       <p style="line-height:1.7;color:#c7ccd6;margin:0 0 14px;font-size:15px">Instant digital keys, gaming accounts, subscriptions, AI tools, SaaS licenses, and high-performance 4K Smart Projectors with 24/7 automated delivery.</p>
       <h2 style="color:#fff;font-size:18px;margin:6px 0 10px;font-weight:700">Browse by category</h2>
