@@ -63,7 +63,12 @@ export const AppDownloadSection: React.FC = () => {
           muted
           loop
           playsInline
-          preload="auto"
+          /* perf §6: metadata only — the clip is decorative at 20% opacity and
+             this section is below the fold (and now deferred-mounted), so the
+             browser should not eagerly buffer the whole file before playback;
+             autoPlay still triggers the load once the section is actually
+             rendered. Visual result unchanged. */
+          preload="metadata"
           onCanPlay={() => setBgReady(true)}
           onLoadedData={() => setBgReady(true)}
           onPlaying={() => setBgReady(true)}

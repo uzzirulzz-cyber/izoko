@@ -90,6 +90,16 @@ export const SEO_SHELL_HTML = `<!doctype html>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Perf (task §11): preload the two variable font files that render the
+         hero headline (Unbounded) and body text (Inter). Google Fonts serves
+         one variable file per family — same files the stylesheet below would
+         discover, just discovered earlier, so the headline paints in its final
+         typeface immediately (kills the fallback->webfont swap that showed up
+         as unstable mobile CLS/LCP). Pure loading-order change: zero visual
+         difference. If Google ever bumps these versioned URLs the preload
+         simply misses and the CSS discovery path still applies the font. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwu8ZfvRIkSQ.woff2" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Montserrat:wght@500;600;700;800&family=Unbounded:wght@800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500;600;700&family=Nunito:wght@300;400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -121,10 +131,9 @@ export const SEO_SHELL_HTML = `<!doctype html>
     fbq('track', 'PageView');
     </script>
     <!-- End Meta Pixel Code -->
-    <script type="module" crossorigin src="/assets/index-C7JYypfv.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-icons-9LwQIMG3.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-TDEt5WUy.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-Cn_x-g5v.css">
+    <script type="module" crossorigin src="/assets/index-DHxtgnm6.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react--0c04lxM.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-Co_1WIe0.css">
   </head>
   <body class="bg-[#0A0A0B] text-[#E0E0E0] antialiased selection:bg-emerald-500 selection:text-black">
     <!-- Meta Pixel Code (noscript fallback) -->

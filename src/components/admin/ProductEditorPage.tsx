@@ -32,6 +32,7 @@ import {
   isDataImageUrl,
 } from '../../lib/uploadImage'
 import { HtmlEditor } from './HtmlEditor'
+import { RegionCombobox } from './RegionCombobox'
 import { stripHtmlToText } from '../../lib/description'
 
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
@@ -69,6 +70,11 @@ const DELIVERY_OPTIONS = [
 ]
 
 const REGION_OPTIONS = ['Global', 'USA', 'Europe', 'Asia', 'Pakistan']
+// NOTE (region field upgrade): REGION_OPTIONS is kept for backwards
+// compatibility (CSV duplicate-check payloads etc.). The editor's Region
+// field itself is now the searchable RegionCombobox below — legacy values
+// stay valid, specific countries are selectable, and custom regions can be
+// added at runtime without a code deployment.
 const CURRENCY_OPTIONS = ['PKR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'CAD']
 
 const slugify = (text: string): string =>
@@ -1026,12 +1032,13 @@ export const ProductEditorPage: React.FC<ProductEditorPageProps> = ({
               </select>
             </div>
             <div>
-              <label className={labelCls}>Region</label>
-              <select value={form.region || 'Global'} onChange={(e) => set('region', e.target.value)} className={inputCls}>
-                {REGION_OPTIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              <label className={labelCls} htmlFor="pb-region-field">Region</label>
+              <RegionCombobox
+                id="pb-region-field"
+                value={form.region || ''}
+                onChange={(v) => set('region', v)}
+                placeholder="Global"
+              />
             </div>
           </div>
           <div>

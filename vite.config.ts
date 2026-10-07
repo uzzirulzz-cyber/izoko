@@ -14,13 +14,21 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         output: {
-          // Split large vendor libraries into cacheable chunks so app code
-          // updates don't invalidate the whole bundle (audit §13 performance)
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom'],
-            'vendor-motion': ['motion'],
-            'vendor-icons': ['lucide-react'],
-            'vendor-misc': ['canvas-confetti', 'papaparse'],
+          // Function-form manualChunks (performance task §1/§2): only the React
+          // runtime is forced into its own cacheable chunk. The previous
+          // object-form config listed 'lucide-react' by package name, which
+          // forced ALL ~1,600 icon modules into one 763 KB "vendor-icons"
+          // chunk (measured) and defeated tree-shaking; react was also pulled
+          // into it via the barrel import. With the function form, lucide
+          // tree-shakes naturally to only the icons the app imports, and
+          // every other dependency is split along dynamic-import boundaries
+          // (admin, checkout, services routes each get their own chunks).
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+              return 'vendor-react';
+            }
+            return undefined;
           },
         },
       },

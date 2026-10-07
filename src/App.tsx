@@ -1,41 +1,233 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { Header } from './components/Header'
-import { HeroBanner } from './components/HeroBanner'
 import { HeroHeaderStage } from './components/HeroHeaderStage'
-import { AdminLoginPage } from './components/AdminLoginPage'
 import { CategoryNav } from './components/CategoryNav'
 import { ProductCard } from './components/ProductCard'
-import { ProjectorSpecMatrix } from './components/ProjectorSpecMatrix'
 import { LayoutGrid } from 'lucide-react'
-import { SmartProjectorShowcase } from './components/SmartProjectorShowcase'
-import { TrustFeatures } from './components/TrustFeatures'
-import { FAQSection } from './components/FAQSection'
-import {
-  PremiumAccessBanner,
-  StatsBar,
-  WhyChoosePlayBeat,
-  LevelUpCta,
-} from './components/StorefrontShowcaseSections'
 import { QuickViewModal } from './components/QuickViewModal'
 import { CartDrawer } from './components/CartDrawer'
-import { WishlistDrawer } from './components/WishlistDrawer'
-import { AuthModal } from './components/AuthModal'
-import { AccountDrawer } from './components/AccountDrawer'
 import { Footer } from './components/Footer'
-// Admin console is CODE-SPLIT (lazy): the storefront never downloads the
-// admin JS/CSS bundle (SB Admin 2, vendored Bootstrap stack, admin theme).
+
+/* ============================================================
+ * PERFORMANCE — route-level & component-level code splitting
+ * (production performance task §2/§3/§4)
+ *
+ * The storefront must only download what the active page needs.
+ * Everything below is loaded on demand:
+ *   • /admin + /crm gates   → their own chunks (AdminInsightsView was
+ *     already lazy; the login gates join it)
+ *   • full-page routes      → checkout, account, order, invoice,
+ *     download, policy/contact/about, 404, services pages, CRM,
+ *     compare/spec-matrix
+ *   • below-the-fold home   → projector showcase, CMS sections, FAQ,
+ *     trust/why-choose/CTA/sections, app-download section — also
+ *     mounted only when scrolled near (DeferredMount), so their
+ *     render + data work never competes with the hero LCP
+ *   • hidden overlays       → auth modal, wishlist/account drawers,
+ *     support widget, PWA chip, consent banner, ad slot — code
+ *     arrives during idle time, invisible null fallback
+ *
+ * Kept EAGER on purpose (LCP/purchase path must never wait):
+ * Header, HeroHeaderStage, CategoryNav, ProductCard, QuickViewModal
+ * (product detail = funnel), CartDrawer, Footer.
+ *
+ * SEO safety: route metadata is applied by App's own route effect
+ * (applyRouteSeo below) and every public URL is server-prerendered,
+ * so lazy route components cannot affect indexability.
+ * ============================================================ */
 const AdminInsightsView = lazy(() =>
   import('./components/AdminInsightsView').then((m) => ({ default: m.AdminInsightsView }))
 )
-import { AdminLogin } from './components/AdminLogin'
-import { PolicyPage } from './components/PolicyPage'
-import { ContactPage } from './components/ContactPage'
-import { AboutPage } from './components/AboutPage'
-import { NotFound } from './components/NotFound'
-import { LiveSupportWidget } from './components/LiveSupportWidget'
-import { OrderResultPage } from './components/OrderResultPage'
-import { AccountPage } from './components/AccountPage'
-import { CheckoutPage } from './components/CheckoutPage'
+const AdminLoginPage = lazy(() =>
+  import('./components/AdminLoginPage').then((m) => ({ default: m.AdminLoginPage }))
+)
+const AdminLogin = lazy(() =>
+  import('./components/AdminLogin').then((m) => ({ default: m.AdminLogin }))
+)
+const PolicyPage = lazy(() =>
+  import('./components/PolicyPage').then((m) => ({ default: m.PolicyPage }))
+)
+const ContactPage = lazy(() =>
+  import('./components/ContactPage').then((m) => ({ default: m.ContactPage }))
+)
+const AboutPage = lazy(() =>
+  import('./components/AboutPage').then((m) => ({ default: m.AboutPage }))
+)
+const NotFound = lazy(() =>
+  import('./components/NotFound').then((m) => ({ default: m.NotFound }))
+)
+const OrderResultPage = lazy(() =>
+  import('./components/OrderResultPage').then((m) => ({ default: m.OrderResultPage }))
+)
+const AccountPage = lazy(() =>
+  import('./components/AccountPage').then((m) => ({ default: m.AccountPage }))
+)
+const CheckoutPage = lazy(() =>
+  import('./components/CheckoutPage').then((m) => ({ default: m.CheckoutPage }))
+)
+const InvoicePage = lazy(() =>
+  import('./components/InvoicePage').then((m) => ({ default: m.InvoicePage }))
+)
+const DownloadPage = lazy(() =>
+  import('./components/app/DownloadPage').then((m) => ({ default: m.DownloadPage }))
+)
+const CRMApp = lazy(() =>
+  import('./components/crm/CRMApp').then((m) => ({ default: m.CRMApp }))
+)
+const ServicesPage = lazy(() =>
+  import('./components/services/ServicesPage').then((m) => ({ default: m.ServicesPage }))
+)
+const ServiceDetailPage = lazy(() =>
+  import('./components/services/ServiceDetailPage').then((m) => ({ default: m.ServiceDetailPage }))
+)
+const ServiceRequestPage = lazy(() =>
+  import('./components/services/ServiceRequestPage').then((m) => ({ default: m.ServiceRequestPage }))
+)
+const ServicesPortfolioPage = lazy(() =>
+  import('./components/services/ServicesPortfolioPage').then((m) => ({ default: m.ServicesPortfolioPage }))
+)
+const ProjectorSpecMatrix = lazy(() =>
+  import('./components/ProjectorSpecMatrix').then((m) => ({ default: m.ProjectorSpecMatrix }))
+)
+// --- below-the-fold homepage sections (lazy code + deferred mount) ---
+const SmartProjectorShowcase = lazy(() =>
+  import('./components/SmartProjectorShowcase').then((m) => ({ default: m.SmartProjectorShowcase }))
+)
+const CmsHomepageSections = lazy(() =>
+  import('./components/CmsHomepageSections').then((m) => ({ default: m.CmsHomepageSections }))
+)
+const FAQSection = lazy(() =>
+  import('./components/FAQSection').then((m) => ({ default: m.FAQSection }))
+)
+const TrustFeatures = lazy(() =>
+  import('./components/TrustFeatures').then((m) => ({ default: m.TrustFeatures }))
+)
+const AppDownloadSection = lazy(() =>
+  import('./components/app/AppDownloadSection').then((m) => ({ default: m.AppDownloadSection }))
+)
+const PremiumAccessBanner = lazy(() =>
+  import('./components/StorefrontShowcaseSections').then((m) => ({ default: m.PremiumAccessBanner }))
+)
+const StatsBar = lazy(() =>
+  import('./components/StorefrontShowcaseSections').then((m) => ({ default: m.StatsBar }))
+)
+const WhyChoosePlayBeat = lazy(() =>
+  import('./components/StorefrontShowcaseSections').then((m) => ({ default: m.WhyChoosePlayBeat }))
+)
+const LevelUpCta = lazy(() =>
+  import('./components/StorefrontShowcaseSections').then((m) => ({ default: m.LevelUpCta }))
+)
+// --- hidden overlays / floating widgets (code-split, null fallback) ---
+const AuthModal = lazy(() =>
+  import('./components/AuthModal').then((m) => ({ default: m.AuthModal }))
+)
+const WishlistDrawer = lazy(() =>
+  import('./components/WishlistDrawer').then((m) => ({ default: m.WishlistDrawer }))
+)
+const AccountDrawer = lazy(() =>
+  import('./components/AccountDrawer').then((m) => ({ default: m.AccountDrawer }))
+)
+const LiveSupportWidget = lazy(() =>
+  import('./components/LiveSupportWidget').then((m) => ({ default: m.LiveSupportWidget }))
+)
+const InstallPwaChip = lazy(() =>
+  import('./components/app/InstallPwaChip').then((m) => ({ default: m.InstallPwaChip }))
+)
+const ConsentBanner = lazy(() =>
+  import('./components/ConsentBanner').then((m) => ({ default: m.ConsentBanner }))
+)
+const AdSlot = lazy(() =>
+  import('./components/AdSlot').then((m) => ({ default: m.AdSlot }))
+)
+
+// Full-page Suspense fallback — same dark spinner language the admin console
+// already uses, so route loads look intentional and identical in style.
+const ROUTE_FALLBACK = (
+  <div className="min-h-screen flex items-center justify-center bg-[#07090E] text-zinc-300">
+    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+  </div>
+)
+
+/**
+ * DeferredMount — renders `children` only when the placeholder is within
+ * 500px of the viewport (IntersectionObserver). Below-the-fold homepage
+ * sections therefore cost ZERO render/main-thread work (and AppDownload's
+ * background video zero bytes) until the visitor actually scrolls toward
+ * them, which is what makes the hero paint fast on mobile. The wrapper is
+ * a plain block-level div so the surrounding layout (e.g. `space-y-8` on
+ * <main>) is untouched, and sections mount BEFORE they can be seen, so no
+ * visible layout shift is introduced.
+ */
+function DeferredMount({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const [near, setNear] = useState(false)
+  useEffect(() => {
+    if (near) return
+    const el = hostRef.current
+    if (!el) return
+    if (typeof IntersectionObserver === 'undefined') {
+      setNear(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '500px 0px' }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+  return (
+    <div ref={hostRef} className={className}>
+      {near ? children : null}
+    </div>
+  )
+}
+
+// Below-the-fold lazy section = deferred mount + null Suspense (invisible
+// while its chunk loads, because the placeholder is off-screen anyway).
+// Used ONLY for sections with real deferred cost: image-heavy showcase,
+// CMS sections (their own API fetch) and the app section (background video).
+function DeferredSection({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <DeferredMount className={className}>
+      <Suspense fallback={null}>{children}</Suspense>
+    </DeferredMount>
+  )
+}
+
+// Lightweight below-the-fold sections: code arrives via its own tiny lazy
+// chunk but mounts immediately after load — page height stabilises early,
+// no pop-in, and the growth happens below the fold so CLS is unaffected.
+function LazySection({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={className}>
+      <Suspense fallback={null}>{children}</Suspense>
+    </div>
+  )
+}
 import { PRODUCTS_CATALOG as INITIAL_PRODUCTS } from './data/products'
 import { Product, CurrencyCode, CartItem, ProductVariant } from './types'
 import { ensureProductSlug } from './lib/slug'
@@ -50,18 +242,9 @@ import { applyRouteSeo } from './lib/seo'
 import { applyProductJsonLd, applyBreadcrumbJsonLd } from './lib/seo'
 import { SEO_PRESETS } from './lib/seo'
 import { initGoogleTracking, trackAddToCart, trackSearch, trackViewItem } from './lib/googleTag'
-import { ConsentBanner } from './components/ConsentBanner'
-import { AdSlot } from './components/AdSlot'
-import { DownloadPage } from './components/app/DownloadPage'
-import { AppDownloadSection } from './components/app/AppDownloadSection'
-import { InstallPwaChip } from './components/app/InstallPwaChip'
-import { InvoicePage } from './components/InvoicePage'
-import { CmsHomepageSections } from './components/CmsHomepageSections'
-import { CRMApp } from './components/crm/CRMApp'
-import { ServicesPage } from './components/services/ServicesPage'
-import { ServiceDetailPage } from './components/services/ServiceDetailPage'
-import { ServiceRequestPage } from './components/services/ServiceRequestPage'
-import { ServicesPortfolioPage } from './components/services/ServicesPortfolioPage'
+// NOTE: ConsentBanner, AdSlot, DownloadPage, AppDownloadSection,
+// InstallPwaChip, InvoicePage, CmsHomepageSections, CRMApp and the four
+// services pages are CODE-SPLIT via React.lazy above — no static imports.
 
 // Route → SEO preset lookup (admin routes noindex themselves)
 const SEO_PRESET_BY_ROUTE: Record<string, (typeof SEO_PRESETS)[string]> = {
@@ -1901,23 +2084,27 @@ export function App() {
             </div>
           </div>
         ) : (
-          <AdminLoginPage
-            onSuccess={() => {
-              setAdminAuthed(true)
-            }}
-            onCancel={() => navigate('storefront')}
-          />
+          <Suspense fallback={ROUTE_FALLBACK}>
+            <AdminLoginPage
+              onSuccess={() => {
+                setAdminAuthed(true)
+              }}
+              onCancel={() => navigate('storefront')}
+            />
+          </Suspense>
         )
       )}
 
       {route === 'admin-login' && (
-        <AdminLoginPage
-          onSuccess={() => {
-            setAdminAuthed(true)
-            navigate('admin')
-          }}
-          onCancel={() => navigate('storefront')}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <AdminLoginPage
+            onSuccess={() => {
+              setAdminAuthed(true)
+              navigate('admin')
+            }}
+            onCancel={() => navigate('storefront')}
+          />
+        </Suspense>
       )}
 
       {/* ============================================
@@ -1925,18 +2112,22 @@ export function App() {
           Requires admin auth (same session as admin)
           ============================================ */}
       {route === 'crm' && adminAuthed && (
-        <CRMApp
-          onExit={() => navigate('storefront')}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <CRMApp
+            onExit={() => navigate('storefront')}
+          />
+        </Suspense>
       )}
       {route === 'crm' && !adminAuthed && (
-        <AdminLogin
-          onSuccess={() => {
-            setAdminAuthed(true)
-            navigate('crm')
-          }}
-          onCancel={() => navigate('storefront')}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <AdminLogin
+            onSuccess={() => {
+              setAdminAuthed(true)
+              navigate('crm')
+            }}
+            onCancel={() => navigate('storefront')}
+          />
+        </Suspense>
       )}
 
       {/* POLICY & CONTACT PAGES — full standalone routes (incl. /warranty) */}
@@ -1945,28 +2136,52 @@ export function App() {
         route === 'refund-policy' ||
         route === 'shipping-policy' ||
         route === 'warranty') && (
-        <PolicyPage
-          type={route as 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy' | 'warranty'}
-          contact={cmsSettings?.contact}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <PolicyPage
+            type={route as 'privacy' | 'terms' | 'refund-policy' | 'shipping-policy' | 'warranty'}
+            contact={cmsSettings?.contact}
+          />
+        </Suspense>
       )}
 
       {route === 'contact' && (
-        <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <ContactPage contact={cmsSettings?.contact} social={cmsSettings?.social} />
+        </Suspense>
       )}
 
       {/* ABOUT & BUSINESS MODEL — compliance page: business model, customer
           journey, payment gateway use-case, PKR pricing disclosure */}
-      {route === 'about' && <AboutPage currency={selectedCurrency} />}
+      {route === 'about' && (
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <AboutPage currency={selectedCurrency} />
+        </Suspense>
+      )}
 
       {/* ============================================
           BUSINESS SOLUTIONS — /services hub + detail + request + portfolio
           Public pages; each manages its own SEO (title/canonical/OG/JSON-LD).
           ============================================ */}
-      {isServicesSectionRoute && <ServicesPage />}
-      {route === 'service-detail' && <ServiceDetailPage slug={serviceSlugParam} />}
-      {route === 'service-request' && <ServiceRequestPage />}
-      {route === 'services-portfolio' && <ServicesPortfolioPage />}
+      {isServicesSectionRoute && (
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <ServicesPage />
+        </Suspense>
+      )}
+      {route === 'service-detail' && (
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <ServiceDetailPage slug={serviceSlugParam} />
+        </Suspense>
+      )}
+      {route === 'service-request' && (
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <ServiceRequestPage />
+        </Suspense>
+      )}
+      {route === 'services-portfolio' && (
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <ServicesPortfolioPage />
+        </Suspense>
+      )}
 
       {/* ============================================
           MOBILE APP DOWNLOAD PAGE — /download
@@ -1975,14 +2190,21 @@ export function App() {
           ============================================ */}
       {route === 'download' && (
         <>
-          <DownloadPage />
-          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
-          <InstallPwaChip />
+          <Suspense fallback={ROUTE_FALLBACK}>
+            <DownloadPage />
+          </Suspense>
+          <Suspense fallback={null}>
+            <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <InstallPwaChip />
+          </Suspense>
         </>
       )}
 
       {/* DEDICATED 404 — any URL that doesn't match a known route */}
       {route === 'notfound' && (
+        <Suspense fallback={ROUTE_FALLBACK}>
         <NotFound
           onNavigate={(path) => {
             if (path === '/') {
@@ -2011,6 +2233,7 @@ export function App() {
             }, 80)
           }}
         />
+        </Suspense>
       )}
 
       {/* ============================================
@@ -2020,14 +2243,18 @@ export function App() {
           ============================================ */}
       {route === 'order' && (
         <>
-          <OrderResultPage
-            orderNumber={orderNumberParam}
-            user={user}
-            onRequireAuth={() => setIsAuthOpen(true)}
-            onNavigate={handleNavigatePath}
-            onClearCart={handleClearCart}
-          />
-          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          <Suspense fallback={ROUTE_FALLBACK}>
+            <OrderResultPage
+              orderNumber={orderNumberParam}
+              user={user}
+              onRequireAuth={() => setIsAuthOpen(true)}
+              onNavigate={handleNavigatePath}
+              onClearCart={handleClearCart}
+            />
+          </Suspense>
+          <Suspense fallback={null}>
+            <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          </Suspense>
         </>
       )}
 
@@ -2038,12 +2265,14 @@ export function App() {
           still comes exclusively from the verified webhook.
           ============================================ */}
       {route === 'invoice' && (
-        <InvoicePage
-          orderNumber={invoiceNumberParam}
-          user={user}
-          onRequireAuth={() => setIsAuthOpen(true)}
-          onNavigate={handleNavigatePath}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <InvoicePage
+            orderNumber={invoiceNumberParam}
+            user={user}
+            onRequireAuth={() => setIsAuthOpen(true)}
+            onNavigate={handleNavigatePath}
+          />
+        </Suspense>
       )}
 
       {/* ============================================
@@ -2051,16 +2280,18 @@ export function App() {
           Two-stage checkout fed by the cart drawer.
           ============================================ */}
       {route === 'checkout' && (
-        <CheckoutPage
-          cart={cart}
-          currency={selectedCurrency}
-          user={user}
-          onRequireAuth={() => setIsAuthOpen(true)}
-          onNavigate={handleNavigatePath}
-          onUpdateQty={handleUpdateQty}
-          onRemoveItem={handleRemoveFromCart}
-          onClearCart={handleClearCart}
-        />
+        <Suspense fallback={ROUTE_FALLBACK}>
+          <CheckoutPage
+            cart={cart}
+            currency={selectedCurrency}
+            user={user}
+            onRequireAuth={() => setIsAuthOpen(true)}
+            onNavigate={handleNavigatePath}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveFromCart}
+            onClearCart={handleClearCart}
+          />
+        </Suspense>
         // NOTE: no LiveSupportWidget here — its floating bubble overlaps the
         // sticky mobile pay button (support is one tap away on any other page)
       )}
@@ -2071,26 +2302,30 @@ export function App() {
           ============================================ */}
       {route === 'account' && (
         <>
-          <AccountPage
-            user={user}
-            autoOpenProfile={accountSetup}
-            onRequireAuth={() => setIsAuthOpen(true)}
-            onLogout={handleUserSignOut}
-            onNavigate={(p) => {
-              setAccountSetup(false)
-              handleNavigatePath(p)
-            }}
-            onUserUpdate={(u) =>
-              setUser((prev) => {
-                const merged = { ...(prev || { name: u.name, email: u.email }), ...u }
-                try {
-                  localStorage.setItem('playbeat_user', JSON.stringify(merged))
-                } catch { /* quota — non-fatal */ }
-                return merged
-              })
-            }
-          />
-          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          <Suspense fallback={ROUTE_FALLBACK}>
+            <AccountPage
+              user={user}
+              autoOpenProfile={accountSetup}
+              onRequireAuth={() => setIsAuthOpen(true)}
+              onLogout={handleUserSignOut}
+              onNavigate={(p) => {
+                setAccountSetup(false)
+                handleNavigatePath(p)
+              }}
+              onUserUpdate={(u) =>
+                setUser((prev) => {
+                  const merged = { ...(prev || { name: u.name, email: u.email }), ...u }
+                  try {
+                    localStorage.setItem('playbeat_user', JSON.stringify(merged))
+                  } catch { /* quota — non-fatal */ }
+                  return merged
+                })
+              }
+            />
+          </Suspense>
+          <Suspense fallback={null}>
+            <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          </Suspense>
         </>
       )}
 
@@ -2121,18 +2356,20 @@ export function App() {
               </button>
             </div>
             <div className="rounded-[26px] overflow-hidden border border-slate-400/10">
-              <ProjectorSpecMatrix
-                projectors={projectorProducts}
-                currency={selectedCurrency}
-                onAddToCart={(p) => {
-                  navigate('storefront')
-                  setTimeout(() => handleAddToCart(p), 120)
-                }}
-                onQuickView={(p) => {
-                  navigate('storefront')
-                  setTimeout(() => handleQuickViewWithTracking(p), 120)
-                }}
-              />
+              <Suspense fallback={ROUTE_FALLBACK}>
+                <ProjectorSpecMatrix
+                  projectors={projectorProducts}
+                  currency={selectedCurrency}
+                  onAddToCart={(p) => {
+                    navigate('storefront')
+                    setTimeout(() => handleAddToCart(p), 120)
+                  }}
+                  onQuickView={(p) => {
+                    navigate('storefront')
+                    setTimeout(() => handleQuickViewWithTracking(p), 120)
+                  }}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -2294,15 +2531,18 @@ export function App() {
             />
           )}
 
-          {/* Smart Projector Showcase Section (right under Browse Top Categories) */}
+          {/* Smart Projector Showcase Section (right under Browse Top Categories)
+              — below the fold: code-split + deferred mount (perf §4) */}
           {selectedCategory === 'all' && !searchQuery && (
-            <SmartProjectorShowcase
-              projectors={projectorProducts}
-              currency={selectedCurrency}
-              onAddToCart={handleAddToCart}
-              onQuickView={handleQuickViewWithTracking}
-              onExploreAll={() => setSelectedCategory('Smart Projectors')}
-            />
+            <DeferredSection>
+              <SmartProjectorShowcase
+                projectors={projectorProducts}
+                currency={selectedCurrency}
+                onAddToCart={handleAddToCart}
+                onQuickView={handleQuickViewWithTracking}
+                onExploreAll={() => setSelectedCategory('Smart Projectors')}
+              />
+            </DeferredSection>
           )}
 
           {/* Popular Products Row (Matching Screenshot 3 & 2) */}
@@ -2348,15 +2588,15 @@ export function App() {
             </section>
           )}
 
-          {/* Premium Access banner + Stats bar (design PDF sections) */}
+          {/* Premium Access banner + Stats bar (design PDF sections) — below fold */}
           {selectedCategory === 'all' && !searchQuery && (
-            <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6">
+            <LazySection className="w-full max-w-[1600px] mx-auto px-4 sm:px-6">
               <PremiumAccessBanner onCta={() => {
                 const el = document.getElementById('popular-products-section')
                 el?.scrollIntoView({ behavior: 'smooth' })
               }} />
               <StatsBar />
-            </div>
+            </LazySection>
           )}
 
           {/* Main Full Catalog View */}
@@ -2485,56 +2725,79 @@ export function App() {
             )}
 
             {/* DB-driven homepage builder sections (banners/testimonials/FAQ)
-                — renders nothing until sections are configured in Admin → CMS */}
-            {selectedCategory === 'all' && !searchQuery && <CmsHomepageSections />}
+                — renders nothing until sections are configured in Admin → CMS
+                — below the fold: code-split + deferred mount (perf §4) */}
+            {selectedCategory === 'all' && !searchQuery && (
+              <DeferredSection>
+                <CmsHomepageSections />
+              </DeferredSection>
+            )}
 
             {/* FAQ — grounded in the live policies, with FAQPage JSON-LD */}
             {selectedCategory === 'all' && !searchQuery && (
-              <FAQSection onNavigate={(path) => {
-                const slug = path.replace(/^\//, '')
-                if (
-                  POLICY_ROUTES.includes(slug as Route) ||
-                  CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
-                  SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
-                ) {
-                  navigate(slug as Route)
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                } else {
-                  navigatePath(path)
-                }
-              }} />
+              <LazySection>
+                <FAQSection onNavigate={(path) => {
+                  const slug = path.replace(/^\//, '')
+                  if (
+                    POLICY_ROUTES.includes(slug as Route) ||
+                    CATEGORY_ROUTE_KEYS.includes(slug as Route) ||
+                    SUBCATEGORY_ROUTE_KEYS.includes(slug as Route)
+                  ) {
+                    navigate(slug as Route)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  } else {
+                    navigatePath(path)
+                  }
+                }} />
+              </LazySection>
             )}
 
             {/* Why Choose PlayBeat + Level-up CTA (design PDF sections) */}
             {selectedCategory === 'all' && !searchQuery && (
               <>
-                <WhyChoosePlayBeat onExploreCategories={() => {
-                  const el = document.getElementById('shop-by-category')
-                  el?.scrollIntoView({ behavior: 'smooth' })
-                }} />
-                <LevelUpCta onCta={() => {
-                  const el = document.getElementById('popular-products-section')
-                  el?.scrollIntoView({ behavior: 'smooth' })
-                }} />
+                <LazySection>
+                  <WhyChoosePlayBeat onExploreCategories={() => {
+                    const el = document.getElementById('shop-by-category')
+                    el?.scrollIntoView({ behavior: 'smooth' })
+                  }} />
+                </LazySection>
+                <LazySection>
+                  <LevelUpCta onCta={() => {
+                    const el = document.getElementById('popular-products-section')
+                    el?.scrollIntoView({ behavior: 'smooth' })
+                  }} />
+                </LazySection>
               </>
             )}
 
-            {/* Bottom Trust Features Bar (Matching Screenshot 3) */}
-            <TrustFeatures />
+            {/* Bottom Trust Features Bar (Matching Screenshot 3) — below fold */}
+            <LazySection>
+              <TrustFeatures />
+            </LazySection>
           </main>
 
           {/* Get the App section — homepage only (admin visibility-controlled) */}
-          {selectedCategory === 'all' && !searchQuery && <AppDownloadSection />}
+          {selectedCategory === 'all' && !searchQuery && (
+            <DeferredSection>
+              <AppDownloadSection />
+            </DeferredSection>
+          )}
 
-          {/* Footer */}
-          <AdSlot slotKey="pb-footer-leaderboard" className="max-w-5xl mx-auto px-4 mb-6" minHeight={110} />
+          {/* Footer ad + Footer */}
+          <Suspense fallback={null}>
+            <AdSlot slotKey="pb-footer-leaderboard" className="max-w-5xl mx-auto px-4 mb-6" minHeight={110} />
+          </Suspense>
           <Footer cms={cmsSettings} />
 
           {/* PWA install chip — storefront only (never on checkout/admin) */}
-          <InstallPwaChip />
+          <Suspense fallback={null}>
+            <InstallPwaChip />
+          </Suspense>
 
           {/* Google Consent Mode v2 banner — storefront surfaces only */}
-          <ConsentBanner />
+          <Suspense fallback={null}>
+            <ConsentBanner />
+          </Suspense>
 
           {/* Quick View Modal — storefront only */}
           <QuickViewModal
@@ -2571,58 +2834,66 @@ export function App() {
           />
 
           {/* Wishlist Drawer */}
-          <WishlistDrawer
-            isOpen={isWishlistOpen}
-            onClose={() => setIsWishlistOpen(false)}
-            wishlist={wishlist}
-            currency={selectedCurrency}
-            onAddToCart={handleAddToCart}
-            onRemoveWishlist={handleToggleWishlist}
-          />
+          <Suspense fallback={null}>
+            <WishlistDrawer
+              isOpen={isWishlistOpen}
+              onClose={() => setIsWishlistOpen(false)}
+              wishlist={wishlist}
+              currency={selectedCurrency}
+              onAddToCart={handleAddToCart}
+              onRemoveWishlist={handleToggleWishlist}
+            />
+          </Suspense>
 
           {/* Sign Up / Sign In Modal — wired to backend /api/auth/* */}
-          <AuthModal
-            isOpen={isAuthOpen}
-            onClose={() => setIsAuthOpen(false)}
-            onSuccess={(u, token, meta) => {
-              if (token) localStorage.setItem('playbeat_user_token', token)
-              localStorage.setItem('playbeat_user', JSON.stringify(u))
-              setUser(u)
-              if (meta?.mode === 'signup') {
-                // New customer → straight into profile setup on /account
-                setAccountSetup(true)
-                showToast(`Welcome to PlayBeat, ${u.name}! Add your details for faster checkout.`)
-                navigate('account')
-              } else {
-                showToast(`Welcome to PlayBeat, ${u.name}!`)
-              }
-            }}
-          />
+          <Suspense fallback={null}>
+            <AuthModal
+              isOpen={isAuthOpen}
+              onClose={() => setIsAuthOpen(false)}
+              onSuccess={(u, token, meta) => {
+                if (token) localStorage.setItem('playbeat_user_token', token)
+                localStorage.setItem('playbeat_user', JSON.stringify(u))
+                setUser(u)
+                if (meta?.mode === 'signup') {
+                  // New customer → straight into profile setup on /account
+                  setAccountSetup(true)
+                  showToast(`Welcome to PlayBeat, ${u.name}! Add your details for faster checkout.`)
+                  navigate('account')
+                } else {
+                  showToast(`Welcome to PlayBeat, ${u.name}!`)
+                }
+              }}
+            />
+          </Suspense>
 
           {/* Account Profile Drawer — only when signed in */}
           {user && (
-            <AccountDrawer
-              isOpen={isAccountOpen}
-              onClose={() => setIsAccountOpen(false)}
-              activeTab={accountTab}
-              onSelectTab={setAccountTab}
-              user={user}
-              currency={selectedCurrency}
-              onSignOut={handleUserSignOut}
-              onEditProfile={() => {
-                setIsAccountOpen(false)
-                setAccountSetup(true)
-                handleNavigatePath('/account')
-              }}
-              onOpenWishlist={() => {
-                setIsAccountOpen(false)
-                setIsWishlistOpen(true)
-              }}
-            />
+            <Suspense fallback={null}>
+              <AccountDrawer
+                isOpen={isAccountOpen}
+                onClose={() => setIsAccountOpen(false)}
+                activeTab={accountTab}
+                onSelectTab={setAccountTab}
+                user={user}
+                currency={selectedCurrency}
+                onSignOut={handleUserSignOut}
+                onEditProfile={() => {
+                  setIsAccountOpen(false)
+                  setAccountSetup(true)
+                  handleNavigatePath('/account')
+                }}
+                onOpenWishlist={() => {
+                  setIsAccountOpen(false)
+                  setIsWishlistOpen(true)
+                }}
+              />
+            </Suspense>
           )}
 
           {/* Live Support bubble — storefront customers chat with the admin team */}
-          <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          <Suspense fallback={null}>
+            <LiveSupportWidget user={user} onNavigate={handleNavigatePath} />
+          </Suspense>
         </>
       )}
     </div>

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { Product, ProductCategory } from '../types'
+import { normalizeRegionInput, isValidRegionValue } from './admin/RegionCombobox'
 import { formatPrice } from '../lib/currency'
 
 interface CsvImporterModalProps {
@@ -52,7 +53,10 @@ export interface ParsedItem {
   rating: number
   reviewCount: number
   deliveryType: 'Instant Auto-Email' | 'Courier Shipping (1-3 Days)' | 'Direct Activation'
-  region: 'Global' | 'USA' | 'Europe' | 'Asia' | 'Pakistan'
+  /** Region/country — free string since the region field upgrade:
+      legacy Global/USA/Europe/Asia/Pakistan values AND specific countries
+      (France, Germany, ...) AND admin-created custom regions all pass. */
+  region: string
   tags: string[]
   isHot?: boolean
   isFeatured?: boolean
@@ -202,9 +206,14 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
             deliveryType = row.deliveryType
           }
 
-          let region: 'Global' | 'USA' | 'Europe' | 'Asia' | 'Pakistan' = 'Global'
-          if (row.region && ['Global', 'USA', 'Europe', 'Asia', 'Pakistan'].includes(row.region)) {
-            region = row.region
+          let region: string = 'Global'
+          if (row.region && String(row.region).trim()) {
+            // Region field upgrade (§24/§26): accept any region/country —
+            // canonicalize casing + common aliases (USA→United States,
+            // UK→United Kingdom, UAE→United Arab Emirates) and keep genuine
+            // custom regions verbatim. Legacy values still import as-is.
+            const normalized = normalizeRegionInput(String(row.region))
+            region = isValidRegionValue(normalized) ? normalized : 'Global'
           }
 
           if (!name || name.length < 2) errors.push('Product name is required')
