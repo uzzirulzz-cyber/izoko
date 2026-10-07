@@ -8,7 +8,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 const crypto = require('crypto');
 const DATA = require('/home/z/my-project/scripts/psn_regions_data.json');
 
-const MONGO = 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/';
+const MONGO = require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = 'playbeat';
 
 // ---------- helpers ----------

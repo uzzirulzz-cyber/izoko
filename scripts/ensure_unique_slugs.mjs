@@ -6,8 +6,10 @@
 //   node scripts/ensure_unique_slugs.mjs --dry   # report only, no writes
 //   node scripts/ensure_unique_slugs.mjs         # apply + create unique index
 import { MongoClient, ServerApiVersion } from 'mongodb'
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0'
+const uri = process.env.MONGODB_URI || require("./_mongo_uri.cjs").MONGODB_URI
 const DB_NAME = 'playbeat'
 const DRY = process.argv.includes('--dry')
 

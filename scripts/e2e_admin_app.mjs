@@ -3,10 +3,12 @@
 // runs heartbeat/devices/revoke flow, then deletes the account.
 // Usage: node scripts/e2e_admin_app.mjs
 import bcrypt from "bcryptjs";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const BASE = "https://playbeat.digital";
 const MONGO_URI =
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = "playbeat";
 const TEST_EMAIL = "e2e-app-tester@playbeat.digital";
 const TEST_PASS = "E2eTester2026!x";

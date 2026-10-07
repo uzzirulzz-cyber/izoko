@@ -6,17 +6,27 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { createServer as createViteServer } from "vite";
+import { createRequire } from "module";
 
 dotenv.config();
 
 // Environment & Config
+// SECURITY: no hardcoded MongoDB credentials. Resolved from the environment or
+// the gitignored repo-root .env (via the shared loader). Missing value = the
+// loader throws with remediation instructions; the server never starts insecure.
+const require = createRequire(import.meta.url);
 const PORT = Number(process.env.PORT) || 3000;
-const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+const MONGODB_URI = require("./scripts/_mongo_uri.cjs").MONGODB_URI as string;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@playbeat.digital";
+// SECURITY (rotation required): this fallback password is exposed in source and
+// is STILL ACTIVE on production (ADMIN_PASSWORD env not set in Vercel — verified
+// 2026-10-08). The owner must set ADMIN_PASSWORD in Vercel env, then remove this
+// fallback. Reported in the security hardening report — not changed unilaterally
+// to avoid locking the owner out of the admin console.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeat1122";
+// SECURITY: the fallback below is exposed in source; production already fails
+// closed via api/_lib/config.ts. Dev-only fallback retained for local parity.
 const SESSION_SECRET = process.env.SESSION_SECRET || "playbeat-jwt-super-secret-key-2026";
 const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || "https://playbeat.digital";
 

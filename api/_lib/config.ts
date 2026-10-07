@@ -10,6 +10,12 @@
 export const MONGODB_URI = process.env.MONGODB_URI || "";
 export const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@playbeat.digital";
+// SECURITY (CRITICAL — owner action required): this hardcoded fallback password
+// is exposed in source and is STILL ACTIVE on production (verified 2026-10-08:
+// admin/login succeeds with the source fallback value → ADMIN_PASSWORD env is
+// NOT set in Vercel). Rotate by setting ADMIN_PASSWORD in Vercel environment
+// variables, then change this line to fail closed:  process.env.ADMIN_PASSWORD || ""
+// Retained for now to avoid locking the owner out before rotation.
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "playbeat1122";
 export const SESSION_SECRET = process.env.SESSION_SECRET || "";
 export const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || "https://playbeat.digital";

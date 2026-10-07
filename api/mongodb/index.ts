@@ -24,12 +24,25 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   const pathSegments = parts.slice(2); // drop "api", "mongodb"
   const route = pathSegments.join("/").toLowerCase();
 
+  // SECURITY: connection strings are NEVER accepted from the client. The server
+  // connects exclusively with its own MONGODB_URI environment variable, and any
+  // error surfaced to the client is credential-redacted.
+  const redactCreds = (s: unknown): string =>
+    String(s ?? "").replace(
+      /(mongodb(?:\+srv)?:\/\/[^:/@\s]+:)[^@/\s]+@/g,
+      "$1***@"
+    );
+
   // ============ POST /api/mongodb/test ============
   if (route === "test" && req.method === "POST") {
     const started = Date.now();
     try {
       const body = req.body || {};
-      const uri = cleanMongoUri(body.uri || MONGODB_URI);
+      // Client-supplied URIs are ignored — the server uses its own credential.
+      const uri = cleanMongoUri(MONGODB_URI);
+      if (!uri) {
+        return jsonError(res, "Server MONGODB_URI is not configured.", 500);
+      }
       const dbName = body.dbName || "playbeat";
       const client = new MongoClient(uri, {
         serverApi: { version: ServerApiVersion.v1, strict: false, deprecationErrors: true },
@@ -62,7 +75,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         message: `Connected to MongoDB cluster in ${latency}ms`,
       });
     } catch (err: any) {
-      return jsonError(res, `Connection failed: ${err.message}`, 502);
+      return jsonError(res, `Connection failed: ${redactCreds(err.message)}`, 502);
     }
   }
 
@@ -105,7 +118,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         })),
       });
     } catch (err: any) {
-      return jsonError(res, `Fetch failed: ${err.message}`, 502);
+      return jsonError(res, `Fetch failed: ${redactCreds(err.message)}`, 502);
     }
   }
 
@@ -259,8 +272,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         },
       });
     } catch (err: any) {
-      console.error("POST /api/mongodb/products/upload error:", err);
-      return jsonError(res, err.message || "Import failed", 500);
+      console.error("POST /api/mongodb/products/upload error:", redactCreds(err.message));
+      return jsonError(res, redactCreds(err.message) || "Import failed", 500);
     }
   }
 

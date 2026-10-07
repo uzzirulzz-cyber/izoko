@@ -1,7 +1,9 @@
 // inspect_deluxe_context.js — check variantLabel, test product, media collection, sku pattern
 import { MongoClient, ServerApiVersion } from 'mongodb';
 
-const uri = 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const uri = require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = 'playbeat';
 
 const client = new MongoClient(uri, {

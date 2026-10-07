@@ -8,10 +8,12 @@ import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const MONGO_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

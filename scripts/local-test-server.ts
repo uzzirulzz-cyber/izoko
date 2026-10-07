@@ -16,7 +16,9 @@ dotenv.config();
 // --- env bootstrap (dev fallbacks identical to server.ts) ---
 process.env.MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+  require("./_mongo_uri.cjs").MONGODB_URI;
 process.env.MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 process.env.SESSION_SECRET =
   process.env.SESSION_SECRET || "playbeat-jwt-super-secret-key-2026";

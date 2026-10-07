@@ -5,7 +5,9 @@
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import fs from 'fs';
 
-const uri = 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const uri = require("./_mongo_uri.cjs").MONGODB_URI;
 const TS_PATH = '/home/z/my-project/izoko/src/data/products.ts';
 
 // ---- read current bundled raw entries (rich metadata source) ----

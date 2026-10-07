@@ -7,7 +7,9 @@
 import DOMPurify from "isomorphic-dompurify";
 import { MongoClient } from "mongodb";
 
-const MONGO = "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const MONGO = require("./_mongo_uri.cjs").MONGODB_URI;
 const SLUGS = ["uk", "germany", "france", "canada", "australia", "japan", "singapore", "malaysia", "saudi-arabia", "uae"]
   .map((s) => `playstation-network-gift-card-${s}-psn-digital-code`);
 

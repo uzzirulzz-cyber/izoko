@@ -11,9 +11,11 @@
 //   - derived shortDescription never leaks raw HTML tags
 //   - storefront API returns the full description for rendering
 
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 const PORT = process.env.TEST_PORT || 3010;
 const BASE = `http://127.0.0.1:${PORT}`;
-const MONGO_URI = process.env.MONGODB_URI || "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+const MONGO_URI = process.env.MONGODB_URI || require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = "playbeat_editor_test";
 
 let pass = 0, fail = 0;

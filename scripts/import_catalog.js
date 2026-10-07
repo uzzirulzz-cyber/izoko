@@ -4,7 +4,9 @@
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import fs from 'fs';
 
-const uri = 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const uri = require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = 'playbeat';
 const catalog = JSON.parse(fs.readFileSync('/home/z/my-project/scripts/catalog_new.json', 'utf8'));
 const manifest = JSON.parse(fs.readFileSync('/home/z/my-project/scripts/image_manifest.json', 'utf8'));

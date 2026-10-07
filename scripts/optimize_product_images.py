@@ -28,7 +28,23 @@ from bson import Binary
 from PIL import Image
 from pymongo import MongoClient
 
-MONGO_URI = "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/"
+
+def _mongo_uri_from_env_file():
+    """Read MONGODB_URI from the gitignored repo-root .env. Never hardcode credentials."""
+    import os
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                m = re.match(r"^\s*MONGODB_URI\s*=\s*(.+?)\s*$", line)
+                if m:
+                    v = m.group(1).strip("\"'")
+                    if v.startswith("mongodb"):
+                        return v
+    raise SystemExit("MONGODB_URI not set (env or repo .env). Hardcoding DB credentials is forbidden.")
+
+
+MONGO_URI = os.environ.get("MONGODB_URI") or _mongo_uri_from_env_file()
 DB = "playbeat"
 MAX_MAIN = 1600          # product image cap (task §7)
 MAX_THUMB = 640          # card thumbnail cap (task §7)

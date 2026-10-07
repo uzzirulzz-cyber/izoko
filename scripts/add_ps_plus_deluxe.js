@@ -12,7 +12,9 @@ import { MongoClient, ServerApiVersion, ObjectId } from 'mongodb';
 import fs from 'fs';
 import crypto from 'crypto';
 
-const uri = 'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const uri = require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = 'playbeat';
 
 const DRAFT_ID = '6ac5402d1ca8f17222be5496'; // PB-187038 empty draft

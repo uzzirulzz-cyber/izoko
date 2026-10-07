@@ -10,10 +10,12 @@
 // Read-only evidence is printed for every other collection touched/not touched.
 // Idempotent. Usage: node scripts/reset_orders_sales.mjs
 import { MongoClient } from "mongodb";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const MONGO_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 
 const mc = new MongoClient(MONGO_URI);

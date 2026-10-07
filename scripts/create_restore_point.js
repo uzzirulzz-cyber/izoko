@@ -2,9 +2,11 @@
 // playbeat MongoDB database (products + orders + users + site_settings).
 // Usage: node /home/z/my-project/scripts/create_restore_point.js [name]
 import { MongoClient, ServerApiVersion } from 'mongodb';
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const uri =
-  'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0';
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = 'playbeat';
 
 const name =

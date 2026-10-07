@@ -1,9 +1,11 @@
 // Seed the app_release doc with the v2.0.0 release metadata (idempotent).
 // Usage: node scripts/seed_app_release.mjs
 import { MongoClient } from "mongodb";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 const MONGO_URI =
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = "playbeat";
 
 const release = {

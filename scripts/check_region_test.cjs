@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb');
 (async () => {
-  const c = new MongoClient('mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/');
+  const c = new MongoClient(require("./_mongo_uri.cjs").MONGODB_URI);
   await c.connect();
   const db = c.db('playbeat');
   const p = await db.collection('products').findOne({ sku: 'PB-REGION-FR-TEST' });

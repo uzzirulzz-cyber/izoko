@@ -5,12 +5,14 @@
 // Usage: node scripts/migrate-product-images-webp.mjs [--dry]
 import dotenv from "dotenv";
 import { MongoClient } from "mongodb";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
 dotenv.config();
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0";
+  require("./_mongo_uri.cjs").MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB_NAME || "playbeat";
 const DRY = process.argv.includes("--dry");
 

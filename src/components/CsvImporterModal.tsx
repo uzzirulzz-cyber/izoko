@@ -16,6 +16,7 @@ import {
   Edit2,
   RefreshCw,
   Server,
+  Lock,
   Layers,
   Zap,
   Tag,
@@ -72,8 +73,9 @@ PB-GPT-PLUS,ChatGPT Plus 1 Month VIP Direct Upgrade,AI & Productivity,6500,30,tr
 PB-WIN11-PRO,Windows 11 Professional Retail License Key,Software,1499,120,true,https://images.unsplash.com/photo-1583508915901-b5f84c1dcde1?w=500,Lifetime official online activation key for 1 PC with free updates,Instant Auto-Email,Global,4.8,420
 PB-STEAM-50,Steam Wallet $50 USD Global Digital Code,Games,14200,40,true,https://images.unsplash.com/photo-1612287232230-e54737d2f9ef?w=500,Instantly redeemable Steam wallet funds for any game or DLC,Instant Auto-Email,Global,4.9,150`
 
-const DEFAULT_MONGO_URI =
-  'mongodb+srv://new:KgSqbhLKjBK3R8lN@cluster0.mfghk5u.mongodb.net/?appName=Cluster0'
+// SECURITY: no MongoDB credentials in the browser. The importer talks to
+// /api/mongodb/* which connects with the server-only MONGODB_URI env var.
+// No connection string is stored, rendered, or transmitted from this component.
 
 export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
   isOpen,
@@ -95,8 +97,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
   // Raw text paste
   const [rawText, setRawText] = useState('')
 
-  // MongoDB Connection State
-  const [mongoUri, setMongoUri] = useState(DEFAULT_MONGO_URI)
+  // MongoDB Connection State (credentials stay server-side — env MONGODB_URI)
   const [mongoDbName, setMongoDbName] = useState('playbeat')
   const [mongoCollection, setMongoCollection] = useState('products')
   const [isMongoTesting, setIsMongoTesting] = useState(false)
@@ -287,7 +288,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
       const res = await fetch('/api/mongodb/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uri: mongoUri, dbName: mongoDbName }),
+        body: JSON.stringify({ dbName: mongoDbName }),
       })
       const data = await res.json()
       if (data.success) {
@@ -316,7 +317,6 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
     setIsMongoFetching(true)
     try {
       const params = new URLSearchParams({
-        uri: mongoUri,
         dbName: mongoDbName,
         collection: mongoCollection,
       })
@@ -439,7 +439,6 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               products: validProductsToPublish,
-              uri: mongoUri,
               dbName: mongoDbName,
               collection: mongoCollection,
               replaceAll: publishMode === 'replace',
@@ -681,19 +680,16 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
                     </div>
                   </div>
 
-                  {/* URI Input */}
+                  {/* Server-managed connection (no credentials in the browser) */}
                   <div>
                     <label className="block text-xs font-mono text-zinc-400 mb-1.5">
-                      MongoDB Connection URI
+                      MongoDB Connection
                     </label>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={mongoUri}
-                        onChange={(e) => setMongoUri(e.target.value)}
-                        placeholder="mongodb+srv://user:pass@cluster.mongodb.net/..."
-                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#070A12] border border-white/10 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-400/50"
-                      />
+                      <div className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#070A12] border border-white/10 text-xs font-mono text-zinc-400 flex items-center gap-2" aria-readonly="true">
+                        <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Secured server-side connection (MONGODB_URI env) — no credentials handled in the browser</span>
+                      </div>
                       <button
                         type="button"
                         onClick={handleTestMongo}
@@ -1291,7 +1287,7 @@ export const CsvImporterModal: React.FC<CsvImporterModalProps> = ({
                         Simultaneously Persist to MongoDB Cloud Vault
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        Target: {mongoDbName}.{mongoCollection} ({DEFAULT_MONGO_URI.split('@')[1]?.split('/')[0]})
+                        Target: {mongoDbName}.{mongoCollection} (server-managed cluster)
                       </div>
                     </div>
                   </div>
