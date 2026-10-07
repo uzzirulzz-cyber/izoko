@@ -117,6 +117,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               src={product.imageThumb || product.image}
               alt={product.name}
               loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover object-center group-hover:scale-[1.06] transition-transform duration-700 ease-out"
             />
             {/* Premium scrim */}

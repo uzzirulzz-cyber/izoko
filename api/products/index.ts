@@ -228,13 +228,26 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (!doc || !bytes || !bytes.length) {
         return jsonError(res, "Image not found.", 404);
       }
+      // ?t=1 — the ≤600px product-card thumbnail variant (perf task §7/backfill).
+      // Served when the doc carries a generated thumb; falls back to the original
+      // bytes for assets without one (identical artwork, same URL semantics as
+      // /api/admin/media?t=1).
+      const wantThumb = new URL(req.url || "", "http://localhost").searchParams.get("t") === "1";
+      const thumbBytes: Buffer | null = doc?.thumbBytes?.buffer
+        ? Buffer.from(doc.thumbBytes.buffer)
+        : Buffer.isBuffer(doc?.thumbBytes)
+          ? doc.thumbBytes
+          : null;
+      const hasThumb = Boolean(wantThumb && thumbBytes && thumbBytes.length);
+      const serve = hasThumb ? (thumbBytes as Buffer) : bytes;
+      const serveMime = hasThumb ? String(doc.thumbMime || "image/webp") : String(doc.mime || "image/png");
       res.status(200);
-      res.setHeader("Content-Type", String(doc.mime || "image/png"));
-      res.setHeader("Content-Length", String(bytes.length));
+      res.setHeader("Content-Type", serveMime);
+      res.setHeader("Content-Length", String(serve.length));
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      res.setHeader("ETag", `"${imageId}"`);
+      res.setHeader("ETag", `"${imageId}${hasThumb ? "-t" : ""}"`);
       if (req.method === "HEAD") return res.end();
-      return res.send(bytes);
+      return res.send(serve);
     } catch (err: any) {
       return jsonError(res, err.message || "Image serve failed.", 500);
     }

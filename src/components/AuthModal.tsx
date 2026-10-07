@@ -164,7 +164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-[#060B1E] border border-yellow-400/30 shadow-lg mb-3">
             <img
-              src="/playbeat-logo.png"
+              src="/playbeat-logo-320.webp"
               alt="PlayBeat"
               className="h-10 w-auto object-contain drop-shadow-[0_0_12px_rgba(255,193,7,0.4)]"
             />

@@ -396,7 +396,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <div className="absolute -inset-1.5 bg-[#1f86ff]/25 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
             <img
-              src="/playbeat-logo-3d.png"
+              src="/playbeat-logo-3d-200.webp"
               alt="PlayBeat Digital"
               className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${
                 scrolled ? 'h-11 sm:h-12' : 'h-13 sm:h-16'

@@ -128,8 +128,10 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
             <div className="md:col-span-4 space-y-3.5">
               <div className="flex items-center gap-3">
                 <img
-                  src="/playbeat-logo.png"
+                  src="/playbeat-logo-320.webp"
                   alt="PlayBeat"
+                  loading="lazy"
+                  decoding="async"
                   className="h-10 w-auto object-contain drop-shadow-[0_0_12px_rgba(255,193,7,0.4)]"
                 />
               </div>

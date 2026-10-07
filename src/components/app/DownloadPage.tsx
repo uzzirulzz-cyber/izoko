@@ -174,7 +174,7 @@ export const DownloadPage: React.FC = () => {
           {/* logo */}
           <div className="flex items-center justify-center mb-8">
             <img
-              src="/playbeat-logo.png"
+              src="/playbeat-logo-320.webp"
               alt="PlayBeat Digital"
               className="h-11 w-auto object-contain drop-shadow-[0_0_16px_rgba(255,193,7,0.35)]"
             />
@@ -237,7 +237,7 @@ export const DownloadPage: React.FC = () => {
                       <div className="w-16 h-1.5 rounded-full bg-slate-400/30" />
                     </div>
                     <div className="px-3 pt-1 flex items-center justify-between">
-                      <img src="/playbeat-logo.png" alt="" className="h-5 object-contain" />
+                      <img src="/playbeat-logo-320.webp" alt="" className="h-5 object-contain" />
                       <div className="flex gap-1">
                         <div className="w-3 h-3 rounded-full bg-amber-400/25" />
                         <div className="w-3 h-3 rounded-full bg-slate-400/25" />

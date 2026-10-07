@@ -171,7 +171,7 @@ export const AppDownloadSection: React.FC = () => {
                     <div className="w-14 h-1.5 rounded-full bg-slate-400/30" />
                   </div>
                   <div className="px-2.5 pt-1">
-                    <img src="/playbeat-logo.png" alt="" className="h-5 object-contain" />
+                    <img src="/playbeat-logo-320.webp" alt="" className="h-5 object-contain" />
                   </div>
                   <div className="mx-2.5 mt-2 h-6 rounded-lg bg-[#0A122E] border border-slate-400/10 flex items-center px-2">
                     <div className="w-2.5 h-2.5 rounded-full border border-slate-400/40" />

@@ -202,7 +202,9 @@ export function isDataImageUrl(value: unknown): boolean {
  */
 export function mediaThumbUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
-  if (!value.startsWith('/api/admin/media?id=')) return null
+  const isMedia = value.startsWith('/api/admin/media?id=')
+  const isProductImage = /^\/api\/products\/images\/[0-9a-fA-F]{24}/.test(value)
+  if (!isMedia && !isProductImage) return null
   return value.includes('?') ? `${value}&t=1` : `${value}?t=1`
 }
 

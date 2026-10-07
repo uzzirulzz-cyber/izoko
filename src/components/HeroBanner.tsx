@@ -304,7 +304,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               {/* Core PlayBeat tile */}
               <div className="pb-tile pb-tile-core">
                 <img
-                  src="/playbeat-logo-3d.png"
+                  src="/playbeat-logo-3d-320.webp"
                   alt="PlayBeat Digital"
                   style={{ width: '88%', filter: 'drop-shadow(0 0 18px rgba(63,149,255,0.53))' }}
                 />
