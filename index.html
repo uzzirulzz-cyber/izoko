@@ -116,7 +116,7 @@
          window. The stubs below are installed inline (zero network cost) so
          every tracking call keeps working: dataLayer/gtag/fbq/adsbygoogle
          queue their arguments and replay them the moment the real libraries
-         arrive AFTER the page has loaded (+1.5s idle, 6s absolute cap).
+         arrive AFTER the page has loaded (+3s idle, 8s absolute cap).
          Nothing is removed and no consent flow changes — tags fire a few
          seconds later, which no user-visible feature depends on. -->
     <script>
@@ -167,11 +167,11 @@
         } catch (e) { /* never block the page */ }
       }
       function schedule() {
-        setTimeout(loadThirdParty, 1500);
+        setTimeout(loadThirdParty, 3000);
       }
       if (document.readyState === 'complete') schedule();
       else window.addEventListener('load', schedule);
-      setTimeout(loadThirdParty, 6000); // absolute cap — tags always load
+      setTimeout(loadThirdParty, 8000); // absolute cap — tags always load
     })();
     </script>
   </head>

@@ -117,7 +117,7 @@ export const SEO_SHELL_HTML = `<!doctype html>
          window. The stubs below are installed inline (zero network cost) so
          every tracking call keeps working: dataLayer/gtag/fbq/adsbygoogle
          queue their arguments and replay them the moment the real libraries
-         arrive AFTER the page has loaded (+1.5s idle, 6s absolute cap).
+         arrive AFTER the page has loaded (+3s idle, 8s absolute cap).
          Nothing is removed and no consent flow changes — tags fire a few
          seconds later, which no user-visible feature depends on. -->
     <script>
@@ -168,11 +168,11 @@ export const SEO_SHELL_HTML = `<!doctype html>
         } catch (e) { /* never block the page */ }
       }
       function schedule() {
-        setTimeout(loadThirdParty, 1500);
+        setTimeout(loadThirdParty, 3000);
       }
       if (document.readyState === 'complete') schedule();
       else window.addEventListener('load', schedule);
-      setTimeout(loadThirdParty, 6000); // absolute cap — tags always load
+      setTimeout(loadThirdParty, 8000); // absolute cap — tags always load
     })();
     </script>
     <script type="module" crossorigin src="/assets/index-C0QK_YJt.js"></script>
@@ -186,6 +186,19 @@ export const SEO_SHELL_HTML = `<!doctype html>
     /></noscript>
     <!-- End Meta Pixel Code -->
     <div id="root">
+      <!-- Perf (task §5): STATIC HERO REPLICA. The measured mobile LCP element
+           is the hero stage <main class="pbhs-stage"> whose background is
+           /hero_header_v3.webp (preloaded above with fetchpriority=high).
+           Previously that element only existed once React finished rendering
+           the ENTIRE app, which under Lighthouse's 4x-CPU simulation pushed
+           LCP to 13-26s. This server-rendered replica uses the SAME classes
+           (pbhs-scroll/pbhs-stage) and the SAME aspect-ratio geometry as the
+           live component, so the artwork paints as part of the initial HTML
+           and the React commit replaces it pixel-identically (same classes,
+           same size, same image — zero layout shift, zero visual change).
+           It is interactive ~0.5s later when React mounts, exactly the same
+           interaction surface as before. -->
+      <div class="pbhs-scroll relative w-full overflow-x-auto bg-[#000b1d] [scrollbar-width:none]"><main class="pbhs-stage relative" style="background-image:url(/hero_header_v3.webp)"></main></div>
       <div style="min-height:100vh;background:#050814;color:#e5e7eb;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;padding:24px 16px;box-sizing:border-box"><div style="max-width:920px;margin:0 auto">
       <h1 style="color:#fff;font-size:26px;line-height:1.25;margin:10px 0 14px;font-weight:800">Premium Digital Marketplace &amp; Smart Projectors</h1>
       <p style="line-height:1.7;color:#c7ccd6;margin:0 0 14px;font-size:15px">Instant digital keys, gaming accounts, subscriptions, AI tools, SaaS licenses, and high-performance 4K Smart Projectors with 24/7 automated delivery.</p>
