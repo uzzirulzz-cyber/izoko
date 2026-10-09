@@ -1,7 +1,4 @@
-// Order success state — shown ONLY after the server confirms the order.
-// Direct-payment orders return released license keys immediately (existing
-// store policy for wallet/bank/crypto rails); Rapid orders redirect to the
-// gateway and their keys appear on /order/:num after webhook verification.
+// Shows the server payment state; supplier keys appear after verified payment.
 import React, { useState } from 'react'
 import { CheckCircle2, Copy, Check, ShoppingCart, Receipt, Mail } from 'lucide-react'
 import { GoogleCustomerReviewsOptIn } from './GoogleCustomerReviewsOptIn'
@@ -15,6 +12,7 @@ interface OrderSuccessProps {
   keys: { title: string; key: string }[]
   /** True when the server released real license keys (digital items). */
   hasDigitalKeys: boolean
+  paymentPending?: boolean
   /**
    * Google Customer Reviews opt-in payload — built from the REAL server
    * order (real order id + checkout email + derived country/delivery date).
@@ -34,6 +32,7 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
   email,
   keys,
   hasDigitalKeys,
+  paymentPending = false,
   reviewOptIn,
   onContinueShopping,
   onViewOrders,
@@ -48,7 +47,7 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
 
   return (
     <div className="max-w-lg mx-auto px-4 py-10 pbx-fade-in" data-testid="order-success">
-      {reviewOptIn && (
+      {!paymentPending && reviewOptIn && (
         <GoogleCustomerReviewsOptIn
           orderId={reviewOptIn.orderId}
           email={reviewOptIn.email}
@@ -62,15 +61,10 @@ export const OrderSuccess: React.FC<OrderSuccessProps> = ({
           <CheckCircle2 className="w-9 h-9 text-green-600" />
         </span>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Order confirmed
+          {paymentPending ? 'Order saved — payment pending' : 'Payment confirmed'}
         </h1>
         <p className="text-sm text-slate-500 mt-2">
-          Paid <strong className="text-slate-900 pbx-num">{totalLabel}</strong> via{' '}
-          {paymentMethodLabel}.{' '}
-          {hasDigitalKeys
-            ? 'Your digital keys are ready below and a receipt was sent to '
-            : 'A confirmation and delivery update were sent to '}
-          <strong className="text-slate-700 break-all">{email}</strong>.
+          {paymentPending ? <>Order amount: <strong className="text-slate-900 pbx-num">{totalLabel}</strong> via {paymentMethodLabel}. Payment has not been verified. Keep your order number and check My Orders for payment and delivery updates.</> : <>Payment of <strong className="text-slate-900 pbx-num">{totalLabel}</strong> was verified. {hasDigitalKeys ? 'Your assigned supplier keys are shown below.' : 'Supplier delivery is pending. Check My Orders for updates.'}</>}
         </p>
 
         <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200">

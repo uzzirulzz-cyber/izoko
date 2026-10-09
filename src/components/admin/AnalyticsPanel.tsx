@@ -51,7 +51,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ analytics, loadi
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
         {[
           { label: 'Page Views', value: analytics?.pageViews ?? 0, icon: Eye, color: 'text-emerald-400' },
-          { label: 'Unique Visitors', value: analytics?.uniqueVisitors ?? 0, icon: Users, color: 'text-sky-400' },
+          { label: 'Unique Sessions', value: analytics?.uniqueVisitors ?? 0, icon: Users, color: 'text-sky-400' },
           { label: 'Product Views', value: analytics?.productViews ?? 0, icon: MousePointerClick, color: 'text-amber-400' },
           { label: 'Searches', value: (analytics?.topSearches || []).reduce((a: number, s: any) => a + s.count, 0), icon: Search, color: 'text-purple-400' },
           { label: 'Sign-ups', value: analytics?.signups ?? 0, icon: UserPlus, color: 'text-rose-400' },

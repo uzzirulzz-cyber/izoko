@@ -372,7 +372,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // email only when a provider is configured. Never blocks the webhook ACK.
     if (status === "paid") {
       try {
-        await fulfillPaidOrder(db, { ...order, paidAt: update.paidAt }, {
+        await fulfillPaidOrder(db, { ...order, paymentStatus: "paid", status: "completed", paidAt: update.paidAt }, {
           source: "webhook:generic",
           eventId: String(eventId),
         });

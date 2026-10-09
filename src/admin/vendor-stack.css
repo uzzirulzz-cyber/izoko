@@ -1,0 +1,3 @@
+/* Legacy components sit below Tailwind utilities and the admin theme. */
+@import './vendor-scoped.css' layer(pb-admin-vendor);
+@import './sb2-scoped.css' layer(pb-admin-vendor);

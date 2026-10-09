@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Check, ChevronRight, Command as CommandIcon, Search, X, AlertTriangle, CheckCircle2,
@@ -721,7 +722,7 @@ export const ThemeStudio: React.FC<{
 
   const mode = prefs.mode || 'auto'
 
-  return (
+  return createPortal(
     <>
       <div className="pb-drawer-overlay" onMouseDown={onClose} />
       <aside className="pb-drawer pb-studio" role="dialog" aria-modal="true" aria-label="Theme Studio">
@@ -852,7 +853,8 @@ export const ThemeStudio: React.FC<{
           <span className="ml-auto text-[10px]" style={{ color: 'var(--pa-muted)' }}>Auto-saved · synced to your account</span>
         </div>
       </aside>
-    </>
+    </>,
+    document.querySelector('.pbadmin') || document.body
   )
 }
 

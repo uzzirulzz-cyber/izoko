@@ -26,6 +26,7 @@
 //   project stays within Vercel's 12-serverless-function cap.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { withReviewMetrics } from "./reviewMetrics.js";
 import { getDb } from "./mongo.js";
 import { slugify } from "./config.js";
 import { SEO_SHELL_HTML, SEO_HOME_SHELL_HTML } from "./seoShell.generated.js";
@@ -1021,6 +1022,7 @@ export async function handlePbRender(req: VercelRequest, res: VercelResponse): P
       if (raw) doc = await col.findOne({ slug: raw });
       if (!doc) doc = await col.findOne({ slug: raw.toLowerCase() });
       if (!doc) doc = await col.findOne({ sku: raw });
+      if (doc) doc = (await withReviewMetrics(db, [doc]))[0];
       if (!doc) {
         // slug history → REAL 301 to the current canonical URL
         const relocated = await col.findOne({ slugHistory: raw }, { projection: { slug: 1 } });

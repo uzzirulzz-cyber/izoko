@@ -2,6 +2,7 @@
 // Routes:
 //   POST /api/analytics           (record an event — public, lightweight)
 //   GET  /api/analytics/summary   (admin-protected traffic overview)
+import { PUBLIC_TRAFFIC_FILTER, trafficSource, reportingWindow, businessOrdersFilter, PAID_ORDER_FILTER } from "../_lib/reporting.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "../_lib/mongo.js";
 import { getTrackingConfig, touchTrackingHeartbeat } from "../_lib/trackingConfig.js";
@@ -31,6 +32,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       if (!ALLOWED_EVENTS.includes(type)) {
         return jsonError(res, `Unsupported event type: ${type}`, 400);
       }
+      if (/^\/(?:admin|crm)(?:[/?#]|$)/i.test(String(body.path || ""))) return jsonOk(res, { success: true, ignored: true });
       const ua = String(req.headers["user-agent"] || "");
       const device = /mobile|android|iphone|ipad|ipod/i.test(ua)
         ? "mobile"
@@ -45,7 +47,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         productName: body.productName ? String(body.productName).slice(0, 200) : undefined,
         searchQuery: body.searchQuery ? String(body.searchQuery).slice(0, 200) : undefined,
         sessionId: String(body.sessionId || "").slice(0, 80) || undefined,
-        referrer: String(body.referrer || req.headers.referer || "").slice(0, 300),
+        referrer: String(typeof body.referrer === "string" ? body.referrer : req.headers.referer || "").slice(0, 300),
         device,
         userAgent: ua.slice(0, 300),
         createdAt: new Date(),
@@ -61,24 +63,23 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     if (!requireAdmin(req, res)) return;
     try {
       const url2 = new URL(req.url || "", "http://localhost");
-      const days = Math.min(parseInt(url2.searchParams.get("days") || "14", 10) || 14, 90);
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const { days, start: startDate, end } = reportingWindow(url2.searchParams.get("days"));
       const db = await getDb();
       const col = db.collection("analytics_events");
 
       const [totalEvents, pageViews, uniqueSessions, productViews, signups, addToCart, checkouts] = await Promise.all([
-        col.countDocuments({ createdAt: { $gte: startDate } }),
-        col.countDocuments({ type: "page_view", createdAt: { $gte: startDate } }),
-        col.distinct("sessionId", { type: "page_view", createdAt: { $gte: startDate } }),
-        col.countDocuments({ type: "product_view", createdAt: { $gte: startDate } }),
-        col.countDocuments({ type: "signup", createdAt: { $gte: startDate } }),
-        col.countDocuments({ type: "add_to_cart", createdAt: { $gte: startDate } }),
-        col.countDocuments({ type: "checkout", createdAt: { $gte: startDate } }),
+        col.countDocuments({ ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.countDocuments({ type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.distinct("sessionId", { type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.countDocuments({ type: "product_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.countDocuments({ type: "signup", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.countDocuments({ type: "add_to_cart", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
+        col.countDocuments({ type: "checkout", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } }),
       ]);
 
       const dailyAgg = await col
         .aggregate([
-          { $match: { type: "page_view", createdAt: { $gte: startDate } } },
+          { $match: { type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           {
             $group: {
               _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -92,19 +93,19 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
       const series: { date: string; views: number; sessions: number }[] = [];
       for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const d = new Date(end.getTime() - (i + 1) * 86400000);
         const key = d.toISOString().split("T")[0];
         const found = dailyAgg.find((a: any) => a._id === key);
         series.push({
           date: key,
           views: found?.views || 0,
-          sessions: (found?.sessions || []).length,
+          sessions: (found?.sessions || []).filter(Boolean).length,
         });
       }
 
       const topPages = await col
         .aggregate([
-          { $match: { type: "page_view", createdAt: { $gte: startDate } } },
+          { $match: { type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           { $group: { _id: "$path", views: { $sum: 1 } } },
           { $sort: { views: -1 } },
           { $limit: 8 },
@@ -113,7 +114,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
       const topProducts = await col
         .aggregate([
-          { $match: { type: "product_view", createdAt: { $gte: startDate } } },
+          { $match: { type: "product_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           {
             $group: {
               _id: "$productId",
@@ -128,14 +129,14 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
       const devices = await col
         .aggregate([
-          { $match: { type: "page_view", createdAt: { $gte: startDate } } },
+          { $match: { type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           { $group: { _id: "$device", count: { $sum: 1 } } },
         ])
         .toArray();
 
       const referrers = await col
         .aggregate([
-          { $match: { type: "page_view", createdAt: { $gte: startDate } } },
+          { $match: { type: "page_view", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           {
             $group: {
               _id: {
@@ -149,13 +150,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             },
           },
           { $sort: { count: -1 } },
-          { $limit: 8 },
         ])
         .toArray();
 
+      const sourceCounts = new Map<string, number>();
+      for (const row of referrers) { const source = trafficSource(row._id === "(direct)" ? "" : row._id); sourceCounts.set(source, (sourceCounts.get(source) || 0) + row.count); }
+      const paidOrders = await db.collection("orders").aggregate([{ $match: { ...businessOrdersFilter(), ...PAID_ORDER_FILTER } }, { $addFields: { reportDate: { $ifNull: ["$paidAt", "$createdAt"] } } }, { $match: { reportDate: { $gte: startDate, $lt: end } } }, { $count: "count" }]).toArray();
       const topSearches = await col
         .aggregate([
-          { $match: { type: "search", createdAt: { $gte: startDate } } },
+          { $match: { type: "search", ...PUBLIC_TRAFFIC_FILTER, createdAt: { $gte: startDate, $lt: end } } },
           { $group: { _id: "$searchQuery", count: { $sum: 1 } } },
           { $sort: { count: -1 } },
           { $limit: 8 },
@@ -166,9 +169,11 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         success: true,
         analytics: {
           days,
+          paidOrders: paidOrders[0]?.count || 0,
+          timezone: "UTC",
           totalEvents,
           pageViews,
-          uniqueVisitors: uniqueSessions.length,
+          uniqueVisitors: uniqueSessions.filter(Boolean).length,
           productViews,
           signups,
           addToCart,
@@ -177,7 +182,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           topPages: topPages.map((p: any) => ({ path: p._id, views: p.views })),
           topProducts: topProducts.map((p: any) => ({ id: p._id, name: p.name || p._id, views: p.views })),
           devices: devices.map((d: any) => ({ device: d._id || "unknown", count: d.count })),
-          referrers: referrers.map((r: any) => ({ source: r._id || "(direct)", count: r.count })),
+          referrers: [...sourceCounts].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count).slice(0, 8),
           topSearches: topSearches.map((s: any) => ({ query: s._id, count: s.count })),
         },
       });

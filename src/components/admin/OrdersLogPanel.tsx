@@ -36,21 +36,26 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showCustomers, setShowCustomers] = useState(true)
   const [initialLoaded, setInitialLoaded] = useState(false)
+  const [includeTests, setIncludeTests] = useState(false)
+  const [error, setError] = useState('')
 
   const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
   const getAdminToken = () => localStorage.getItem('playbeat_admin_token')
 
   const fetchLog = React.useCallback(
-    async (p = page, s = status, q = appliedSearch) => {
+    async (p = page, s = status, q = appliedSearch, tests = includeTests) => {
       setLoading(true)
       try {
         const params = new URLSearchParams({ page: String(p), limit: '20', status: s })
+        if (tests) params.set('includeTests', 'true')
         if (q) params.set('search', q)
         const res = await fetch(`${API_BASE}/api/admin/orders-log?${params.toString()}`, {
           headers: { Authorization: `Bearer ${getAdminToken()}` },
           credentials: 'include',
         })
         const data = await res.json()
+        if (!res.ok || !data.success) throw new Error(data.error || 'Orders could not be loaded.')
+        setError('')
         if (data?.success) {
           setOrders(data.orders || [])
           setCustomers(data.customers || [])
@@ -58,14 +63,14 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
           setPage(data.page || p)
           setTotalPages(data.totalPages || 1)
         }
-      } catch {
-        // silent
+      } catch (err: any) {
+        setError(err.message || 'Orders could not be loaded.')
       } finally {
         setLoading(false)
         setInitialLoaded(true)
       }
     },
-    [API_BASE, page, status, appliedSearch]
+    [API_BASE, page, status, appliedSearch, includeTests]
   )
 
   React.useEffect(() => {
@@ -107,7 +112,7 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    onToast('Order log exported to CSV.')
+    onToast('Current order page exported to CSV.')
   }
 
   return (
@@ -119,7 +124,7 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
             Customer Orders Log
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Every order ever placed, with delivered license keys, per-customer lifetime value, and CSV export.
+            Paginated order records, supplied license keys, and paid customer totals. Identified test records are hidden by default.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -128,7 +133,7 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
             disabled={orders.length === 0}
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#121622] hover:bg-[#181d2d] border border-white/10 text-xs font-semibold text-zinc-200 transition disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-400" /> Export CSV
+            <Download className="w-3.5 h-3.5 text-emerald-400" /> Export Page CSV
           </button>
           <button
             onClick={() => fetchLog(page, status, appliedSearch)}
@@ -140,6 +145,8 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
         </div>
       </div>
 
+      {error && <div role="alert" className="p-3 rounded-xl border border-rose-400/30 text-rose-300">{error}</div>}
+      <label className="flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={includeTests} onChange={e => { const include = e.target.checked; setIncludeTests(include); fetchLog(1, status, appliedSearch, include) }} />Include test records (excluded from business and customer totals)</label>
       {/* Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
         <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
@@ -229,7 +236,7 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
                     )}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-bold text-white font-mono">{o.orderNumber}</span>
+                        <span className="text-xs font-bold text-white font-mono">{o.orderNumber}</span>{o.isTest && <span className="text-amber-300 text-[10px]">Test record</span>}
                         <span
                           className={`px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold uppercase ${
                             STATUS_STYLES[o.status] || 'bg-zinc-500/15 border-zinc-500/30 text-zinc-300'
@@ -263,7 +270,8 @@ export const OrdersLogPanel: React.FC<OrdersLogPanelProps> = ({ onToast }) => {
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[11px] font-bold text-white">
                             {i.quantity}× {i.name}
-                            {i.variantName && (
+                            {i.placeholderKeysOmitted > 0 && <span className="text-amber-300">Legacy placeholder codes omitted</span>}
+                              {i.variantName && (
                               <span className="text-amber-300/90 font-mono"> · {i.variantName}</span>
                             )}
                           </span>

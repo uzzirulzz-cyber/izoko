@@ -558,8 +558,8 @@
 /* ---------- Top bar — SB2 white topbar with soft shadow ---------- */
 .pa-topbar {
   background: var(--pa-topbar-bg);
-  backdrop-filter: blur(14px) var(--pa-backdrop);
-  -webkit-backdrop-filter: blur(14px) var(--pa-backdrop);
+  backdrop-filter: blur(var(--pa-glass-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--pa-glass-blur, 0px));
   border-bottom: 1px solid var(--pa-glass-border, var(--pa-line));
   box-shadow: var(--pa-card-shadow);
 }

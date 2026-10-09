@@ -13,7 +13,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:sitemap": "node scripts/sitemap_integrity_check.mjs",
-    "test:gcr": "tsx scripts/gcr_optin_check.ts"
+    "test:gcr": "tsx scripts/gcr_optin_check.ts",
+    "test:admin": "node --import tsx scripts/admin-integrity-check.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -45,9 +46,12 @@
     "@types/node": "^22.14.0",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vercel/node": "^9.0.1",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "mingo": "^7.2.4",
     "postcss-prefix-selector": "^2.2.1",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

@@ -68,6 +68,8 @@ import {
   Inbox,
   Palette,
 } from 'lucide-react'
+import { LicenseVaultPanel } from './admin/LicenseVaultPanel'
+import { hasUnlimitedStock, catalogDiscount } from '../lib/catalogMetrics'
 import { Product, CurrencyCode } from '../types'
 import { formatPrice } from '../lib/currency'
 // Vendored admin CSS stack (owner-uploaded): Bootstrap 4.3.1 + Font Awesome
@@ -75,12 +77,12 @@ import { formatPrice } from '../lib/currency'
 // + Owl + Slick — ALL scoped under .pbadmin by scripts/vendor_admin_libs.mjs.
 // MUST load BEFORE sb2-scoped.css so Bootstrap 4.6 + SB2 theme wins
 // collisions, and before admin-theme.css (the final word).
-import '../admin/vendor-scoped.css'
+import '../admin/vendor-stack.css'
 import { initAdminMotion } from '../admin/adminMotion'
 // SB Admin 2 (Bootstrap 4.6) scoped to the admin shell — MUST load before admin-theme.css
-import '../admin/sb2-scoped.css'
 import '../admin-theme.css'
 import '../admin/themes.css'
+import '../admin/layout-fixes.css'
 import {
   useAdminPrefs, prefsToRootProps, adminToast, AdminToastHost,
   CommandPalette, ThemeStudioLauncher, QuickActionsFAB, MetricCard, Funnel, RangeChips,
@@ -128,11 +130,12 @@ import { SeoControlCenter } from './admin/SeoControlCenter'
 
 interface AdminInsightsViewProps {
   products: Product[]
+  catalogStatus?: 'loading' | 'live' | 'unavailable'
   selectedCurrency: CurrencyCode
   onBackToStorefront: () => void
   onSignOut?: () => void
   onQuickViewProduct: (product: Product) => void
-  onUpdateProductStock?: (productId: string, newStock: number) => void
+  onUpdateProductStock?: (productId: string, newStock: number) => Promise<{ ok: boolean; error?: string }>
   onUpdateProductPrice?: (productId: string, newPrice: number) => void
   onImportProducts?: (
     newProducts: Product[],
@@ -169,6 +172,7 @@ const adminCategoryChip = (cat: string) =>
 
 export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   products,
+  catalogStatus = 'loading',
   selectedCurrency,
   onBackToStorefront,
   onSignOut,
@@ -200,6 +204,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     // native Android bottom navigation + push deep links)
     try {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
+      if (h === 'playbeat-live') return 'iptv'
       if (h && /^[a-z-]+$/.test(h)) return h
     } catch { /* noop */ }
     return 'dashboard'
@@ -241,13 +246,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [showCsvImporterModal, setShowCsvImporterModal] = useState(false)
   const [showQuickAddMenu, setShowQuickAddMenu] = useState(false)
   const [showCampaignModal, setShowCampaignModal] = useState(false)
-  const [showSupportModal, setShowSupportModal] = useState(false)
-  const [showLicenseKeyModal, setShowLicenseKeyModal] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-
-  // License Generator State
-  const [keyTargetProduct, setKeyTargetProduct] = useState(products[0]?.name || '')
-  const [generatedKey, setGeneratedKey] = useState<string | null>(null)
 
   // Stock editor
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
@@ -262,14 +261,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
-      'services', 'service-requests',
+      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
       if (!h || !VALID.has(h)) return
       // IT-scoped accounts may only deep-link to the gateway panel or profile.
       if (itScopeRef.current && h !== 'gateway' && h !== 'profile') return
-      setActiveNav((prev) => (prev === h ? prev : h))
+      setActiveNav((prev) => { const next = h === 'playbeat-live' ? 'iptv' : h; return prev === next ? prev : next })
     }
     applyHash()
     window.addEventListener('hashchange', applyHash)
@@ -296,6 +295,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const [adminOrders, setAdminOrders] = useState<any[]>([])
   const [adminTopProducts, setAdminTopProducts] = useState<any[]>([])
   const [adminRevenueChart, setAdminRevenueChart] = useState<any>(null)
+  const [usersLoaded, setUsersLoaded] = useState(false)
+  const [staffLoaded, setStaffLoaded] = useState(false)
   const [usersLoading, setUsersLoading] = useState(false)
   const [staffLoading, setStaffLoading] = useState(false)
   const [statsLoading, setStatsLoading] = useState(false)
@@ -513,6 +514,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     }
   }
 
+  const [dataErrors, setDataErrors] = useState<Record<string, string>>({})
   const fetchAdminHealth = async () => {
     setHealthLoading(true)
     try {
@@ -522,9 +524,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminHealth(data.health)
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminHealth']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminHealth']: e.message || 'Request failed' }))
+      return false
     } finally {
       setHealthLoading(false)
     }
@@ -539,9 +545,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminBackups(data.backups || [])
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminBackups']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminBackups']: e.message || 'Request failed' }))
+      return false
     } finally {
       setBackupsLoading(false)
     }
@@ -556,9 +566,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setCmsSettings(data.settings)
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchCmsSettings']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchCmsSettings']: e.message || 'Request failed' }))
+      return false
     } finally {
       setCmsLoading(false)
     }
@@ -573,9 +587,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminAnalytics(data.analytics)
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminAnalytics']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminAnalytics']: e.message || 'Request failed' }))
+      return false
     } finally {
       setAnalyticsLoading(false)
     }
@@ -590,9 +608,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
-      if (data?.success) setAdminUsers(data.users || [])
-    } catch (e) {
-      // silent fail — UI will show empty state
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
+      if (data?.success) { setAdminUsers(data.users || []); setUsersLoaded(true) }
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminUsers']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminUsers']: e.message || 'Request failed' }))
+      return false
     } finally {
       setUsersLoading(false)
     }
@@ -607,9 +629,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
-      if (data?.success) setAdminStaff(data.staff || [])
-    } catch (e) {
-      // silent
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
+      if (data?.success) { setAdminStaff(data.staff || []); setStaffLoaded(true) }
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminStaff']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminStaff']: e.message || 'Request failed' }))
+      return false
     } finally {
       setStaffLoading(false)
     }
@@ -624,9 +650,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminStats(data.stats)
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminStats']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminStats']: e.message || 'Request failed' }))
+      return false
     } finally {
       setStatsLoading(false)
     }
@@ -641,9 +671,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminOrders(data.orders || [])
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminOrders']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminOrders']: e.message || 'Request failed' }))
+      return false
     } finally {
       setOrdersLoading(false)
     }
@@ -658,9 +692,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminTopProducts(data.topProducts || [])
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminTopProducts']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminTopProducts']: e.message || 'Request failed' }))
+      return false
     } finally {
       setTopProductsLoading(false)
     }
@@ -675,9 +713,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
+      if (!res.ok || !data?.success) throw new Error(data?.error || 'Request failed')
       if (data?.success) setAdminRevenueChart(data.chart)
-    } catch (e) {
-      // silent
+      setDataErrors(prev => { const next = { ...prev }; delete next['fetchAdminRevenueChart']; return next })
+      return true
+    } catch (e: any) {
+      setDataErrors(prev => ({ ...prev, ['fetchAdminRevenueChart']: e.message || 'Request failed' }))
+      return false
     } finally {
       setChartLoading(false)
     }
@@ -685,18 +727,18 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
   const refreshAllAdminData = async () => {
     triggerToast('Refreshing all dashboard data from MongoDB…')
-    await Promise.all([
+    const results = await Promise.all([
       fetchAdminStats(),
       fetchAdminOrders(),
       fetchAdminTopProducts(),
-      fetchAdminRevenueChart(),
+      fetchAdminRevenueChart(activeNav === 'analytics' ? (analyticsRange === '7 Days' ? 7 : analyticsRange === '30 Days' ? 30 : 14) : revRangeDays),
       fetchAdminUsers(),
       fetchAdminStaff(),
       fetchAdminHealth(),
       fetchAdminBackups(),
-      fetchAdminAnalytics(),
+      fetchAdminAnalytics(analyticsRange === '7 Days' ? 7 : analyticsRange === '30 Days' ? 30 : 14),
     ])
-    triggerToast('Dashboard data refreshed successfully')
+    triggerToast(results.every(Boolean) ? 'Dashboard data refreshed successfully' : 'Some data could not be refreshed. See the error details.')
   }
 
   const handleResetAdminPanel = async () => {
@@ -773,7 +815,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       fetchAdminStaff()
     } else if (activeNav === 'analytics') {
       if (!adminStats) fetchAdminStats()
-      if (!adminAnalytics) fetchAdminAnalytics()
+      const days = analyticsRange === '7 Days' ? 7 : analyticsRange === '30 Days' ? 30 : 14
+      fetchAdminAnalytics(days)
+      fetchAdminRevenueChart(days)
     } else if (activeNav === 'health') {
       if (!adminHealth) fetchAdminHealth()
     } else if (activeNav === 'backup') {
@@ -802,6 +846,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const { prefs, update: updatePrefs } = useAdminPrefs()
   const [cmdkOpen, setCmdkOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  useEffect(() => { setMobileNavOpen(false) }, [activeNav])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [analyticsRange, setAnalyticsRange] = useState('14 Days')
   useEffect(() => {
@@ -820,7 +865,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     analytics: 'Analytics & Traffic', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
     gateway: 'Payment Gateway', backup: 'Backup & Vault', messages: 'Messages', support: 'Support',
     'orders-log': 'Orders Log', inventory: 'Inventory', coupons: 'Coupons', campaigns: 'Campaigns',
-    profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
+    iptv: 'PlayBeat.live', business: 'Business Analytics', whatsapp: 'WhatsApp Business', profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
   }
   const pageTitle = NAV_TITLE_MAP[activeNav] || activeNav.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
   // Revenue sparkline + period delta — from the live /api/admin/revenue-chart series
@@ -830,16 +875,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     return (arr || [])
       .map((p: any) => Number(p?.revenue ?? p?.total ?? p?.value ?? p?.amount ?? 0))
       .filter((n: number) => !isNaN(n))
-      .slice(-14)
+
   }, [adminRevenueChart])
-  const revDelta: number | null = useMemo(() => {
-    if (revSeries.length < 4) return null
-    const half = Math.floor(revSeries.length / 2)
-    const prev = revSeries.slice(0, half).reduce((a, b) => a + b, 0)
-    const curr = revSeries.slice(half).reduce((a, b) => a + b, 0)
-    if (prev <= 0) return curr > 0 ? 100 : null
-    return ((curr - prev) / prev) * 100
-  }, [revSeries])
+  const revDelta: number | null = adminRevenueChart?.deltaPct ?? null
   const cmdkActions: CmdkAction[] = useMemo(() => {
     const nav = (id: string, label: string, icon: React.ReactNode, group = 'Navigate'): CmdkAction =>
       ({ id, label, icon, group, run: () => setActiveNav(id) })
@@ -854,6 +892,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       nav('orders', 'Orders', <KitOrders className="w-4 h-4" />),
       nav('customers', 'Customers', <KitUsers className="w-4 h-4" />),
       nav('coupons', 'Coupons', <KitTag className="w-4 h-4" />),
+      nav('iptv', 'PlayBeat.live', <Tv className="w-4 h-4" />),
       nav('analytics', 'Analytics', <KitChart className="w-4 h-4" />),
       nav('cms', 'CMS — Homepage & Banners', <KitCms className="w-4 h-4" />),
       nav('seo', 'SEO Control Center', <Globe className="w-4 h-4" />),
@@ -861,7 +900,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       nav('profile', 'Settings — Profile', <Settings className="w-4 h-4" />),
       { id: 'add-product', label: 'Add New Product', icon: <KitPlus className="w-4 h-4" />, group: 'Quick Actions', hint: 'Alt+N', run: () => goAdminRef.current('/admin/products/new') },
       { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCsvImporterModal(true) },
-      { id: 'issue-key', label: 'Issue License Key', icon: <KitKey className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowLicenseKeyModal(true) },
+      { id: 'issue-key', label: 'Import Supplier Keys', icon: <KitKey className="w-4 h-4" />, group: 'Quick Actions', run: () => setActiveNav('vault') },
       { id: 'campaign', label: 'Launch Campaign', icon: <KitMega className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCampaignModal(true) },
       { id: 'theme-studio', label: 'Open Theme Studio', icon: <Palette className="w-4 h-4" />, group: 'Quick Actions', keywords: 'appearance mode dark light custom color', run: () => window.dispatchEvent(new CustomEvent('pb:theme-studio')) },
       ...productActs,
@@ -870,7 +909,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   const fabActions: QuickAction[] = [
     { id: 'add-product', label: 'Add Product', icon: <KitPlus className="w-4 h-4" />, run: () => goAdminRef.current('/admin/products/new') },
     { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, run: () => setShowCsvImporterModal(true) },
-    { id: 'issue-key', label: 'Issue License Key', icon: <KitKey className="w-4 h-4" />, run: () => setShowLicenseKeyModal(true) },
+    { id: 'issue-key', label: 'Import Supplier Keys', icon: <KitKey className="w-4 h-4" />, run: () => setActiveNav('vault') },
     { id: 'campaign', label: 'Launch Campaign', icon: <KitMega className="w-4 h-4" />, run: () => setShowCampaignModal(true) },
     { id: 'customers', label: 'View Customers', icon: <KitUsers className="w-4 h-4" />, run: () => setActiveNav('customers') },
   ]
@@ -926,31 +965,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     fetchAdminHealth()
   }
 
-  const handleGenerateKey = () => {
-    const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase()
-    const randomHex2 = Math.random().toString(36).substring(2, 6).toUpperCase()
-    const randomHex3 = Math.random().toString(36).substring(2, 6).toUpperCase()
-    const prefix = keyTargetProduct.includes('PlayStation')
-      ? 'PSN-US'
-      : keyTargetProduct.includes('Windows')
-      ? 'WIN11-PRO'
-      : keyTargetProduct.includes('ChatGPT')
-      ? 'PB-GPT4O'
-      : keyTargetProduct.includes('Steam')
-      ? 'STEAM-KEY'
-      : 'PLAYBEAT'
-
-    const key = `${prefix}-${randomHex}-${randomHex2}-${randomHex3}`
-    setGeneratedKey(key)
-    triggerToast('Generated & injected new cryptographic license into live vault!')
-  }
-
-  const handleSaveStock = (productId: string) => {
-    if (onUpdateProductStock) {
-      onUpdateProductStock(productId, tempStockValue)
-    }
-    setEditingStockId(null)
-    triggerToast('Product inventory level successfully updated')
+  const [savingStock, setSavingStock] = useState(false)
+  const handleSaveStock = async (productId: string) => {
+    if (!onUpdateProductStock) { triggerToast('Stock save is unavailable.'); return }
+    if (!Number.isSafeInteger(tempStockValue) || tempStockValue < 0) { triggerToast('Enter a nonnegative whole number.'); return }
+    setSavingStock(true)
+    try {
+      const result = await onUpdateProductStock(productId, tempStockValue)
+      if (!result.ok) { triggerToast(result.error || 'Stock was not saved.'); return }
+      setEditingStockId(null)
+      triggerToast('Inventory saved to MongoDB.')
+      fetchAdminStats()
+    } catch (err: any) { triggerToast(err.message || 'Stock was not saved.') }
+    finally { setSavingStock(false) }
   }
 
   // ------------------------------------------------------------------
@@ -1021,7 +1048,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       <QuickActionsFAB actions={fabActions} />
 
       {/* Main Container with Sidebar + Content */}
-      <div className="flex flex-1 min-h-screen overflow-hidden">
+      <div className="pa-shell flex flex-1">
         {/* ========================================================================= */}
         {/* LEFT SIDEBAR (Pixel-Perfect PlayBeat Admin) */}
         {/* ========================================================================= */}
@@ -1033,6 +1060,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           <div className="p-4 space-y-6">
             {/* Top Brand Header */}
             <div className="flex items-center justify-between">
+              <button className="pa-sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation menu"><X className="w-4 h-4" /></button>
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <img
                   src="/playbeat-logo.png"
@@ -1064,7 +1092,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition"
+                className="hidden lg:flex p-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition"
                 title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
               >
                 <ChevronLeft
@@ -1341,7 +1369,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-mono text-[10px] font-bold">
-                        {adminOrders.length}
+                        {adminStats?.totalOrders ?? '—'}
                       </span>
                     )}
                   </button>
@@ -1559,7 +1587,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px]">
-                        {adminUsers.length}
+                        {usersLoaded ? adminUsers.length : '—'}
                       </span>
                     )}
                   </button>
@@ -1582,7 +1610,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </div>
                     {!sidebarCollapsed && (
                       <span className="px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-mono text-[10px]">
-                        {adminStaff.length}
+                        {staffLoaded ? adminStaff.length : '—'}
                       </span>
                     )}
                   </button>
@@ -1674,7 +1702,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 >
                   <div className="flex items-center gap-2.5">
                     <Tv className="w-4 h-4 text-emerald-400" />
-                    {!sidebarCollapsed && <span>IPTV & Streaming</span>}
+                    {!sidebarCollapsed && <span>PlayBeat.live</span>}
                   </div>
                   {!sidebarCollapsed && (
                     <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px]">
@@ -1854,7 +1882,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         {/* ========================================================================= */}
         {/* MAIN BODY & TOP NAVIGATION */}
         {/* ========================================================================= */}
-        <div className="flex-1 flex flex-col overflow-y-auto max-h-screen">
+        <div className="pa-content flex flex-col">
           {/* Top Bar Header */}
           <header className="pa-topbar sticky top-0 z-20 px-6 py-3.5 flex items-center justify-between gap-4">
             {/* Breadcrumb + page context (command center header) */}
@@ -1886,9 +1914,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
 
             {/* Right Action Icons & Controls */}
-            <div className="flex items-center gap-3">
+            <div className="pa-topbar-actions flex items-center gap-3">
               {/* Mobile nav opener */}
-              <button className="pa-iconbtn p-2 lg:hidden" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation menu">
+              <button className="pa-iconbtn p-2 lg:hidden" onClick={() => { setSidebarCollapsed(false); setMobileNavOpen(true); }} aria-label="Open navigation menu">
                 <ChevronRight className="w-4 h-4" />
               </button>
 
@@ -1945,13 +1973,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     </button>
                     <button
                       onClick={() => {
-                        setShowLicenseKeyModal(true)
+                        setActiveNav('vault')
                         setShowQuickAddMenu(false)
                       }}
                       className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 text-zinc-300 hover:text-white flex items-center gap-2"
                     >
                       <Key className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Issue License Key</span>
+                      <span>Import Supplier Keys</span>
                     </button>
                     <button
                       onClick={() => {
@@ -2085,7 +2113,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                     size={32}
                     still
                   />
-                  <div className="hidden sm:block text-left">
+                  <div className="pa-profile-label hidden sm:block text-left">
                     <div className="text-xs font-semibold text-white leading-tight truncate max-w-[120px]">
                       {adminName}
                     </div>
@@ -2183,7 +2211,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           {/* ========================================================================= */}
           {/* CONTENT ROUTER */}
           {/* ========================================================================= */}
-          <main className="p-6 space-y-6 max-w-[1600px] w-full mx-auto">
+          <main className="pa-main p-6 space-y-6 max-w-[1600px] w-full mx-auto">
+            {adminStats?.testOrdersExcluded > 0 && <p className="text-xs text-amber-300">{adminStats.testOrdersExcluded} identified test orders excluded from business totals. Use “Include test records” in Orders Log to inspect them.</p>}
+            {catalogStatus !== 'live' && <div role="status" className="p-3 rounded-xl border border-amber-400/30 text-amber-300 text-sm">{catalogStatus === 'loading' ? 'Loading the live catalog…' : 'Live catalog unavailable. Cached product data may be outdated; reload to retry.'}</div>}
+            {Object.keys(dataErrors).length > 0 && <div role="alert" className="p-3 rounded-xl border border-rose-400/30 text-rose-300 text-sm"><p>Some admin data could not be loaded. Previously loaded values may be outdated.</p><ul>{Object.entries(dataErrors).map(([key, error]) => <li key={key}>{key.replace(/^fetch/, '')}: {error}</li>)}</ul><button className="pa-btn mt-2 px-3 py-1" onClick={refreshAllAdminData}>Retry Loading</button></div>}
+
             {productEditorRoute ? (
               /* DEDICATED PRODUCT EDITOR PAGE — /admin/products/new and
                  /admin/products/:id/edit (real, shareable URLs) */
@@ -2320,7 +2352,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           {adminRevenueChart ? `Rs ${Number(adminRevenueChart.totalRevenue || 0).toLocaleString()}` : '—'}
                         </span>
                         <span className="text-[10px] font-mono text-emerald-400 flex items-center">
-                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders (14d)
+                          <ArrowUpRight className="w-3 h-3" /> {adminRevenueChart?.totalOrders || 0} orders ({adminRevenueChart?.days || revRangeDays}d)
                         </span>
                       </div>
 
@@ -2382,7 +2414,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           <div className="text-white font-bold">
                             {adminRevenueChart ? `Rs ${Number(adminRevenueChart.avgDailyRevenue || 0).toLocaleString()}` : '—'}
                           </div>
-                          <div className="text-emerald-400">↗ 14d avg</div>
+                          <div className="text-emerald-400">↗ {adminRevenueChart?.days || revRangeDays}d avg</div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Best Day</div>
@@ -2398,7 +2430,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <div>
                           <div className="text-zinc-500">Total Transactions</div>
                           <div className="text-white font-bold">{adminRevenueChart?.totalOrders ?? '—'}</div>
-                          <div className="text-emerald-400">↗ last 14 days</div>
+                          <div className="text-emerald-400">↗ last {adminRevenueChart?.days || revRangeDays} days</div>
                         </div>
                       </div>
                     </div>
@@ -2647,7 +2679,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           <div className="text-white font-bold">
                             {adminRevenueChart ? `Rs ${Number(adminRevenueChart.avgDailyRevenue || 0).toLocaleString()}` : '—'}
                           </div>
-                          <div className="text-emerald-400">↗ 14d avg</div>
+                          <div className="text-emerald-400">↗ {adminRevenueChart?.days || revRangeDays}d avg</div>
                         </div>
                         <div>
                           <div className="text-zinc-500">Best Day</div>
@@ -2663,7 +2695,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <div>
                           <div className="text-zinc-500">Total Transactions</div>
                           <div className="text-white font-bold">{adminRevenueChart?.totalOrders ?? '—'}</div>
-                          <div className="text-emerald-400">↗ last 14 days</div>
+                          <div className="text-emerald-400">↗ last {adminRevenueChart?.days || revRangeDays} days</div>
                         </div>
                       </div>
                     </div>
@@ -2679,7 +2711,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           {adminRevenueChart && adminRevenueChart.totalRevenue > 0 ? (
                             <>You earned <strong className="text-emerald-400">Rs {Number(adminRevenueChart.totalRevenue).toLocaleString()}</strong> in the last {revRangeDays} days from <strong className="text-amber-400">{adminRevenueChart.totalOrders}</strong> orders. Keep it up!</>
                           ) : (
-                            <>No revenue recorded in the last {revRangeDays} days. Place a test order from the storefront to see live data here.</>
+                            <>No paid business revenue recorded in the last {revRangeDays} days. Test orders are excluded.</>
                           )}
                         </p>
                       </div>
@@ -2731,8 +2763,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                 (() => {
                                   const total = adminStats?.totalOrders || 0
                                   const pending = adminHealth?.alerts?.pendingOrders || 0
-                                  const completed = Math.max(0, total - pending)
-                                  return total > 0 ? 226.19 * (pending / total) : 226.19
+                                  const completed = adminStats?.statusCounts?.completed || 0
+                                  return total > 0 ? 226.19 * (1 - completed / total) : 226.19
                                 })()
                               }
                               strokeLinecap="round"
@@ -2752,12 +2784,14 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           <div className="flex items-center gap-2 text-zinc-300">
                             <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                             <span>
-                              {Math.max(0, (adminStats?.totalOrders || 0) - (adminHealth?.alerts?.pendingOrders || 0))} Completed
+                              {adminStats?.statusCounts?.completed || 0} Completed
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-zinc-500">
                             <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                            <span>{adminHealth?.alerts?.pendingOrders || 0} Pending / Processing</span>
+                            <span>{(adminStats?.statusCounts?.pending || 0) + (adminStats?.statusCounts?.processing || 0)} Pending / Processing</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-500"><span className="w-2 h-2 rounded-full bg-zinc-500"></span><span>{Math.max(0, (adminStats?.totalOrders || 0) - (adminStats?.statusCounts?.completed || 0) - (adminStats?.statusCounts?.pending || 0) - (adminStats?.statusCounts?.processing || 0))} Other statuses</span>
                           </div>
                         </div>
                       </div>
@@ -3080,7 +3114,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Database
                           </span>
                           <span className="text-emerald-400 text-[10px]">
-                            {adminHealth?.database?.connected === false ? 'Down' : 'Operational'}
+                            {!adminHealth ? 'Not checked' : adminHealth.database?.connected ? 'Reachable' : 'Unavailable'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-zinc-300">
@@ -3112,7 +3146,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <p className="text-[10px] text-zinc-300 leading-snug">
                         {adminHealth?.database?.connected === false
                           ? 'Database unreachable — check the connection immediately.'
-                          : `All systems operational. Last checked ${adminHealth?.checkedAt ? new Date(adminHealth.checkedAt).toLocaleTimeString() : '—'}.`}
+                          : `Database/API ${adminHealth?.database?.connected ? 'reachable' : 'not checked'}. Last checked ${adminHealth?.checkedAt ? new Date(adminHealth.checkedAt).toLocaleTimeString() : '—'}.`}
                       </p>
                     </div>
                   </div>
@@ -3289,7 +3323,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <div className="absolute -bottom-12 -left-8 w-24 h-24 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
                       <NeonBrain className="w-40 h-24 pa-neon-flicker" />
                       <div className="absolute bottom-2 right-3 text-[8px] font-mono text-sky-300/60 tracking-widest uppercase">
-                        Neural Engine · Online
+                        Admin Tools
                       </div>
                     </div>
 
@@ -3522,7 +3556,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                               </td>
 
                               <td className="p-3.5">
-                                {isEditing ? (
+                                {hasUnlimitedStock(p) ? <span className="text-xs text-emerald-300">Unlimited</span> : isEditing ? (
                                   <div className="flex items-center gap-1.5">
                                     <input
                                       type="number"
@@ -3531,7 +3565,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                       className="w-16 px-1.5 py-0.5 rounded bg-black border border-amber-400 text-xs font-mono text-white"
                                     />
                                     <button
-                                      onClick={() => handleSaveStock(p.id)}
+                                      disabled={savingStock} onClick={() => handleSaveStock(p._id || p.id)}
                                       className="px-2 py-0.5 rounded bg-amber-400 text-black font-bold text-[10px]"
                                     >
                                       Save
@@ -3546,7 +3580,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                     className="cursor-pointer group flex items-center gap-1 text-[11px] font-mono text-zinc-300 hover:text-amber-400"
                                     title="Click to adjust stock"
                                   >
-                                    <span>{p.stock} units</span>
+                                    <span>{hasUnlimitedStock(p) ? 'Unlimited' : `${p.stock} units`}</span>
                                     <Edit className="w-3 h-3 opacity-0 group-hover:opacity-100" />
                                   </div>
                                 )}
@@ -3607,132 +3641,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             )}
 
             {/* VIEW 3: DIGITAL LICENSE VAULT */}
-            {activeNav === 'vault' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                  {/* Left: Generator */}
-                  <div className="lg:col-span-5 rounded-2xl pa-card pa-card--gold p-5 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <span className="pa-viewchip pa-chip--gold">
-                        <Key className="w-5 h-5" />
-                      </span>
-                      <div>
-                        <h3 className="font-bold text-sm text-white">License Key Dispenser</h3>
-                        <p className="text-xs text-zinc-400 font-mono">
-                          Generate and inject verified digital licenses into the live order fulfillment engine.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 text-xs">
-                      <div>
-                        <label className="block text-zinc-400 mb-1 font-mono">Select Target SKU</label>
-                        <select
-                          value={keyTargetProduct}
-                          onChange={(e) => setKeyTargetProduct(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white font-mono"
-                        >
-                          {products
-                            .filter((p) => p.digital)
-                            .map((p) => (
-                              <option key={p.id} value={p.name}>
-                                {p.name}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-
-                      <button
-                        onClick={handleGenerateKey}
-                        className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition"
-                      >
-                        <Zap className="w-4 h-4" />
-                        <span>Generate & Inject License</span>
-                      </button>
-
-                      {generatedKey && (
-                        <div className="p-3 rounded-xl bg-[#07090E] border border-amber-400/30 space-y-1">
-                          <span className="text-[10px] text-zinc-400 font-mono block">
-                            Last Generated Serial:
-                          </span>
-                          <div className="font-mono text-xs font-bold text-amber-400 select-all">
-                            {generatedKey}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Active Pools — REAL digital stock from the live catalog */}
-                  <div className="lg:col-span-7 rounded-2xl pa-card pa-card--emerald p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="pa-viewchip pa-chip--emerald">
-                          <ShieldCheck className="w-5 h-5" />
-                        </span>
-                        <div>
-                          <h3 className="font-bold text-sm text-white">Live Cryptographic Key Pools</h3>
-                          <p className="text-xs text-zinc-400 font-mono">
-                            Real digital-inventory stock levels from the live MongoDB catalog
-                          </p>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono pa-breath" style={{ color: '#34d399' }}>
-                        Vault: Active
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {(() => {
-                        const digitalPools = products
-                          .filter((p) => p.digital && p.active !== false)
-                          .sort((a, b) => b.stock - a.stock)
-                          .slice(0, 8)
-                        const totalKeys = products
-                          .filter((p) => p.digital)
-                          .reduce((acc, p) => acc + (p.stock || 0), 0)
-                        if (digitalPools.length === 0) {
-                          return (
-                            <div className="p-4 text-center text-[11px] text-zinc-500">
-                              No digital products in the catalog yet.
-                            </div>
-                          )
-                        }
-                        return (
-                          <>
-                            <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-between">
-                              <span className="text-xs font-bold text-amber-300 font-mono uppercase tracking-wider">Total ready-to-dispatch</span>
-                              <span className="text-sm font-black text-white font-mono">{totalKeys.toLocaleString()} keys</span>
-                            </div>
-                            {digitalPools.map((p) => (
-                              <div
-                                key={p.id}
-                                className="p-3 rounded-xl pa-well flex items-center justify-between text-xs"
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <Key className="w-4 h-4 text-amber-400 shrink-0" />
-                                  <span className="font-medium text-white truncate">{p.name}</span>
-                                </div>
-                                <div className="flex items-center gap-3 font-mono shrink-0">
-                                  <span className="text-amber-400 font-bold">{p.stock} in pool</span>
-                                  <span className={`px-2 py-0.5 rounded text-[10px] border ${
-                                    p.stock > 5
-                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                  }`}>
-                                    {p.stock > 5 ? 'Healthy' : 'Low Stock'}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            {activeNav === 'vault' && <LicenseVaultPanel products={products} onToast={triggerToast} />}
 
             {/* VIEW 4: ORDERS & FULFILLMENT */}
             {activeNav === 'orders-log' && <OrdersLogPanel onToast={triggerToast} />}
@@ -3899,19 +3808,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <RangeChips
                         options={['7 Days', '14 Days', '30 Days']}
                         value={analyticsRange}
-                        onChange={(v) => { setAnalyticsRange(v); fetchAdminAnalytics(v === '7 Days' ? 7 : v === '30 Days' ? 30 : 14) }}
+                        onChange={(v) => { setAnalyticsRange(v); const days = v === '7 Days' ? 7 : v === '30 Days' ? 30 : 14; fetchAdminAnalytics(days); fetchAdminRevenueChart(days) }}
                       />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                       <MetricCard
-                        label="Total Revenue" value={`PKR ${Number(adminStats.totalRevenue || 0).toLocaleString()}`}
+                        label="Net Paid Revenue" value={adminRevenueChart ? `PKR ${Number(adminRevenueChart.totalRevenue || 0).toLocaleString()}` : '—'}
                         icon={<DollarSign className="w-4 h-4" />} spark={revSeries} deltaPct={revDelta}
                         compareLabel="vs previous period" onClick={() => setActiveNav('orders')}
                       />
                       <MetricCard
-                        label="Total Orders" value={String(adminStats.totalOrders || 0)}
+                        label="Paid Orders" value={adminRevenueChart ? String(adminRevenueChart.totalOrders || 0) : '—'}
                         icon={<ShoppingCart className="w-4 h-4" />}
-                        compareLabel={`${adminStats.recentOrders || 0} in last 7 days`} onClick={() => setActiveNav('orders')}
+                        compareLabel={`Paid orders · ${analyticsRange}`} onClick={() => setActiveNav('orders')}
                       />
                       <MetricCard
                         label="Active Products" value={String(adminStats.activeProducts || 0)}
@@ -3930,11 +3839,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 {/* Conversion funnel — real storefront events via /api/analytics */}
                 {prefs.widgets.funnel && (() => {
                   const a: any = adminAnalytics || {}
-                  const pv = Number(a.pageViews ?? a.summary?.pageViews ?? 0)
+                  const pv = Number(a.pageViews || 0)
                   const pr = Number(a.productViews ?? a.summary?.productViews ?? 0)
                   const ac = Number(a.addToCart ?? a.summary?.addToCart ?? 0)
                   const co = Number(a.checkout ?? a.summary?.checkout ?? 0)
-                  const po = Number(adminStats?.recentOrders || 0)
+                  const po = Number(a.paidOrders || 0)
                   if (!pv) return null
                   return (
                     <div className="pa-card pa-card--sky pa-card--hover p-5">
@@ -3942,20 +3851,20 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                         <span className="pa-chip pa-chip--sky"><KitPointer className="w-4 h-4" /></span>
                         <div>
                           <h2 className="text-xs font-extrabold uppercase tracking-wider font-mono" style={{ color: 'var(--pa-ink)' }}>
-                            CONVERSION FUNNEL
+                            STOREFRONT ACTIVITY
                           </h2>
                           <p className="text-[10px]" style={{ color: 'var(--pa-muted)' }}>
-                            Visitors → Product View → Cart → Checkout → Purchase
+                            Event counts and paid orders for the selected UTC date range; these are not linked customer journeys.
                           </p>
                         </div>
                       </div>
-                      <Funnel stages={[
-                        { label: 'Visitors', count: pv },
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">{[
+                        { label: 'Page Views', count: pv },
                         { label: 'Product View', count: pr },
                         { label: 'Add to Cart', count: ac },
                         { label: 'Checkout', count: co },
                         { label: 'Purchase', count: po },
-                      ]} />
+                      ].map(stage => <div key={stage.label}><div className="text-xs text-zinc-400">{stage.label}</div><div className="text-xl font-bold text-white">{stage.count}</div></div>)}</div>
                     </div>
                   )
                 })()}
@@ -3964,7 +3873,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <AnalyticsPanel
                   analytics={adminAnalytics}
                   loading={analyticsLoading}
-                  onRefresh={() => fetchAdminAnalytics()}
+                  onRefresh={() => { const days = analyticsRange === '7 Days' ? 7 : analyticsRange === '30 Days' ? 30 : 14; fetchAdminAnalytics(days); fetchAdminRevenueChart(days) }}
                 />
               </div>
             )}
@@ -4037,13 +3946,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 {(() => {
                   const subs = products.filter((p) => p.category === 'Subscriptions' && p.active !== false)
                   const totalOptions = subs.reduce((a, p) => a + (p.variants?.length || 0), 0)
-                  const totalKeys = subs.reduce((a, p) => a + (p.stock || 0), 0)
+                  const unlimitedPlans = subs.filter(hasUnlimitedStock).length
                   const avgPrice = subs.length ? Math.round(subs.reduce((a, p) => a + p.price, 0) / subs.length) : 0
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KpiTile label="Live Plans" value={subs.length || '—'} rail="#e879f9" tint="rgba(232,121,249,0.1)" edge="rgba(232,121,249,0.22)" glow="rgba(232,121,249,0.3)" icon={<Repeat className="w-4 h-4 text-fuchsia-400" />} sub={<span className="text-fuchsia-300">subscription products</span>} />
                       <KpiTile label="Plan Options" value={totalOptions || '—'} rail="#c084fc" tint="rgba(192,132,252,0.1)" edge="rgba(192,132,252,0.22)" glow="rgba(192,132,252,0.3)" icon={<Boxes className="w-4 h-4 text-purple-400" />} sub={<span className="text-zinc-400">variant dropdowns</span>} />
-                      <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Key className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">in stock now</span>} />
+                      <KpiTile label="Unlimited Plans" value={unlimitedPlans} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Key className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">catalog availability</span>} />
                       <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all plans</span>} />
                     </div>
                   )
@@ -4098,7 +4007,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                 )}
                               </td>
                               <td className="px-4 py-3 font-mono text-amber-400 font-bold">{formatPrice(p.price, selectedCurrency)}</td>
-                              <td className="px-4 py-3 font-mono text-zinc-300">{p.stock} units</td>
+                              <td className="px-4 py-3 font-mono text-zinc-300">{hasUnlimitedStock(p) ? 'Unlimited' : `${p.stock} units`}</td>
                               <td className="px-4 py-3 text-[11px] font-mono">
                                 {p.digital ? <span className="text-emerald-400">Digital</span> : <span className="text-cyan-400">Physical</span>}
                               </td>
@@ -4138,16 +4047,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 />
 
                 {(() => {
-                  const deals = products.filter((p) => (p.discountPercent || 0) > 0 && p.active !== false)
-                  const biggest = deals.reduce((m, p) => Math.max(m, p.discountPercent || 0), 0)
-                  const avg = deals.length ? Math.round(deals.reduce((a, p) => a + (p.discountPercent || 0), 0) / deals.length) : 0
+                  const deals = products.filter((p) => catalogDiscount(p) > 0 && p.active !== false)
+                  const biggest = deals.reduce((m, p) => Math.max(m, catalogDiscount(p)), 0)
+                  const avg = deals.length ? Math.round(deals.reduce((a, p) => a + catalogDiscount(p), 0) / deals.length) : 0
                   const savings = deals.reduce((a, p) => a + Math.max(0, (p.originalPrice || p.price) - p.price), 0)
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KpiTile label="Deals Live" value={deals.length || '—'} rail="#fb7185" tint="rgba(251,113,133,0.1)" edge="rgba(251,113,133,0.22)" glow="rgba(251,113,133,0.3)" icon={<Tag className="w-4 h-4 text-rose-400" />} sub={<span className="text-rose-300">discounted products</span>} />
                       <KpiTile label="Biggest Discount" value={biggest ? `${biggest}%` : '—'} rail="#f87171" tint="rgba(248,113,113,0.1)" edge="rgba(248,113,113,0.22)" glow="rgba(248,113,113,0.3)" icon={<TrendingUp className="w-4 h-4 text-red-400" />} sub={<span className="text-zinc-400">max saving offered</span>} />
                       <KpiTile label="Avg Discount" value={avg ? `${avg}%` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<Percent className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">across all deals</span>} />
-                      <KpiTile label="Bundle Savings" value={savings ? `Rs ${savings.toLocaleString()}` : '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<DollarSign className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">vs original prices</span>} />
+                      <KpiTile label="Catalog Price Savings" value={savings ? `Rs ${savings.toLocaleString()}` : '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<DollarSign className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-400">one of each deal</span>} />
                     </div>
                   )
                 })()}
@@ -4173,19 +4082,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                       <tbody>
                         {(() => {
                           const deals = products
-                            .filter((p) => (p.discountPercent || 0) > 0 && p.active !== false)
-                            .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
+                            .filter((p) => catalogDiscount(p) > 0 && p.active !== false)
+                            .sort((a, b) => catalogDiscount(b) - catalogDiscount(a))
                           if (deals.length === 0) {
                             return (
                               <tr>
                                 <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
-                                  No discounted products yet — set a discountPercent in the product editor to create a deal.
+                                  No discounted products yet — set a higher original price in the product editor to create a deal.
                                 </td>
                               </tr>
                             )
                           }
                           return deals.slice(0, 25).map((p) => {
-                            const was = p.originalPrice || Math.round(p.price * (100 + (p.discountPercent || 0)) / 100)
+                            const was = Number(p.originalPrice)
                             return (
                               <tr key={p.id} className="hover:bg-white/[0.02]">
                                 <td className="px-4 py-3">
@@ -4196,7 +4105,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30">
-                                    -{p.discountPercent}%
+                                    -{catalogDiscount(p)}%
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 font-mono text-amber-400 font-bold">{formatPrice(p.price, selectedCurrency)}</td>
@@ -4253,7 +4162,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </div>
                   <div className="rounded-2xl pa-card pa-card--slate p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Staff Members</div>
-                    <div className="text-2xl font-bold text-amber-400">{adminStaff.length}</div>
+                    <div className="text-2xl font-bold text-amber-400">{staffLoaded ? adminStaff.length : '—'}</div>
                   </div>
                   <div className="rounded-2xl pa-card pa-card--slate p-4">
                     <div className="text-[10px] text-zinc-400 font-mono uppercase">Normal Users</div>
@@ -4270,7 +4179,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">All Registered Users</h3>
                     <span className="text-[10px] font-mono text-zinc-500">
-                      {usersLoading ? 'Loading…' : `${adminUsers.length} users`}
+                      {usersLoading ? 'Loading…' : `${usersLoaded ? adminUsers.length : '—'} users`}
                     </span>
                   </div>
                   <div className="overflow-x-auto">
@@ -4359,8 +4268,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <ViewHeader
                   icon={<Tv className="w-5 h-5" />}
                   tone="emerald"
-                  title="IPTV & Streaming Services"
-                  desc="Live IPTV playlist products from the catalog — plans, stock and pricing."
+                  title="PlayBeat.live"
+                  desc="PlayBeat.live — IPTV catalog, plans and pricing in the PlayBeat Digital admin."
                   actions={
                     <button
                       onClick={() => setActiveNav('products')}
@@ -4371,20 +4280,22 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   }
                 />
 
+                <p className="p-3 rounded-xl border border-amber-400/25 text-amber-300 text-xs">PlayBeat.live reporting is not connected yet. The catalog below comes from PlayBeat Digital. PlayBeat.live traffic, enquiries, orders, revenue and AdSense reports will appear here after their data sources are connected.</p>
+
                 {(() => {
                   const iptv = products.filter((p) => {
                     const hay = `${p.name} ${p.sku || ''} ${(p as any).tags?.join(' ') || ''}`.toLowerCase()
                     return (hay.includes('iptv') || hay.includes('m3u')) && p.active !== false
                   })
-                  const totalKeys = iptv.reduce((a, p) => a + (p.stock || 0), 0)
+                  const unlimitedPlans = iptv.filter(hasUnlimitedStock).length
                   const avgPrice = iptv.length ? Math.round(iptv.reduce((a, p) => a + p.price, 0) / iptv.length) : 0
                   const digitalShare = iptv.length ? Math.round((iptv.filter((p) => p.digital).length / iptv.length) * 100) : 0
                   return (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KpiTile label="IPTV Products" value={iptv.length || '—'} rail="#34d399" tint="rgba(52,211,153,0.1)" edge="rgba(52,211,153,0.22)" glow="rgba(52,211,153,0.3)" icon={<Tv className="w-4 h-4 text-emerald-400" />} sub={<span className="text-emerald-300">live in catalog</span>} />
-                      <KpiTile label="Ready Keys" value={totalKeys.toLocaleString()} rail="#2dd4bf" tint="rgba(45,212,191,0.1)" edge="rgba(45,212,191,0.22)" glow="rgba(45,212,191,0.3)" icon={<Key className="w-4 h-4 text-teal-400" />} sub={<span className="text-zinc-400">instant delivery</span>} />
+                      <KpiTile label="Unlimited Plans" value={unlimitedPlans} rail="#2dd4bf" tint="rgba(45,212,191,0.1)" edge="rgba(45,212,191,0.22)" glow="rgba(45,212,191,0.3)" icon={<Key className="w-4 h-4 text-teal-400" />} sub={<span className="text-zinc-400">catalog availability</span>} />
                       <KpiTile label="Avg Price" value={avgPrice ? `Rs ${avgPrice.toLocaleString()}` : '—'} rail="#3d7ff7" tint="rgba(61,127,247,0.1)" edge="rgba(61,127,247,0.22)" glow="rgba(61,127,247,0.3)" icon={<DollarSign className="w-4 h-4 text-amber-400" />} sub={<span className="text-zinc-400">per plan</span>} />
-                      <KpiTile label="Digital Share" value={`${digitalShare}%`} rail="#38bdf8" tint="rgba(56,189,248,0.1)" edge="rgba(56,189,248,0.22)" glow="rgba(56,189,248,0.3)" icon={<Zap className="w-4 h-4 text-sky-400" />} sub={<span className="text-zinc-400">auto-delivered</span>} />
+                      <KpiTile label="Digital Share" value={`${digitalShare}%`} rail="#38bdf8" tint="rgba(56,189,248,0.1)" edge="rgba(56,189,248,0.22)" glow="rgba(56,189,248,0.3)" icon={<Zap className="w-4 h-4 text-sky-400" />} sub={<span className="text-zinc-400">digital products</span>} />
                     </div>
                   )
                 })()}
@@ -4413,11 +4324,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                             </div>
                           </div>
                           <span className={`px-2 py-0.5 rounded text-[10px] font-mono border shrink-0 ${
-                            p.stock > 0
+                            hasUnlimitedStock(p) || p.stock > 0
                               ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20'
                               : 'bg-rose-400/10 text-rose-400 border-rose-400/20'
                           }`}>
-                            {p.stock > 0 ? 'In Stock' : 'Sold Out'}
+                            {hasUnlimitedStock(p) || p.stock > 0 ? 'In Stock' : 'Sold Out'}
                           </span>
                         </div>
 
@@ -4428,22 +4339,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                           </div>
                           <div className="p-2 rounded-lg pa-well">
                             <div className="text-[10px] text-zinc-500">Stock</div>
-                            <div className="font-bold text-white font-mono">{p.stock} units</div>
+                            <div className="font-bold text-white font-mono">{hasUnlimitedStock(p) ? 'Unlimited' : `${p.stock} units`}</div>
                           </div>
                         </div>
 
-                        <div>
-                          <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-                            <span>Inventory level</span>
-                            <span className="font-mono">{Math.min(100, (p.stock || 0))}%</span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                            <div
-                              className={`h-full ${(p.stock || 0) > 10 ? 'bg-emerald-500' : (p.stock || 0) > 0 ? 'bg-amber-400' : 'bg-rose-500'}`}
-                              style={{ width: `${Math.min(100, (p.stock || 0))}%` }}
-                            />
-                          </div>
-                        </div>
+                        <p className="text-[10px] text-zinc-400">{hasUnlimitedStock(p) ? 'Unlimited catalog stock. Supplier delivery depends on actual inventory.' : `${p.stock} catalog units available.`}</p>
 
                         <div className="flex gap-2 pt-1">
                           <button
@@ -4483,7 +4383,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {activeNav === 'support' && (
               <SupportPanel
                 triggerToast={triggerToast}
-                onQuickReply={() => setShowSupportModal(true)}
+                onQuickReply={() => setActiveNav('messages')}
               />
             )}
 
@@ -4504,7 +4404,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           </main>
 
           {/* Footer */}
-          <footer className="mt-auto border-t border-white/5 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 font-mono relative z-10">
+          <footer className="pa-footer mt-auto border-t border-white/5 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 font-mono relative z-10">
             <div className="flex items-center gap-2.5">
               <img src="/playbeat-logo.png" alt="" className="h-5 w-auto object-contain opacity-80" />
               <span className="font-bold text-white">PlayBeat Digital Pvt Ltd</span>
@@ -4512,12 +4412,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
 
             <div className="flex items-center gap-4">
-              <span className="hover:text-white cursor-pointer transition">Privacy</span>
-              <span className="hover:text-white cursor-pointer transition">Terms</span>
-              <span className="hover:text-white cursor-pointer transition">Support</span>
+              <a href="/privacy" className="hover:text-white transition">Privacy</a>
+              <a href="/terms" className="hover:text-white transition">Terms</a>
+              <button onClick={() => setActiveNav('support')} className="hover:text-white transition">Support</button>
               <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_currentColor] pa-breath"></span>
-                {adminHealth?.database?.connected === false ? 'Degraded' : 'Operational'}
+                {!adminHealth ? 'Not checked' : adminHealth.database?.connected ? 'Database reachable' : 'Database unavailable'}
               </span>
             </div>
           </footer>
@@ -4534,12 +4434,12 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
       {/* Launch Campaign Modal */}
       {showCampaignModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="pa-modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-[#0F131D] border border-amber-500/20 p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Megaphone className="w-5 h-5 text-amber-400" />
-                <h3 className="font-bold text-base text-white">Launch AI Campaign</h3>
+                <h3 className="font-bold text-base text-white">Create Campaign Draft</h3>
               </div>
               <button
                 onClick={() => setShowCampaignModal(false)}
@@ -4550,7 +4450,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             </div>
 
             <p className="text-xs text-zinc-300">
-              Broadcast targeted SMS / WhatsApp & Email offers to your ${adminUsers.length} registered customer profiles with 1-click discount links.
+              Save a campaign draft with a headline and an optional existing coupon. Sending requires a configured dispatcher.
             </p>
 
             <div className="space-y-3 text-xs">
@@ -4559,7 +4459,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <input
                   id="campaign-headline-input"
                   type="text"
-                  defaultValue="🔥 Weekend Flash Sale: 20% OFF Magcubic 4K Cinema!"
+                  placeholder="Enter a campaign headline"
                   className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-white"
                 />
               </div>
@@ -4569,7 +4469,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <input
                   id="campaign-coupon-input"
                   type="text"
-                  defaultValue="PLAYBEAT20"
+                  placeholder="Existing coupon code (optional)"
                   className="w-full px-3 py-2 rounded-xl bg-[#07090E] border border-white/10 text-amber-400 font-mono font-bold"
                 />
               </div>
@@ -4595,7 +4495,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   const data = await res.json()
                   if (data?.success) {
                     setShowCampaignModal(false)
-                    triggerToast('Campaign saved to MongoDB as Draft — open Marketing Campaigns to activate')
+                    triggerToast('Campaign saved to MongoDB as Draft — open Marketing Campaigns to manage the plan')
                   } else {
                     triggerToast(data?.error || 'Could not save campaign')
                   }
@@ -4611,60 +4511,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
         </div>
       )}
 
-      {/* Support Tickets Modal */}
-      {showSupportModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-[#0F131D] border border-white/10 p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Headphones className="w-5 h-5 text-indigo-400" />
-                <h3 className="font-bold text-base text-white">Customer Support Queue (6)</h3>
-              </div>
-              <button
-                onClick={() => setShowSupportModal(false)}
-                className="text-zinc-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2.5 text-xs">
-              {[
-                { name: 'Ali Raza', issue: 'PSN $50 Key delivery query', time: '10m ago', priority: 'High' },
-                { name: 'Zohaib Hassan', issue: 'Magcubic HY450 delivery tracking', time: '25m ago', priority: 'Normal' },
-                { name: 'Noman Siddiqui', issue: 'IPTV M3U playlist activation link', time: '1h ago', priority: 'High' },
-              ].map((t, i) => (
-                <div
-                  key={i}
-                  className="p-3 rounded-xl bg-[#07090E] border border-white/5 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="font-semibold text-white">{t.name}</div>
-                    <div className="text-[11px] text-zinc-400">{t.issue}</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-400/10 text-amber-400">
-                      {t.priority}
-                    </span>
-                    <div className="text-[10px] text-zinc-500 font-mono mt-1">{t.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setShowSupportModal(false)}
-              className="w-full py-2 rounded-xl bg-white/10 text-white font-medium text-xs"
-            >
-              Close Queue
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Promote to Staff Modal */}
       {promoteModalUser && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="pa-modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-[#0F131D] border border-amber-500/30 p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -4720,7 +4569,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
       {/* Reset Admin Panel Confirmation Modal */}
       {showResetConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="pa-modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl bg-[#0F131D] border border-rose-500/30 p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

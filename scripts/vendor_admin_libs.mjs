@@ -53,6 +53,8 @@ const NO_FONTFACE = ['flaticon.css'] // font binary not provided — strip @font
 /** Prefix every selector with `.pbadmin ` (html/body/:root map to the shell itself). */
 function scopeCss(css, from) {
   const root = postcss.parse(css, { from })
+  // Bundles are imported into a cascade layer; nested charset rules are invalid.
+  root.walkAtRules('charset', rule => rule.remove())
   root.walkRules((rule) => {
     const parent = rule.parent
     if (parent && parent.type === 'atrule' && /keyframes$/i.test(parent.name || '')) return // 0%/from/to

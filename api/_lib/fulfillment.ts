@@ -2,9 +2,7 @@
 // verified payment webhook (generic /api/payments/webhook or Rapid Gateway).
 //
 // Steps (all idempotent via the `fulfillments` ledger, unique orderNumber):
-//   1. Guarantee license keys / activation codes exist for digital items
-//      (keys are normally pre-allocated at order creation; this is the
-//      safety net for legacy or partially-created orders).
+//   1. Assign imported supplier keys; report missing inventory honestly.
 //   2. Attach download links / activation notes from the product docs.
 //   3. Write delivery_events (type license_issued / download_link / activation).
 //   4. Auto-generate the invoice (ensureInvoiceForOrder).
@@ -15,17 +13,15 @@
 //   7. Decrement stock for FINITE products (physical); digital/unlimited skip.
 //   8. Audit log entry.
 
+const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+import { allocateOrderLicenses } from "./licenses.js";
 import { ObjectId } from "mongodb";
 import { writeAudit } from "./audit.js";
 import { ensureInvoiceForOrder } from "./invoice.js";
 import { sendEmail, orderPaidEmail, isEmailConfigured } from "./email.js";
 import { sendOrderNotification } from "./whatsapp.js";
 import { sendMetaPurchase } from "./metaCapi.js";
-
-function genKey(skuHint: string): string {
-  const seg = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `PB-${(skuHint || "KEY").toString().slice(0, 12).toUpperCase()}-${seg()}-${seg()}-${seg()}`;
-}
 
 export interface FulfillmentResult {
   ok: boolean;
@@ -48,6 +44,11 @@ export async function fulfillPaidOrder(
 ): Promise<FulfillmentResult> {
   const orderNumber = String(order.orderNumber || "");
   if (!orderNumber) return { ok: false };
+
+  // Real inventory allocation is independently idempotent and may be retried
+  // after importing stock even when the payment notification was already sent.
+  const allocation = await allocateOrderLicenses(db, order);
+  order = { ...order, items: allocation.items };
 
   // ---- Idempotency gate ----
   const fulCol = db.collection("fulfillments");
@@ -76,7 +77,7 @@ export async function fulfillPaidOrder(
   const eventsCol = db.collection("delivery_events");
   const notifCol = db.collection("customer_notifications");
   const now = new Date();
-  let keysEnsured = 0;
+  const keysEnsured = allocation.assigned;
 
   // ---- 1+2. License keys, download links, activation codes ----
   const items = Array.isArray(order.items) ? order.items : [];
@@ -84,25 +85,7 @@ export async function fulfillPaidOrder(
   for (const it of items) {
     const view: any = { ...it };
     const isDigital = it.digital !== false && /instant|digital|email|activation/i.test(String(it.deliveryType || "Instant Auto-Email"));
-    // Guarantee keys for digital items
-    if (isDigital) {
-      const existing = Array.isArray(it.licenseKeys) ? it.licenseKeys : [];
-      const need = Math.max(0, Number(it.quantity || 1) - existing.length);
-      if (need > 0) {
-        const fresh = Array.from({ length: need }).map(() => genKey(it.sku || it.productId || "KEY"));
-        view.licenseKeys = [...existing, ...fresh];
-        keysEnsured += fresh.length;
-        // Persist back onto the stored order item
-        try {
-          await ordersCol.updateOne(
-            { _id: new ObjectId(order._id), "items.id": it.id },
-            { $set: { "items.$.licenseKeys": view.licenseKeys } }
-          );
-        } catch { /* best-effort; ledger already prevents re-run */ }
-      } else {
-        view.licenseKeys = existing;
-      }
-    }
+    view.licenseKeys = isDigital ? (it.licenseKeys || []) : [];
     // Product-level delivery assets (download link / activation note)
     let productDoc: any = null;
     try {
@@ -206,7 +189,7 @@ export async function fulfillPaidOrder(
       type: "order_paid",
       orderNumber,
       title: `Payment verified — order ${orderNumber}`,
-      body: `Your payment was verified and your digital items were released${invoiceNumber ? ` (invoice ${invoiceNumber})` : ""}. View license keys and your invoice in Account → Orders.`,
+      body: `Your payment was verified${invoiceNumber ? ` (invoice ${invoiceNumber})` : ""}. ${allocation.missing ? "Supplier delivery is pending. Support will arrange the remaining items." : "View assigned license keys and your invoice in Account → Orders."}`,
       read: false,
       createdAt: now,
     });
@@ -246,7 +229,7 @@ export async function fulfillPaidOrder(
     const itemsHtml = itemsView
       .map(
         (i) => `<tr>
-          <td style="padding:6px 4px;border-bottom:1px solid #eef0f6;">${i.name}${i.variantName ? ` <span style="color:#7a8299;">(${i.variantName})</span>` : ""}</td>
+          <td style="padding:6px 4px;border-bottom:1px solid #eef0f6;">${escapeHtml(i.name)}${i.variantName ? ` <span style="color:#7a8299;">(${escapeHtml(i.variantName)})</span>` : ""}</td>
           <td align="right" style="padding:6px 4px;border-bottom:1px solid #eef0f6;">${i.quantity}</td>
           <td align="right" style="padding:6px 4px;border-bottom:1px solid #eef0f6;">PKR ${Number(i.amount ?? i.price * i.quantity).toLocaleString("en-PK")}</td>
         </tr>`
@@ -256,7 +239,7 @@ export async function fulfillPaidOrder(
       ? `<div style="background:#f6f8ff;border:1px solid #e3e8ff;border-radius:10px;padding:12px 14px;margin:10px 0;font-size:13px;">
            <strong style="color:#10162b;">Your license keys</strong><br/>${itemsView
              .flatMap((i) => i.licenseKeys || [])
-             .map((k) => `<code style="display:inline-block;background:#fff;border:1px solid #e3e8ff;border-radius:6px;padding:2px 8px;margin:4px 4px 0 0;">${k}</code>`)
+             .map((k) => `<code style="display:inline-block;background:#fff;border:1px solid #e3e8ff;border-radius:6px;padding:2px 8px;margin:4px 4px 0 0;">${escapeHtml(k)}</code>`)
              .join("")}
          </div>`
       : "";
@@ -284,6 +267,8 @@ export async function fulfillPaidOrder(
             notificationCreated,
             whatsappStatus,
             keysEnsured,
+            pendingUnits: allocation.missing,
+            deliveryStatus: allocation.deliveryStatus,
           },
         },
       }

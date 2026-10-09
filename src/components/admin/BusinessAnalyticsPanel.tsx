@@ -144,8 +144,8 @@ export const BusinessAnalyticsPanel: React.FC<{ onToast: (msg: string, type?: st
 
   const statusOf = (id: string, src?: string) => {
     if (!id) return { label: 'Not configured', tone: 'bad', detail: 'Set an ID below or via Vercel env' }
-    if (src === 'db') return { label: 'Active', tone: 'ok', detail: 'Set from Admin panel' }
-    return { label: 'Active', tone: 'ok', detail: 'Set from Vercel env' }
+    if (src === 'db') return { label: 'Configured', tone: 'ok', detail: 'Set from Admin panel' }
+    return { label: 'Configured', tone: 'ok', detail: 'Set from Vercel env' }
   }
 
   const StatusCard: React.FC<{
@@ -278,7 +278,7 @@ export const BusinessAnalyticsPanel: React.FC<{ onToast: (msg: string, type?: st
       <div className="pa-card p-4">
         <div className="flex items-center gap-2 mb-2">
           <Activity className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-sm font-bold text-white">Real-time tracking status</h3>
+          <h3 className="text-sm font-bold text-white">Tracking configuration requests</h3>
           {hbAlive ? (
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> LIVE
@@ -292,7 +292,7 @@ export const BusinessAnalyticsPanel: React.FC<{ onToast: (msg: string, type?: st
         {hb ? (
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[11px]">
             <div className="text-slate-400">
-              Last storefront ping: <span className="text-slate-200 font-semibold">{fmtWhen(hb.lastAt)}</span>
+              Last configuration request: <span className="text-slate-200 font-semibold">{fmtWhen(hb.lastAt)}</span>
             </div>
             <div className="text-slate-400">GA4 configured client: <span className={hb.ga4Loaded ? 'text-emerald-300' : 'text-slate-300'}>{hb.ga4Loaded ? 'yes' : 'no'}</span></div>
             <div className="text-slate-400">GTM configured client: <span className={hb.gtmLoaded ? 'text-emerald-300' : 'text-slate-300'}>{hb.gtmLoaded ? 'yes' : 'no'}</span></div>
@@ -300,7 +300,7 @@ export const BusinessAnalyticsPanel: React.FC<{ onToast: (msg: string, type?: st
           </div>
         ) : (
           <p className="text-[11px] text-slate-500">
-            No storefront pings yet. The heartbeat updates whenever a visitor opens the store while tracking is configured.
+            No configuration requests recorded yet. Requests confirm that the configuration was served; tag execution and report access are not verified here.
           </p>
         )}
       </div>
@@ -376,9 +376,7 @@ export const BusinessAnalyticsPanel: React.FC<{ onToast: (msg: string, type?: st
           <div className="text-[11px] text-slate-400 leading-relaxed">
             <span className="font-bold text-slate-200">Traffic & revenue reporting:</span> purchase/revenue reporting
             lives in GA4 (Ecommerce reports) and Google Ads (Conversions) — this panel never duplicates raw reports or
-            stores ad credentials. To pull GA4 numbers into this dashboard later, add a read-only
-            <span className="font-mono text-slate-300"> GA4_DATA_API_JSON </span>
-            service-account key to Vercel env (never in the repo or the Android APK) and the panel will light up.
+            stores ad credentials. GA4 and AdSense report APIs are not connected to this panel yet. Real report totals require a separate authorized integration.
           </div>
         </div>
       </div>
