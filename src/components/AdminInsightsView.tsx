@@ -1161,6 +1161,49 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </button>
               </div>
 
+              {!itOnly && (
+                <div className="space-y-0.5">
+                  {!sidebarCollapsed && (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider text-emerald-300/90 px-3 mb-1.5 font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_currentColor]"></span>
+                      Lead Pulse CRM
+                    </div>
+                  )}
+                  <a
+                    href="/metacrm#/dashboard"
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open Lead Pulse CRM"
+                    className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 pa-nav-item"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Users className="w-4 h-4 text-emerald-400" />
+                      {!sidebarCollapsed && <span>Open CRM</span>}
+                    </span>
+                    {!sidebarCollapsed && <ArrowUpRight className="w-3.5 h-3.5 text-zinc-500" />}
+                  </a>
+                  {!sidebarCollapsed && (
+                    <div className="ml-3 pl-3 border-l border-white/10 space-y-0.5">
+                      <a href="/metacrm#/leads" target="_blank" rel="noreferrer" className="w-full flex items-center gap-2.5 px-3 py-2 pa-nav-item">
+                        <Users className="w-3.5 h-3.5 text-sky-400" /><span>Leads</span>
+                      </a>
+                      <a href="/metacrm/communications#/whatsapp" target="_blank" rel="noreferrer" className="w-full flex items-center gap-2.5 px-3 py-2 pa-nav-item">
+                        <MessagesSquare className="w-3.5 h-3.5 text-green-400" /><span>WhatsApp</span>
+                      </a>
+                      <a href="/metacrm#/dialer" target="_blank" rel="noreferrer" className="w-full flex items-center gap-2.5 px-3 py-2 pa-nav-item">
+                        <Headphones className="w-3.5 h-3.5 text-cyan-400" /><span>Dialer</span>
+                      </a>
+                      <a href="/metacrm#/campaigns" target="_blank" rel="noreferrer" className="w-full flex items-center gap-2.5 px-3 py-2 pa-nav-item">
+                        <Megaphone className="w-3.5 h-3.5 text-amber-400" /><span>Campaigns</span>
+                      </a>
+                      <a href="/metacrm#/analytics" target="_blank" rel="noreferrer" className="w-full flex items-center gap-2.5 px-3 py-2 pa-nav-item">
+                        <BarChart3 className="w-3.5 h-3.5 text-violet-400" /><span>Analytics</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* PAYMENT GATEWAY — super admin, Administrator authority, IT authority.
                   IT accounts see this group ONLY (plus Account). */}
               {isGatewayTech && (
