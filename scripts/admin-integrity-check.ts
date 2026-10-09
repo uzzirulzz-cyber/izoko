@@ -11,6 +11,7 @@ import { catalogDiscount } from '../src/lib/catalogMetrics.js';
 // No production credentials, network requests, or customer records are used.
 process.env.SESSION_SECRET = 'local-admin-integrity-test-only';
 process.env.MONGODB_URI = 'mongodb://127.0.0.1:27017/integrity-test';
+const { cleanLiveEvent } = await import('../api/_lib/playbeatLive.js');
 const adminToken = jwt.sign({ role: 'admin', email: 'test-owner@example.org' }, process.env.SESSION_SECRET);
 
 class TestCollection {
@@ -191,4 +192,10 @@ assert.equal(importance['.pbadmin .p-4'], false); assert.equal(importance['.pbad
 assert.equal(importance['.pbadmin .modal-open'], true);
 const storefrontCss = await postcss([adminVendorCascade()]).process(legacyCss, { from: '/app/src/index.css' });
 assert.equal(storefrontCss.css, legacyCss);
+assert.equal(cleanLiveEvent({ type: 'page_view', sessionId: 'session-live-1', path: '/admin?foo=1' }), null);
+const liveEvent = cleanLiveEvent({ type: 'play_request', sessionId: 'session-live-1', path: '/?private=redact', referrer: 'https://www.facebook.com/?private=redact', channelId: '42' });
+assert.equal(liveEvent?.source, 'facebook.com'); assert.equal(liveEvent?.path, '/');
+assert.throws(() => cleanLiveEvent({ type: 'purchase', sessionId: 'session-live-1' }), /Invalid/);
+const rejectedLiveEvent = await request(analyticsHandler, '/api/analytics/live/event', 'POST', { type: 'page_view' });
+assert.equal(rejectedLiveEvent.status, 503);
 console.log('Admin integrity regression checks passed: reports, traffic, reviews, checkout, supplier inventory, concurrency and CSS isolation.');

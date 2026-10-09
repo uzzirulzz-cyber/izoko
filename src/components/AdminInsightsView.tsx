@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { PlaybeatLivePanel } from './admin/PlaybeatLivePanel'
 import {
   LayoutDashboard,
   Globe,
@@ -2235,6 +2236,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
+                <PlaybeatLivePanel compact onNavigate={setActiveNav} />
                 {/* Top Row: Cards 01 to 04 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {/* ========================================================================= */}
@@ -4280,7 +4282,8 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   }
                 />
 
-                <p className="p-3 rounded-xl border border-amber-400/25 text-amber-300 text-xs">PlayBeat.live reporting is not connected yet. The catalog below comes from PlayBeat Digital. PlayBeat.live traffic, enquiries, orders, revenue and AdSense reports will appear here after their data sources are connected.</p>
+                <PlaybeatLivePanel onNavigate={setActiveNav} />
+                <p className="text-xs text-zinc-400">The subscription products below belong to the PlayBeat Digital catalog. Live channel counts and reporting are shown separately above.</p>
 
                 {(() => {
                   const iptv = products.filter((p) => {
