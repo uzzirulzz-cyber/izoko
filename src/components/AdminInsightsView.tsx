@@ -120,6 +120,7 @@ import { AnalyticsPanel } from './admin/AnalyticsPanel'
 import { OrdersLogPanel } from './admin/OrdersLogPanel'
 import { GatewayPanel } from './admin/GatewayPanel'
 import { BusinessAnalyticsPanel } from './admin/BusinessAnalyticsPanel'
+import { PlaybeatLivePanel } from './admin/PlaybeatLivePanel'
 import { WhatsAppPanel } from './admin/WhatsAppPanel'
 import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 import { SeoPanel } from './admin/SeoPanel'
@@ -258,7 +259,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   // hash changes (e.g. the Android shell navigating to /admin#orders).
   useEffect(() => {
     const VALID = new Set([
-      'dashboard', 'health', 'cms', 'analytics', 'orders', 'orders-log', 'products',
+      'dashboard', 'health', 'cms', 'analytics', 'playbeat-live', 'orders', 'orders-log', 'products',
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
@@ -817,7 +818,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
   }
   const NAV_TITLE_MAP: Record<string, string> = {
     dashboard: 'Dashboard', products: 'Products', orders: 'Orders', customers: 'Customers',
-    analytics: 'Analytics & Traffic', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
+    analytics: 'Analytics & Traffic', 'playbeat-live': 'PlayBeat.live', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
     gateway: 'Payment Gateway', backup: 'Backup & Vault', messages: 'Messages', support: 'Support',
     'orders-log': 'Orders Log', inventory: 'Inventory', coupons: 'Coupons', campaigns: 'Campaigns',
     profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
@@ -855,6 +856,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       nav('customers', 'Customers', <KitUsers className="w-4 h-4" />),
       nav('coupons', 'Coupons', <KitTag className="w-4 h-4" />),
       nav('analytics', 'Analytics', <KitChart className="w-4 h-4" />),
+      nav('playbeat-live', 'PlayBeat.live — audience & commerce', <Tv className="w-4 h-4" />),
       nav('cms', 'CMS — Homepage & Banners', <KitCms className="w-4 h-4" />),
       nav('seo', 'SEO Control Center', <Globe className="w-4 h-4" />),
       nav('staff', 'Staff & Roles', <KitStaff className="w-4 h-4" />),
@@ -1230,6 +1232,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <BarChart3 className="w-4 h-4 text-emerald-400" />
                     {!sidebarCollapsed && <span>Analytics & Traffic</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('playbeat-live')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${activeNav === 'playbeat-live' ? 'pa-nav-item--active' : 'pa-nav-item'}`}
+                    title="PlayBeat.live traffic, channels, orders and revenue"
+                  >
+                    <Tv className="w-4 h-4 text-sky-400" />
+                    {!sidebarCollapsed && <span>PlayBeat.live</span>}
                   </button>
 
                   <button
@@ -2203,6 +2214,10 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
+                <button onClick={() => setActiveNav('playbeat-live')} className="pa-card p-4 w-full flex items-center justify-between gap-3 text-left">
+                  <span className="flex items-center gap-3"><Tv className="w-5 h-5 text-sky-300" /><span><strong className="block text-sm">PlayBeat.live</strong><span className="text-xs text-zinc-400">View streaming audience, traffic sources, channels, orders and revenue.</span></span></span>
+                  <ArrowUpRight className="w-4 h-4 text-sky-300 shrink-0" />
+                </button>
                 {/* Top Row: Cards 01 to 04 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {/* ========================================================================= */}
@@ -3864,6 +3879,9 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* ========================================================================= */}
             {/* PANEL: BUSINESS ANALYTICS — Google stack (GA4/GTM/AdSense/Ads)            */}
             {/* ========================================================================= */}
+            {activeNav === 'playbeat-live' && (
+              <PlaybeatLivePanel onToast={triggerToast} />
+            )}
             {activeNav === 'business' && (
               <BusinessAnalyticsPanel onToast={triggerToast} />
             )}
