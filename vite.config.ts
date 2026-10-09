@@ -1,11 +1,13 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import adminVendorCascade from './scripts/admin-vendor-cascade.mjs';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    css: { postcss: { plugins: [adminVendorCascade()] } },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

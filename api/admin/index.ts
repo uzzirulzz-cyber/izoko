@@ -40,7 +40,10 @@
 //   GET    /api/admin/documents/:id/download   (vault binary download — admin auth)
 //   DELETE /api/admin/documents/:id            (vault delete — manager+ or uploader)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { approvedVerifiedReviews, verifiedReviews } from "../_lib/reviewMetrics.js";
 import crypto from "crypto";
+import { importSupplierLicenses, findLicenseProduct, allocateOrderLicenses, isPlaceholderLicense } from "../_lib/licenses.js";
+import { businessOrdersFilter, isTestOrder, PAID_ORDER_FILTER, NET_ORDER_AMOUNT, IS_PAID_ORDER, reportingWindow, LOW_STOCK_FILTER } from "../_lib/reporting.js";
 import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
 import { formatProduct, stripHtmlText } from "../_lib/product.js";
@@ -444,7 +447,43 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     }
   }
 
-  const db = await getDb();
+  let db;
+  try { db = await getDb(); } catch { return jsonError(res, "Database unavailable. Please retry.", 503); }
+
+  // Supplier license inventory: persisted keys only; catalog stock is not a key pool.
+  if (route === "licenses" && req.method === "GET") {
+    if (!requirePermission(req, res, "inventory")) return;
+    try {
+      const pools = await db.collection("license_inventory").aggregate([
+        { $group: { _id: { productId: "$productId", productName: "$productName", variantName: "$variantName" }, available: { $sum: { $cond: [{ $eq: ["$status", "available"] }, 1, 0] } }, assigned: { $sum: { $cond: [{ $eq: ["$status", "assigned"] }, 1, 0] } } } },
+        { $sort: { "_id.productName": 1 } },
+      ]).toArray();
+      const pending = await db.collection("orders").find({ ...businessOrdersFilter(), paymentStatus: "paid", deliveryStatus: "awaiting_supplier_delivery" }).project({ orderNumber: 1, customerName: 1 }).sort({ createdAt: -1 }).limit(100).toArray();
+      return jsonOk(res, { success: true, pools: pools.map((p: any) => ({ ...p._id, available: p.available, assigned: p.assigned })), pending: pending.map((o: any) => ({ orderNumber: o.orderNumber, customerName: o.customerName })) });
+    } catch (err: any) { return jsonError(res, err.message, 500); }
+  }
+  if (route === "licenses/import" && req.method === "POST") {
+    if (!requirePermission(req, res, "inventory")) return;
+    try {
+      const product = await findLicenseProduct(db, req.body?.productId);
+      if (!product) return jsonError(res, "Product not found.", 404);
+      const actor = verifyAdmin(req);
+      const result = await importSupplierLicenses(db, product, String(req.body?.variantName || ""), req.body?.keys, actor?.email || "admin");
+      await writeAudit(db, { actor, action: "licenses.import", targetType: "product", targetId: String(product._id), detail: `Imported ${result.imported} supplier keys (${result.duplicates} duplicates skipped)` });
+      return jsonOk(res, { success: true, ...result });
+    } catch (err: any) { return jsonError(res, err.message, 400); }
+  }
+  if (route === "licenses/assign" && req.method === "POST") {
+    if (!requirePermission(req, res, "inventory") || !requirePermission(req, res, "orders")) return;
+    try {
+      const order = await db.collection("orders").findOne({ orderNumber: String(req.body?.orderNumber || ""), ...businessOrdersFilter() });
+      if (!order) return jsonError(res, "Order not found.", 404);
+      if (order.paymentStatus !== "paid") return jsonError(res, "Verified payment is required.", 409);
+      const result = await allocateOrderLicenses(db, order);
+      await writeAudit(db, { actor: verifyAdmin(req), action: "licenses.assign", targetType: "order", targetId: order.orderNumber, detail: `Assigned ${result.assigned} supplier keys; ${result.missing} units awaiting delivery` });
+      return jsonOk(res, { success: true, assigned: result.assigned, missing: result.missing });
+    } catch (err: any) { return jsonError(res, err.message, 500); }
+  }
 
   // ============ GET /api/admin/stats ============
   if (route === "stats" && req.method === "GET") {
@@ -454,20 +493,20 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const [totalProducts, activeProducts, totalOrders] = await Promise.all([
         productsCol.countDocuments(),
         productsCol.countDocuments({ active: { $ne: false } }),
-        ordersCol.countDocuments(),
+        ordersCol.countDocuments(businessOrdersFilter()),
       ]);
       const revenueAgg = await ordersCol
         .aggregate([
-          { $match: { status: "completed" } },
-          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+          { $match: { ...businessOrdersFilter(), ...PAID_ORDER_FILTER } },
+          { $group: { _id: null, total: { $sum: NET_ORDER_AMOUNT } } },
         ])
         .toArray();
       const totalRevenue = revenueAgg[0]?.total || 0;
       // Low stock = stock <= 5
-      const lowStock = await productsCol.countDocuments({ stock: { $lte: 5 } });
+      const lowStock = await productsCol.countDocuments(LOW_STOCK_FILTER);
       // Recent orders count (last 7 days)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const recentOrders = await ordersCol.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
+      const recentOrders = await ordersCol.countDocuments({ ...businessOrdersFilter(), createdAt: { $gte: sevenDaysAgo } });
       return jsonOk(res, {
         success: true,
         stats: {
@@ -476,7 +515,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           totalRevenue,
           lowStock,
           recentOrders,
-          systemHealth: "100% Operational",
+          testOrdersExcluded: await ordersCol.countDocuments({ $nor: [businessOrdersFilter()] }),
+          statusCounts: Object.fromEntries((await ordersCol.aggregate([{ $match: businessOrdersFilter() }, { $group: { _id: "$status", count: { $sum: 1 } } }]).toArray()).map((r: any) => [r._id, r.count])),
           database: MONGODB_DB_NAME,
         },
       });
@@ -1133,7 +1173,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const ordersCol = db.collection("orders");
       const limit = Math.min(parseInt((req.query.limit as string) || "20", 10) || 20, 100);
       const recentOrders = await ordersCol
-        .find({})
+        .find(businessOrdersFilter())
         .sort({ createdAt: -1 })
         .limit(limit)
         .toArray();
@@ -1169,14 +1209,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // Unwind items, group by product name, sum quantity and revenue
       const topProductsAgg = await ordersCol
         .aggregate([
-          { $match: { status: "completed" } },
+          { $match: { ...businessOrdersFilter(), ...PAID_ORDER_FILTER } },
+          { $addFields: { reportNetAmount: NET_ORDER_AMOUNT, reportSubtotal: { $ifNull: ["$subtotalAmount", { $sum: { $map: { input: "$items", as: "item", in: { $multiply: ["$$item.price", "$$item.quantity"] } } } }] } } },
           { $unwind: "$items" },
           {
             $group: {
               _id: "$items.name",
               totalSold: { $sum: "$items.quantity" },
-              totalRevenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
-              orderCount: { $sum: 1 },
+              totalRevenue: { $sum: { $cond: [{ $gt: ["$reportSubtotal", 0] }, { $multiply: ["$items.price", "$items.quantity", { $divide: ["$reportNetAmount", "$reportSubtotal"] }] }, 0] } },
+              orderNumbers: { $addToSet: "$orderNumber" },
             },
           },
           { $sort: { totalSold: -1 } },
@@ -1189,8 +1230,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           rank: idx + 1,
           name: p._id,
           totalSold: p.totalSold,
-          totalRevenue: p.totalRevenue,
-          orderCount: p.orderCount,
+          totalRevenue: Number(p.totalRevenue.toFixed(2)),
+          orderCount: p.orderNumbers.length,
         })),
       });
     } catch (err: any) {
@@ -1202,17 +1243,18 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   if (route === "revenue-chart" && req.method === "GET") {
     try {
       const ordersCol = db.collection("orders");
-      const days = parseInt((req.query.days as string) || "14", 10) || 14;
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const { days, start: startDate, end, previousStart } = reportingWindow(req.query.days);
       const dailyAgg = await ordersCol
         .aggregate([
-          { $match: { status: "completed", createdAt: { $gte: startDate } } },
+          { $match: { ...businessOrdersFilter(), ...PAID_ORDER_FILTER } },
+          { $addFields: { reportDate: { $ifNull: ["$paidAt", "$createdAt"] } } },
+          { $match: { reportDate: { $gte: previousStart, $lt: end } } },
           {
             $group: {
               _id: {
-                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                $dateToString: { format: "%Y-%m-%d", date: "$reportDate" },
               },
-              revenue: { $sum: "$totalAmount" },
+              revenue: { $sum: NET_ORDER_AMOUNT },
               orders: { $sum: 1 },
             },
           },
@@ -1222,7 +1264,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // Build complete date series (fill missing days with 0)
       const series: { date: string; revenue: number; orders: number }[] = [];
       for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const d = new Date(end.getTime() - (i + 1) * 86400000);
         const key = d.toISOString().split("T")[0];
         const found = dailyAgg.find((a: any) => a._id === key);
         series.push({
@@ -1233,6 +1275,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
       const totalRevenue = series.reduce((a, s) => a + s.revenue, 0);
       const totalOrders = series.reduce((a, s) => a + s.orders, 0);
+      const previousRevenue = dailyAgg.filter((r: any) => r._id < startDate.toISOString().slice(0, 10)).reduce((sum: number, r: any) => sum + r.revenue, 0);
+      const deltaPct = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : null;
       const avgDaily = series.length > 0 ? Math.round(totalRevenue / series.length) : 0;
       const bestDay = series.reduce(
         (best, s) => (s.revenue > best.revenue ? s : best),
@@ -1242,6 +1286,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         success: true,
         chart: {
           series,
+          previousRevenue, deltaPct,
+          startsAt: startDate, endsAt: end, timezone: "UTC",
           totalRevenue,
           totalOrders,
           avgDailyRevenue: avgDaily,
@@ -1507,8 +1553,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           db.collection("orders").countDocuments(),
           db.collection("users").countDocuments(),
           db.collection("backups").countDocuments(),
-          db.collection("orders").countDocuments({ status: { $in: ["pending", "processing"] } }),
-          db.collection("products").countDocuments({ stock: { $lte: 5 } }),
+          db.collection("orders").countDocuments({ ...businessOrdersFilter(), status: { $in: ["pending", "processing"] } }),
+          db.collection("products").countDocuments(LOW_STOCK_FILTER),
         ]);
       const lastBackup = await db
         .collection("backups")
@@ -1574,7 +1620,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const status = (urlQ.get("status") || "all").toLowerCase();
       const search = (urlQ.get("search") || "").trim();
       const ordersCol = db.collection("orders");
-      const query: any = {};
+      const includeTests = urlQ.get("includeTests") === "true";
+      const query: any = includeTests ? {} : businessOrdersFilter();
       if (status !== "all") query.status = status;
       if (search) {
         const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
@@ -1597,12 +1644,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // Per-customer aggregation for the Customer Orders Log side summary
       const customerAgg = await ordersCol
         .aggregate([
+          { $match: businessOrdersFilter() },
           {
             $group: {
               _id: "$customerEmail",
               customerName: { $first: "$customerName" },
               orderCount: { $sum: 1 },
-              lifetimeValue: { $sum: "$totalAmount" },
+              lifetimeValue: { $sum: { $cond: [IS_PAID_ORDER, NET_ORDER_AMOUNT, 0] } },
               lastOrderAt: { $max: "$createdAt" },
             },
           },
@@ -1617,6 +1665,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         total,
         orders: items.map((o: any) => ({
           id: o._id.toString(),
+          isTest: isTestOrder(o),
           orderNumber: o.orderNumber,
           customerName: o.customerName,
           customerEmail: o.customerEmail,
@@ -1629,9 +1678,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
             quantity: i.quantity,
             price: i.price,
             variantName: i.variantName,
-            licenseKeys: i.licenseKeys || [],
+            licenseKeys: (i.licenseKeys || []).filter((k: string) => !isPlaceholderLicense(k)),
+            placeholderKeysOmitted: (i.licenseKeys || []).filter(isPlaceholderLicense).length,
           })),
-          licenseKeysDelivered: o.licenseKeysDelivered || [],
+          licenseKeysDelivered: (o.licenseKeysDelivered || []).filter((k: string) => !isPlaceholderLicense(k)),
           createdAt: o.createdAt,
         })),
         customers: customerAgg.map((c: any) => ({
@@ -2134,15 +2184,15 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         galleryMeta: sanitizeGalleryMeta(body.galleryMeta).value,
         tags: Array.isArray(body.tags) ? body.tags : ["Verified", "Digital"],
         digital: body.digital !== undefined ? Boolean(body.digital) : true,
-        stock: typeof body.stock === "number" ? body.stock : Number(body.stock) || 50,
+        stock: Math.max(0, Number(body.stock) || 0),
         stockMode: body.stockMode === "finite" || body.stockMode === "unlimited" ? body.stockMode : undefined,
         lowStockThreshold: body.lowStockThreshold != null && !isNaN(Number(body.lowStockThreshold)) ? Number(body.lowStockThreshold) : undefined,
         downloadUrl: body.downloadUrl ? String(body.downloadUrl).trim().slice(0, 500) : undefined,
         activationNotes: body.activationNotes ? String(body.activationNotes).slice(0, 2000) : undefined,
         plans: Array.isArray(body.plans) ? body.plans : undefined,
         status: body.status || "in_stock",
-        rating: Number(body.rating) || 0,
-        reviewCount: Number(body.reviewCount) || 0,
+        rating: 0,
+        reviewCount: 0,
         isHot: Boolean(body.isHot),
         isFeatured: Boolean(body.isFeatured || body.featured),
         featured: Boolean(body.featured || body.isFeatured),
@@ -2280,6 +2330,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         const body = { ...req.body };
         delete body._id;
         delete body.id;
+        delete body.rating;
+        delete body.reviewCount;
         // Base64 images are rejected with a structured, actionable error —
         // they must be uploaded via POST /api/admin/media first.
         const imgCheck = sanitizeProductImageFields(body);
@@ -3466,7 +3518,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, "Status must be Draft, Active or Completed.", 400);
       }
       const patch: any = { status, updatedAt: new Date() };
-      if (status === "Active") patch.dispatchedAt = new Date();
+      if (status === "Active") patch.activatedAt = new Date();
       if (status === "Completed") patch.completedAt = new Date();
       const r = await db
         .collection("marketing_campaigns")
@@ -5156,7 +5208,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     try {
       const { productId, mode = "add", amount, reason } = req.body || {};
       const amt = Number(amount);
-      if (!productId || !Number.isFinite(amt)) return jsonError(res, "productId and numeric amount are required.", 400);
+      if (!productId || !Number.isSafeInteger(amt) || (mode === "set" && amt < 0) || !["set", "add"].includes(mode)) return jsonError(res, "productId and numeric amount are required.", 400);
       const col = db.collection("products");
       const filter: any = ObjectId.isValid(String(productId))
         ? { _id: new ObjectId(String(productId)) }
@@ -5177,12 +5229,13 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         return jsonError(res, "This product is on Unlimited stock mode (digital) — switch it to finite before tracking stock.", 409);
       }
       const delta = mode === "set" ? amt - (Number(doc.stock) || 0) : amt;
-      if (Number(doc.stock) + delta < 0) return jsonError(res, "Adjustment would drive stock below zero.", 409);
+      if ((Number(doc.stock) || 0) + delta < 0) return jsonError(res, "Adjustment would drive stock below zero.", 409);
       const updated = await col.findOneAndUpdate(
-        filter,
-        { $set: { stock: Number(doc.stock) + delta, updatedAt: new Date() } },
+        { $and: [filter, { stock: doc.stock === undefined ? { $exists: false } : doc.stock }] },
+        { $set: { stock: (Number(doc.stock) || 0) + delta, updatedAt: new Date() } },
         { returnDocument: "after" }
       );
+      if (!updated) return jsonError(res, "Stock changed during this adjustment. Refresh and retry.", 409);
       const actor = verifyAdmin(req);
       await db.collection("stock_movements").insertOne({
         productId: String(doc._id),
@@ -5217,6 +5270,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const filter: any = {};
       if (status && ["pending", "approved", "hidden"].includes(status)) filter.status = status;
       const docs = await db.collection("reviews").find(filter).sort({ createdAt: -1 }).limit(200).toArray();
+      const allCounts = await Promise.all(["pending", "approved", "hidden"].map(status => db.collection("reviews").countDocuments({ status })));
+      const featuredCount = await db.collection("reviews").countDocuments({ featured: true });
       return jsonOk(res, {
         success: true,
         reviews: docs.map((r: any) => ({
@@ -5234,10 +5289,10 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           createdAt: r.createdAt,
         })),
         counts: {
-          pending: docs.filter((r: any) => r.status === "pending").length,
-          approved: docs.filter((r: any) => r.status === "approved").length,
-          hidden: docs.filter((r: any) => r.status === "hidden").length,
-          featured: docs.filter((r: any) => r.featured).length,
+          pending: allCounts[0],
+          approved: allCounts[1],
+          hidden: allCounts[2],
+          featured: featuredCount,
         },
       });
     } catch (err: any) {
@@ -5256,6 +5311,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const review = await col.findOne({ _id: new ObjectId(String(id)) });
       if (!review) return jsonError(res, "Review not found.", 404);
       const actor = verifyAdmin(req);
+      const reviewProduct = ObjectId.isValid(String(review.productId)) ? await db.collection("products").findOne({ _id: new ObjectId(String(review.productId)) }) : null;
+      if (["approve", "feature"].includes(action) && (!reviewProduct || !(await verifiedReviews(db, [review], [reviewProduct])).length)) return jsonError(res, "A real paid purchase by this reviewer is required before approval.", 409);
 
       if (action === "delete") {
         await col.deleteOne({ _id: review._id });
@@ -5269,9 +5326,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
 
       // Recompute the product's public rating aggregates from APPROVED reviews
-      const approved = await col
-        .find({ productId: review.productId, status: "approved" })
-        .toArray();
+      const approved = reviewProduct ? await approvedVerifiedReviews(db, [reviewProduct]) : [];
       const count = approved.length;
       const avg = count ? approved.reduce((s: number, r: any) => s + Number(r.rating || 0), 0) / count : 0;
       try {

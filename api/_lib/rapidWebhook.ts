@@ -589,7 +589,7 @@ export async function handleRapidGatewayWebhook(req: VercelRequest, res: VercelR
     // keys, invoices or notifications) ----
     if (transition.markPaid) {
       try {
-        await fulfillPaidOrder(db, { ...order, paidAt: now }, {
+        await fulfillPaidOrder(db, { ...order, paymentStatus: "paid", status: "completed", paidAt: now }, {
           source: "webhook:rapid",
           eventId,
         });

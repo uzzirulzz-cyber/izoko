@@ -43,59 +43,13 @@ const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 // NO MOCK DATA — campaigns are real documents in MongoDB marketing_campaigns.
 
-const INITIAL_CAMPAIGNS = [
-  {
-    id: 'CAMP-001',
-    name: 'Weekend Flash Sale: 20% OFF Magcubic 4K',
-    channel: 'Email + WhatsApp',
-    status: 'Active',
-    sent: 248,
-    opened: 184,
-    clicked: 62,
-    revenue: 184000,
-    startedAt: '2 days ago',
-  },
-  {
-    id: 'CAMP-002',
-    name: 'Back-to-School AI Bundle Promo',
-    channel: 'Email',
-    status: 'Scheduled',
-    sent: 0,
-    opened: 0,
-    clicked: 0,
-    revenue: 0,
-    startedAt: 'Starts in 3 days',
-  },
-  {
-    id: 'CAMP-003',
-    name: 'Netflix + Spotify Combo (Eid Special)',
-    channel: 'WhatsApp',
-    status: 'Completed',
-    sent: 312,
-    opened: 248,
-    clicked: 94,
-    revenue: 642000,
-    startedAt: '8 days ago',
-  },
-  {
-    id: 'CAMP-004',
-    name: 'PSN Gift Card Restock Notification',
-    channel: 'Push + Email',
-    status: 'Draft',
-    sent: 0,
-    opened: 0,
-    clicked: 0,
-    revenue: 0,
-    startedAt: 'Not scheduled',
-  },
-]
-
 export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
   products,
   triggerToast,
 }) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [draftName, setDraftName] = useState('')
   const [draftChannel, setDraftChannel] = useState<'Email' | 'WhatsApp' | 'Email + WhatsApp' | 'Push + Email'>('Email + WhatsApp')
@@ -112,9 +66,11 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
         credentials: 'include',
       })
       const data = await res.json()
-      if (data?.success) setCampaigns(data.campaigns || [])
-    } catch {
-      /* silent */
+      if (!res.ok || !data.success) throw new Error(data.error || 'Campaigns could not be loaded.')
+      setCampaigns(data.campaigns || [])
+      setError('')
+    } catch (err: any) {
+      setError(err.message || 'Campaigns could not be loaded.')
     } finally {
       setLoading(false)
     }
@@ -164,7 +120,7 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
         setCampaigns((prev) => prev.map((c) => (c._id === id ? { ...c, status } : c)))
         triggerToast(
           status === 'Active'
-            ? 'Campaign activated — deliveries begin once an email/SMS provider is connected'
+            ? 'Campaign plan activated. Messages require a separate configured dispatcher.'
             : `Campaign marked ${status}`
         )
       } else {
@@ -229,7 +185,7 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
           <div>
             <h2 className="text-lg font-extrabold text-white tracking-tight">Marketing Campaigns</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Live campaigns saved in MongoDB — plan, activate and track customer broadcasts.
+              Campaign plans saved in MongoDB — create drafts and manage their status.
             </p>
           </div>
         </div>
@@ -246,6 +202,8 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
         </div>
       </div>
 
+      {error && <div role="alert" className="p-3 text-rose-300 border border-rose-400/30 rounded-xl">{error}</div>}
+      <p className="text-xs text-amber-300">This panel manages campaign plans. Sending and engagement tracking are not connected; activation does not dispatch messages.</p>
       {/* KPI Cards — real aggregates */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="pa-kpi" style={{ ['--kpi-rail' as string]: '#fb923c', ['--kpi-tint' as string]: 'rgba(251,146,60,0.1)', ['--kpi-edge' as string]: 'rgba(251,146,60,0.22)' } as React.CSSProperties}>
@@ -354,7 +312,7 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
                             onClick={() => setStatus(c._id, 'Active')}
                             className="text-amber-400 hover:text-amber-300 text-[10px] font-semibold"
                           >
-                            Activate →
+                            Activate Plan →
                           </button>
                         )}
                         {c.status === 'Active' && (
@@ -385,8 +343,8 @@ export const CampaignsPanel: React.FC<CampaignsPanelProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
           { icon: Mail, color: 'text-blue-400', name: 'Email Newsletter', desc: 'Monthly catalog update + featured deals' },
-          { icon: MessageSquare, color: 'text-emerald-400', name: 'WhatsApp Blast', desc: 'Flash sale alert (90% open rate)' },
-          { icon: Sparkles, color: 'text-purple-400', name: 'AI Personalized', desc: 'ML-driven per-user recommendations' },
+          { icon: MessageSquare, color: 'text-emerald-400', name: 'WhatsApp Blast', desc: 'Flash sale message template' },
+          { icon: Sparkles, color: 'text-purple-400', name: 'Personalized Email', desc: 'Template-based per-user recommendations' },
         ].map((t) => {
           const Icon = t.icon
           return (

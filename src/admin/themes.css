@@ -1221,7 +1221,7 @@
   backdrop-filter: blur(2px);
   animation: pbFadeIn 0.15s ease both;
 }
-@media (max-width: 1024px) {
+@media (max-width: 1023.98px) {
   .pbadmin .pa-sidebar {
     position: fixed !important;
     top: 0;

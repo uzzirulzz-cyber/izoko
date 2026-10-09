@@ -8,7 +8,7 @@
 //   1. POST /api/orders  → server recomputes prices + re-validates the coupon
 //   2. Rapid  → POST /api/payments/rapid/create → hosted checkout redirect;
 //      truth arrives ONLY via the verified webhook (/order/:num result page)
-//   3. Direct → order returned complete with released keys (store policy)
+//   3. Direct → order remains pending until server-side payment verification
 // The browser never marks anything paid and totals are never trusted.
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
@@ -36,7 +36,7 @@ import {
   computeEstimatedDeliveryDate,
   deriveDeliveryCountry,
 } from '../lib/googleCustomerReviews'
-import { trackBeginCheckout, trackPurchase } from '../lib/googleTag'
+import { trackBeginCheckout } from '../lib/googleTag'
 import { PaymentLogoRow, BrandId } from './checkout/PaymentLogos'
 import { PaymentMethodInfo, AppliedCoupon, CartTotals } from './checkout/types'
 import { fetchPaymentMethods } from './checkout/paymentApi'
@@ -79,6 +79,7 @@ type PlacedOrder = {
   paymentMethodLabel: string
   keys: { title: string; key: string }[]
   hasDigitalKeys: boolean
+  paymentPending: boolean
   // Real server-order fields — feed the Google Customer Reviews opt-in
   // (derived delivery country + estimated delivery date, never fabricated).
   customerEmail: string
@@ -404,7 +405,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         return
       }
 
-      // ---------- Direct methods: server confirmed + released keys ----------
+      // ---------- Direct methods: show the server payment state honestly ----------
       const serverKeys: { title: string; key: string }[] = (order.items || []).flatMap((it: any) =>
         (it.licenseKeys || []).map((k: string) => ({
           title: it.name + (it.variantName ? ` (${it.variantName})` : ''),
@@ -412,16 +413,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         }))
       )
       const hasDigitalKeys = serverKeys.length > 0
-      const keys = hasDigitalKeys
-        ? serverKeys
-        : cart.map((item) => ({
-            title:
-              item.product.name + (item.selectedVariant ? ` (${item.selectedVariant.name})` : ''),
-            key:
-              item.product.digital === false
-                ? 'COURIER-DISPATCH-PENDING'
-                : 'DELIVERY-PENDING-EMAIL',
-          }))
+      const keys = serverKeys
 
       setPlaced({
         orderNumber,
@@ -429,6 +421,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         paymentMethodLabel: DIRECT_METHOD_LABEL[selectedMethod] || 'Direct Payment',
         keys,
         hasDigitalKeys,
+        paymentPending: order.paymentStatus !== 'paid',
         customerEmail: String(order.customerEmail || contact.email.trim()),
         customerPhone: contact.phone?.trim() || '',
         createdAt: typeof order.createdAt === 'string' ? order.createdAt : '',
@@ -563,18 +556,6 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   if (placed) {
     return (
       <div className="pbx-scope min-h-screen">
-        <PurchaseReporter
-          orderNumber={placed.orderNumber}
-          value={totals.total}
-          coupon={coupon?.code}
-          items={cart.map((i) => ({
-            id: String(i.product._id || i.product.id || i.product.name),
-            name: i.product.name,
-            category: i.product.category,
-            price: i.unitPrice,
-            quantity: i.quantity,
-          }))}
-        />
         <OrderSuccess
           orderNumber={placed.orderNumber}
           totalLabel={placed.totalLabel}
@@ -582,7 +563,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           email={contact.email}
           keys={placed.keys}
           hasDigitalKeys={placed.hasDigitalKeys}
-          reviewOptIn={{
+          paymentPending={placed.paymentPending}
+          reviewOptIn={placed.paymentPending ? undefined : {
             orderId: placed.orderNumber,
             email: placed.customerEmail,
             deliveryCountry: deriveDeliveryCountry(placed.customerPhone),
@@ -635,7 +617,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           </span>
           <h1 className="text-lg font-extrabold text-slate-900">Your cart is empty</h1>
           <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-            Add a product to continue to checkout. Digital keys are delivered instantly after
+            Add a product to continue to checkout. Digital delivery begins after
             verified payment.
           </p>
           <button onClick={() => onNavigate('/')} className="pbx-btn-blue mt-6 mx-auto">
@@ -735,7 +717,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 <div>
                   <label htmlFor="pbx-co-email" className="block text-xs font-bold text-slate-700 mb-1.5">
                     Email address{' '}
-                    <span className="font-medium text-slate-400">— keys delivered here instantly</span>
+                    <span className="font-medium text-slate-400">— delivery follows verified payment</span>
                   </label>
                   <input
                     id="pbx-co-email"
@@ -844,7 +826,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   secure hosted page to complete the payment — your card or wallet credentials are
                   entered there and are never seen or stored by PlayBeat. After verification of the
                   payment, your order is confirmed, an invoice is issued, and digital keys are
-                  delivered to your account and email automatically.{' '}
+                  assigned from supplier inventory after verification. Items awaiting stock need supplier delivery.{' '}
                   <a href="/about" target="_blank" rel="noopener noreferrer" className="pbx-link">
                     More about our payments &amp; business model
                   </a>
@@ -984,26 +966,4 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       </form>
     </div>
   )
-}
-
-/**
- * Fires the GA4 purchase event (+ Google Ads conversion) once per order when
- * the server has CONFIRMED the order. Rendered only on the success view —
- * it draws nothing. Values mirror the server-verified order response.
- */
-const PurchaseReporter: React.FC<{
-  orderNumber: string
-  value: number
-  coupon?: string
-  items: { id: string; name: string; category?: string; price: number; quantity: number }[]
-}> = ({ orderNumber, value, coupon, items }) => {
-  useEffect(() => {
-    try {
-      trackPurchase({ transactionId: orderNumber, value, coupon, items })
-    } catch {
-      /* tracking must never break the success page */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderNumber])
-  return null
 }

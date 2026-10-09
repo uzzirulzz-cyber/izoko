@@ -76,7 +76,7 @@ export const SystemHealthPanel: React.FC<SystemHealthPanelProps> = ({ health, lo
             </div>
             <div className="flex-1">
               <div className={`text-base font-extrabold ${operational ? 'text-emerald-300' : 'text-rose-300'}`}>
-                {operational ? 'All Systems Operational' : 'Degraded — Database Issues Detected'}
+                {operational ? 'Database & API Reachable' : 'Degraded — Database Issues Detected'}
               </div>
               <div className="text-[11px] text-zinc-400 font-mono mt-0.5">
                 Database {health.database?.connected ? `connected · ${health.database.latencyMs}ms ping` : 'unreachable'}

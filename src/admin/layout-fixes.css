@@ -1,0 +1,95 @@
+/* Final admin-only compatibility layer. Storefront selectors are untouched. */
+.pbadmin,
+.pbadmin *,
+.pbadmin *::before,
+.pbadmin *::after { box-sizing: border-box; }
+.pbadmin { height: 100vh; height: 100dvh; min-height: 0; width: 100%; }
+.pbadmin .pa-shell { height: 100%; min-height: 0; overflow: hidden; }
+.pbadmin .pa-content { flex: 1; min-width: 0; min-height: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.pbadmin .pa-sidebar { height: 100%; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; }
+.pbadmin .pa-sidebar > div { flex-shrink: 0; }
+.pbadmin .pa-sidebar .pa-nav-item { min-height: 36px; }
+.pbadmin .pa-main { min-width: 0; padding-bottom: 88px; }
+.pbadmin .pa-main > *, .pbadmin .pa-card, .pbadmin .pa-tablewrap { min-width: 0; }
+.pbadmin .pa-tablewrap > .overflow-x-auto { width: 100%; overscroll-behavior-x: contain; }
+.pbadmin .pa-table { width: 100%; border-collapse: collapse; }
+.pbadmin .pa-table :is(th, td) { overflow-wrap: anywhere; }
+.pbadmin .pa-table :is(button, a) { white-space: nowrap; }
+.pbadmin .pa-topbar { flex-shrink: 0; gap: 12px; }
+.pbadmin .pa-topbar-actions { flex-shrink: 0; }
+.pbadmin .pa-topbar .pa-search { min-width: 0; }
+.pbadmin .pb-crumb { min-width: 0; }
+.pbadmin .pb-crumb-here { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Canvas text remaps previously turned sidebar text dark on blue. */
+.pbadmin .pa-sidebar {
+  --sidebar-ink: #f8fafc;
+  --sidebar-muted: #cbd5e1;
+  --pa-ink: var(--sidebar-ink);
+  --pa-ink-soft: var(--sidebar-muted);
+  --pa-muted: var(--sidebar-muted);
+  --rm-white: var(--sidebar-ink);
+  --rm-zinc-100: var(--sidebar-ink);
+  --rm-zinc-200: var(--sidebar-ink);
+  --rm-zinc-300: var(--sidebar-muted);
+  --rm-zinc-400: var(--sidebar-muted);
+}
+.pbadmin:is([data-pb-theme="platinum"], [data-pb-theme="arctic"], [data-pb-theme="minimal"], [data-pb-theme="custom"][data-pb-side-ink="dark"]) .pa-sidebar {
+  --sidebar-ink: #1e293b;
+  --sidebar-muted: #475569;
+}
+.pbadmin .pa-sidebar :is(.text-white, .text-zinc-100, .text-zinc-200) { color: var(--sidebar-ink); }
+.pbadmin .pa-sidebar :is(.text-zinc-300, .text-zinc-400, .text-zinc-500) { color: var(--sidebar-muted); }
+.pbadmin .pa-sidebar div[class*="tracking-wider"] { color: var(--sidebar-muted); }
+.pbadmin .pa-main :is(.text-slate-100, .text-slate-200) { color: var(--pa-ink); }
+.pbadmin .pa-main :is(.text-slate-400, .text-slate-500) { color: var(--pa-muted); }
+
+/* Native controls inherit the selected theme, including select option menus. */
+.pbadmin :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  font-family: inherit;
+  background-color: var(--pa-input-bg);
+  color: var(--pa-ink);
+  border-color: var(--rm-border-strong);
+  max-width: 100%;
+  min-width: 0;
+  caret-color: var(--pa-primary);
+}
+.pbadmin select option { background: var(--pa-input-bg); color: var(--pa-ink); }
+.pbadmin textarea { resize: vertical; }
+.pbadmin :is(input, select, textarea):disabled { opacity: 0.65; cursor: not-allowed; }
+.pbadmin :is(input[type="checkbox"], input[type="radio"]) { accent-color: var(--pa-primary); }
+.pbadmin .pb-cmdk-input input { background: transparent; border: 0; box-shadow: none; }
+.pbadmin .pa-btn { border: 1px solid var(--pa-line); border-radius: var(--radius-sm); background: var(--pa-inset); color: var(--pa-ink); font: inherit; cursor: pointer; }
+.pbadmin .pa-btn:hover { border-color: var(--pa-primary-border); background: var(--wash-b); }
+.pbadmin button:disabled { cursor: not-allowed; opacity: 0.6; }
+.pbadmin .pa-btn-gold { color: var(--pa-text); }
+.pbadmin .pa-modal { overflow-y: auto; overscroll-behavior: contain; }
+.pbadmin .pa-modal > div { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.pbadmin .pa-footer { flex-wrap: wrap; row-gap: 12px; }
+.pbadmin .pa-footer > div { flex-wrap: wrap; }
+.pbadmin .pa-sidebar-close { display: none; }
+
+/* Match Tailwind lg exactly; at 1024px the desktop sidebar remains visible. */
+@media (min-width: 1024px) {
+  .pbadmin .pa-sidebar { position: relative !important; transform: none; z-index: 30; }
+  .pbadmin .pb-backdrop { display: none; }
+}
+@media (max-width: 1023.98px) {
+  .pbadmin .pa-sidebar { height: 100vh; height: 100dvh; width: min(288px, calc(100vw - 40px)) !important; }
+  .pbadmin .pa-sidebar-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: var(--sidebar-ink); }
+  .pbadmin .pa-topbar { flex-wrap: wrap; padding: 12px 16px; }
+  .pbadmin .pa-topbar-actions { width: 100%; justify-content: space-between; gap: 8px; }
+  .pbadmin .pa-topbar .pa-search { order: 2; flex-basis: 100%; max-width: none; }
+  .pbadmin .pa-main { padding: 16px 16px 88px; }
+}
+@media (max-width: 639.98px) {
+  .pbadmin .pa-topbar-actions :is(button, a) { min-width: 36px; min-height: 36px; }
+  .pbadmin #admin-storefront-btn, .pbadmin #admin-quick-add-btn { padding: 8px; }
+  .pbadmin #admin-storefront-btn > span, .pbadmin #admin-quick-add-btn > span { display: none; }
+  .pbadmin .pa-profile-label { display: none; }
+  .pbadmin .pa-topbar-actions .absolute { max-width: calc(100vw - 32px); }
+  .pbadmin .pa-main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) { font-size: 16px; }
+  .pbadmin .pa-topbar input { font-size: 16px; }
+  .pbadmin .pa-table :is(th, td) { padding: 10px; }
+  .pbadmin .pa-footer { padding: 16px; }
+}

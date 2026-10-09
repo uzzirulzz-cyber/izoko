@@ -52,6 +52,7 @@ const scoreLabel = (v: number | null | undefined) =>
     : v >= 90 ? 'Excellent' : v >= 80 ? 'Good' : v >= 65 ? 'Needs Improvement' : v >= 40 ? 'Poor' : 'Critical'
 
 interface PageResult {
+  metaRobots?: string
   url: string; type: string; httpStatus: number; finalUrl: string
   redirectChain: Array<{ url: string; status: number; location?: string }>
   ttfbMs: number | null; indexable: boolean; indexReason: string

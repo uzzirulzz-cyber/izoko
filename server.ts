@@ -295,7 +295,8 @@ async function startServer() {
       app.all("/api/app", adapt(appApi));
       console.log("✓ Production-parity serverless API mounted (auth/products/admin/orders/mongodb/analytics/cms/app)");
     } catch (e) {
-      console.warn("⚠ Could not mount serverless API handlers — falling back to inline routes only:", (e as Error).message);
+      console.error("Could not mount production API handlers:", (e as Error).message);
+      throw e;
     }
   };
   await mountServerless();
@@ -601,44 +602,6 @@ async function startServer() {
         success: true,
         message: `Successfully seeded ${result.insertedCount} products into empty MongoDB catalog.`,
         count: result.insertedCount,
-      });
-    } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
-    }
-  });
-
-  // GET /api/admin/stats (Dashboard KPIs)
-  app.get("/api/admin/stats", verifyAdmin, async (req, res) => {
-    try {
-      const db = await getDb();
-      const productsCol = db.collection("products");
-      const ordersCol = db.collection("orders");
-
-      const [totalProducts, activeProducts, totalOrders] = await Promise.all([
-        productsCol.countDocuments(),
-        productsCol.countDocuments({ active: { $ne: false } }),
-        ordersCol.countDocuments(),
-      ]);
-
-      const revenueAgg = await ordersCol
-        .aggregate([
-          { $match: { status: "completed" } },
-          { $group: { _id: null, total: { $sum: "$totalAmount" } } },
-        ])
-        .toArray();
-
-      const totalRevenue = revenueAgg[0]?.total || 4890000;
-
-      res.json({
-        success: true,
-        stats: {
-          totalProducts,
-          activeProducts,
-          totalOrders: totalOrders || 48,
-          totalRevenue,
-          systemHealth: "100% Operational",
-          database: MONGODB_DB_NAME,
-        },
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -1008,83 +971,6 @@ async function startServer() {
   // ==========================================
   // 4. ORDERS & CHECKOUT API
   // ==========================================
-
-  // POST /api/orders (Create Order & Instant License Allocation) — requires signed-in user (no guest checkout)
-  app.post("/api/orders", verifyToken, async (req: AuthRequest, res) => {
-    try {
-      const { items, customerName, customerEmail, totalAmount, currency = "PKR", paymentMethod = "Credit Card" } = req.body;
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ success: false, error: "Cart items are required to create an order." });
-      }
-
-      // Use the authenticated user's identity (no guest checkout)
-      const db = await getDb();
-      const usersCol = db.collection("users");
-      const authedUser = await usersCol.findOne({ _id: new ObjectId(req.user.id) });
-      if (!authedUser) {
-        return res.status(401).json({ success: false, error: "Authentication required to place an order." });
-      }
-
-      const finalCustomerName = customerName || authedUser.name || "PlayBeat Customer";
-      const finalCustomerEmail = customerEmail || authedUser.email || "customer@playbeat.digital";
-
-      const orderNumber = `PB-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
-
-      // Generate instant verified digital license keys for each digital item
-      const processedItems = items.map((item: any) => {
-        const isDigital = item.product?.digital !== false;
-        const generatedKeys = isDigital
-          ? Array.from({ length: item.quantity || 1 }).map(
-              () =>
-                `PB-${item.product?.sku || "KEY"}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-            )
-          : [];
-
-        return {
-          id: item.product?.id || `item-${Date.now()}`,
-          productId: item.product?.id || item.product?._id,
-          name: item.product?.name || "PlayBeat Product",
-          price: item.unitPrice || item.product?.price || 0,
-          quantity: item.quantity || 1,
-          variantName: item.selectedVariant?.name,
-          licenseKeys: generatedKeys,
-          deliveryType: item.product?.deliveryType || (isDigital ? "Instant Auto-Email" : "Courier Shipping"),
-        };
-      });
-
-      const allKeys = processedItems.flatMap((i) => i.licenseKeys);
-
-      const orderDoc = {
-        orderNumber,
-        userId: req.user.id,
-        customerName: finalCustomerName,
-        customerEmail: finalCustomerEmail,
-        items: processedItems,
-        totalAmount: Number(totalAmount) || 0,
-        currency,
-        status: "completed",
-        paymentMethod,
-        licenseKeysDelivered: allKeys,
-        createdAt: new Date(),
-      };
-
-      const ordersCol = db.collection("orders");
-      const insertResult = await ordersCol.insertOne(orderDoc);
-
-      res.status(201).json({
-        success: true,
-        message: "Order placed successfully! Digital licenses allocated instantly.",
-        order: {
-          id: insertResult.insertedId.toString(),
-          ...orderDoc,
-        },
-      });
-    } catch (err: any) {
-      console.error("Order Creation Error:", err);
-      res.status(500).json({ success: false, error: err.message });
-    }
-  });
 
   // GET /api/orders/me (List orders for current signed-in user)
   app.get("/api/orders/me", verifyToken, async (req: AuthRequest, res) => {

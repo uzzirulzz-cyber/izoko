@@ -7,6 +7,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ObjectId } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
+import { withReviewMetrics, approvedVerifiedReviews } from "../_lib/reviewMetrics.js";
+import { businessOrdersFilter } from "../_lib/reporting.js";
 import { formatProduct } from "../_lib/product.js";
 import { slugify } from "../_lib/config.js";
 import {
@@ -43,9 +45,10 @@ async function hasVerifiedPurchase(db: any, userId: string, product: any): Promi
   const candidates = await ordersCol
     .find({
       userId,
+      ...businessOrdersFilter(),
       $or: [
         { paymentStatus: "paid" },
-        { status: "completed", paymentStatus: { $ne: "pending" } },
+        { status: "completed", paymentStatus: { $nin: ["pending", "failed", "refunded"] } },
       ],
     })
     .sort({ createdAt: -1 })
@@ -65,23 +68,6 @@ async function hasVerifiedPurchase(db: any, userId: string, product: any): Promi
   return null;
 }
 
-async function productSummary(db: any, productId: string) {
-  const col = db.collection("reviews");
-  const approved = await col
-    .find({ productId, status: "approved" })
-    .sort({ createdAt: -1 })
-    .limit(200)
-    .toArray();
-  const count = approved.length;
-  const avg = count ? approved.reduce((s: number, r: any) => s + Number(r.rating || 0), 0) / count : 0;
-  const distribution: Record<string, number> = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
-  for (const r of approved) {
-    const k = String(Math.min(5, Math.max(1, Math.round(Number(r.rating || 0)))));
-    distribution[k] = (distribution[k] || 0) + 1;
-  }
-  return { avg: Number(avg.toFixed(2)), count, distribution };
-}
-
 async function handleReviews(req: AuthenticatedRequest, res: VercelResponse): Promise<boolean> {
   const seg = new URL(req.url || "", "http://localhost").pathname
     .split("/")
@@ -95,15 +81,12 @@ async function handleReviews(req: AuthenticatedRequest, res: VercelResponse): Pr
     const product = await resolveProductId(db, q.productId || q.slug || q.id);
     if (!product) return jsonError(res, "Product not found.", 404), true;
     const pid = String(product._id);
-    const [{ avg, count, distribution }, reviews] = await Promise.all([
-      productSummary(db, pid),
-      db
-        .collection("reviews")
-        .find({ productId: pid, status: "approved" })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .toArray(),
-    ]);
+    const approved = await approvedVerifiedReviews(db, [product]);
+    const count = approved.length;
+    const avg = count ? Number((approved.reduce((sum, r) => sum + r.rating, 0) / count).toFixed(2)) : 0;
+    const distribution: Record<string, number> = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0 };
+    for (const review of approved) distribution[String(review.rating)]++;
+    const reviews = approved.slice(0, 50);
     jsonOk(res, {
       success: true,
       summary: { avg, count, distribution },
@@ -156,6 +139,7 @@ async function handleReviews(req: AuthenticatedRequest, res: VercelResponse): Pr
       productId: pid,
       productSlug: product.slug || "",
       userId: String(user.id),
+      userEmail: String(user.email || ""),
       userName: String(user.name || user.email || "PlayBeat Customer").slice(0, 60),
       orderNumber: order.orderNumber,
       rating: Math.round(ratingNum),
@@ -436,7 +420,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         }
         return jsonError(res, "Product not found", 404);
       }
-      return jsonOk(res, { success: true, product: formatProduct(productDoc) });
+      return jsonOk(res, { success: true, product: formatProduct((await withReviewMetrics(db, [productDoc]))[0]) });
     }
 
     // ============ GET /api/products (list) ============
@@ -481,7 +465,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
               page: 1,
               totalPages: 1,
               category: entry.label,
-              products: matched.map(formatProduct),
+              products: (await withReviewMetrics(db, matched)).map(formatProduct),
             });
           } catch { /* bad regex → ignore matcher */ }
         }
@@ -535,7 +519,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       total: totalCount,
       page: pageNum,
       totalPages: Math.ceil(totalCount / limitNum) || 1,
-      products: items.map(formatProduct),
+      products: (await withReviewMetrics(db, items)).map(formatProduct),
     });
   } catch (err: any) {
     console.error("GET /api/products error:", err);

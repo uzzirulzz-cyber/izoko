@@ -937,6 +937,7 @@ export function App() {
 
   // Analytics — real page_view tracking (one event per route change per session)
   useEffect(() => {
+    if (/^\/(?:admin|crm)(?:[/?#]|$)/i.test(routeToPath(route))) return
     const sessionKey = 'playbeat_analytics_session'
     let sessionId = sessionStorage.getItem(sessionKey)
     if (!sessionId) {
@@ -1143,6 +1144,7 @@ export function App() {
     // If no token, user stays null — must explicitly sign in.
   }, [])
 
+  const [catalogStatus, setCatalogStatus] = useState<'loading' | 'live' | 'unavailable'>('loading')
   // Core Product Catalog State
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('playbeat_products_catalog_v7')
@@ -1155,12 +1157,12 @@ export function App() {
           seen.add(item.id)
           return true
         })
-        return unique.length > 0 ? unique : INITIAL_PRODUCTS
+        return (unique.length > 0 ? unique : INITIAL_PRODUCTS).map(p => ({ ...p, rating: 0, reviewCount: 0 }))
       } catch {
-        return INITIAL_PRODUCTS
+        return INITIAL_PRODUCTS.map(p => ({ ...p, rating: 0, reviewCount: 0 }))
       }
     }
-    return INITIAL_PRODUCTS
+    return INITIAL_PRODUCTS.map(p => ({ ...p, rating: 0, reviewCount: 0 }))
   })
 
   // Selected Currency (Default PKR as shown in screenshot)
@@ -1440,57 +1442,18 @@ export function App() {
     }
   }, [products])
 
-  // Hydrate the catalog from MongoDB (server is source of truth when reachable).
-  // If the database is empty, auto-seed it with the bundled official-image catalog.
-  // Falls back silently to the bundled catalog when offline.
+  // The public catalog can start from cache; the admin shows whether it was verified.
   useEffect(() => {
     let cancelled = false
-    const hydrateFromApi = async () => {
+    ;(async () => {
       try {
-        // Fetch only ACTIVE products — consolidated children (active=false)
-        // are hidden from the public storefront but remain in the DB.
-        const res = await fetch(`${API_BASE}/api/products?limit=200`, {
-          credentials: 'include',
-        })
-        const data = await res.json()
-        if (cancelled) return
-
-        if (data?.success && Array.isArray(data.products) && data.products.length > 0) {
-          // Extra safety: filter out any inactive products that slip through
-          const activeProducts = data.products.filter((p: Product) => p.active !== false)
-          setProducts(activeProducts)
-          return
-        }
-
-        // Empty database — auto-seed with the official bundled catalog (safe: only seeds when empty)
-        const seedRes = await fetch(`${API_BASE}/api/admin/products/seed-if-empty`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ products: INITIAL_PRODUCTS }),
-        }).catch(() => null)
-
-        if (!seedRes || !seedRes.ok || cancelled) return
-        const seedData = await seedRes.json().catch(() => null)
-        if (seedData?.success && !cancelled) {
-          const refetch = await fetch(`${API_BASE}/api/products?limit=200`, {
-            credentials: 'include',
-          }).catch(() => null)
-          const refetchData = refetch ? await refetch.json().catch(() => null) : null
-          if (!cancelled && refetchData?.success && Array.isArray(refetchData.products) && refetchData.products.length > 0) {
-            // Filter out inactive (consolidated children) for the storefront
-            const activeProducts = refetchData.products.filter((p: Product) => p.active !== false)
-            setProducts(activeProducts)
-          }
-        }
-      } catch {
-        // backend unreachable — bundled catalog already loaded
-      }
-    }
-    hydrateFromApi()
-    return () => {
-      cancelled = true
-    }
+        const response = await fetch(`${API_BASE}/api/products?limit=200`, { credentials: 'include' })
+        const data = await response.json()
+        if (!response.ok || !data.success || !Array.isArray(data.products)) throw new Error('Catalog unavailable')
+        if (!cancelled) { setProducts(data.products.filter((p: Product) => p.active !== false)); setCatalogStatus('live') }
+      } catch { if (!cancelled) setCatalogStatus('unavailable') }
+    })()
+    return () => { cancelled = true }
   }, [])
 
   // Persist Currency
@@ -1706,11 +1669,18 @@ export function App() {
   }
 
   // Stock update from Admin Console
-  const handleUpdateProductStock = (id: string, newStock: number) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
-    )
-    showToast(`Inventory updated for SKU #${id}`)
+  const handleUpdateProductStock = async (id: string, newStock: number): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/inventory/adjust`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('playbeat_admin_token') || ''}` },
+        body: JSON.stringify({ productId: id, mode: 'set', amount: newStock, reason: 'Catalog stock editor' }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) return { ok: false, error: data.error || 'Stock could not be saved.' }
+      setProducts(prev => prev.map(p => String(p._id || p.id) === id || p.id === id ? { ...p, stock: data.stock } : p))
+      return { ok: true }
+    } catch { return { ok: false, error: 'Network error. Stock could not be saved.' } }
   }
 
   // Import products from CSV / MongoDB Cloud
@@ -2163,6 +2133,7 @@ export function App() {
             navigate('admin-login')
           }}
           onQuickViewProduct={(p) => setQuickViewProduct(p)}
+          catalogStatus={catalogStatus}
           onUpdateProductStock={handleUpdateProductStock}
           onImportProducts={handleImportProducts}
           onSaveProduct={handleSaveProduct}
