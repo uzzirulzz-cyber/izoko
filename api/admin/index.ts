@@ -43,6 +43,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import crypto from "crypto";
 import { ObjectId, GridFSBucket } from "mongodb";
 import { getDb } from "../_lib/mongo.js";
+import { liveDays, livePropertyId, liveCredentials, loadLiveProperty, saveLiveProperty, liveSnapshot } from "../_lib/playbeatLive.js";
 import { formatProduct, stripHtmlText } from "../_lib/product.js";
 import { slugify } from "../_lib/config.js";
 // SEO Live Audit engine (crawls production, MongoDB-backed runs) + providers
@@ -442,6 +443,45 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     ) {
       return jsonError(res, "IT accounts are scoped to the Payment Gateway panel only.", 403);
     }
+  }
+
+  // Keep the second site's reports independent of Digital's orders and traffic.
+  // Run before the general DB gate so its public catalogue can still be checked
+  // when MongoDB is unavailable. Existing admin/IT gates above still apply.
+  if (route === "playbeat-live" || route === "playbeat-live/config") {
+    res.setHeader("Cache-Control", "private, no-store");
+    if (route === "playbeat-live/config" && req.method === "PUT") {
+      const actor = requireSuperAdmin(req, res);
+      if (!actor) return;
+      let propertyId: string;
+      try { propertyId = livePropertyId(req.body?.propertyId); }
+      catch { return jsonError(res, "Use the numeric GA4 property ID, or an empty string to disconnect.", 400); }
+      try {
+        await saveLiveProperty(await getDb(), propertyId, String(actor.email || actor.id || "admin"));
+        return jsonOk(res, { propertyId });
+      } catch { return jsonError(res, "The reporting connection could not be saved. Check the database and retry.", 503); }
+    }
+    if (route !== "playbeat-live" || req.method !== "GET") {
+      res.setHeader("Allow", route.endsWith("/config") ? "PUT" : "GET");
+      return jsonError(res, "Method not allowed", 405);
+    }
+    const actor = requirePermission(req, res, "analytics");
+    if (!actor) return;
+    let days: number;
+    try { days = liveDays(url.searchParams.get("days")); }
+    catch { return jsonError(res, "Choose 1, 7, 14, 30 or 90 days.", 400); }
+    try {
+      const liveDb = await getDb().catch(() => null);
+      const propertyId = await loadLiveProperty(liveDb);
+      const credentials = liveCredentials();
+      const snapshot = await liveSnapshot(propertyId, days);
+      return jsonOk(res, {
+        ...snapshot,
+        commerce: hasPermission(actor, "orders") || hasPermission(actor, "payments")
+          ? snapshot.commerce : { available: false, reason: "Orders or payments permission is required to view commerce data." },
+        config: { propertyId, canConfigure: actor.role === "admin", credentialsConfigured: Boolean(credentials.email && credentials.key) },
+      });
+    } catch { return jsonError(res, "PlayBeat.live reports could not be loaded. Check the connection and retry.", 503); }
   }
 
   const db = await getDb();

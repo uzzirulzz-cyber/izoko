@@ -13,7 +13,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test:sitemap": "node scripts/sitemap_integrity_check.mjs",
-    "test:gcr": "tsx scripts/gcr_optin_check.ts"
+    "test:gcr": "tsx scripts/gcr_optin_check.ts",
+    "test:playbeat-live": "node --import tsx --test scripts/test_playbeat_live.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
