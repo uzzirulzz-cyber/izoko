@@ -1,0 +1,3 @@
+# Shared administration default
+
+This admin is the main admin for PlayBeat Digital and PlayBeat.live. Show new Live settings and feature updates in the PlayBeat.live workspace, and keep its overview visible on the main dashboard. Read latest metadata/status from the authenticated live bridge; refresh automatically every 60 seconds while visible. Keep first-party Live events in `playbeat_live_events`, separate from Digital analytics and orders. Never substitute Digital metrics for missing Live reports. No secrets in browser bundles or repository files. Describe unavailable GA4 reports, AdSense revenue, Live checkout and inquiry integrations explicitly. Preserve source provenance and last-refresh timestamps.

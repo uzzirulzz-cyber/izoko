@@ -40,6 +40,7 @@
 //   GET    /api/admin/documents/:id/download   (vault binary download — admin auth)
 //   DELETE /api/admin/documents/:id            (vault delete — manager+ or uploader)
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { liveDashboardSummary } from '../_lib/playbeatLive.js';
 import { approvedVerifiedReviews, verifiedReviews } from "../_lib/reviewMetrics.js";
 import crypto from "crypto";
 import { importSupplierLicenses, findLicenseProduct, allocateOrderLicenses, isPlaceholderLicense } from "../_lib/licenses.js";
@@ -449,6 +450,12 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
   let db;
   try { db = await getDb(); } catch { return jsonError(res, "Database unavailable. Please retry.", 503); }
+
+  if (route === 'playbeat-live' && req.method === 'GET') {
+    if (!requirePermission(req, res, 'inventory')) return;
+    try { return jsonOk(res, { success: true, dashboard: await liveDashboardSummary(db, req.query.days) }); }
+    catch { return jsonError(res, 'Live dashboard could not be loaded.', 503); }
+  }
 
   // Supplier license inventory: persisted keys only; catalog stock is not a key pool.
   if (route === "licenses" && req.method === "GET") {

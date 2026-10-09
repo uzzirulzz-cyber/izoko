@@ -4,6 +4,8 @@
 //   GET  /api/analytics/summary   (admin-protected traffic overview)
 import { PUBLIC_TRAFFIC_FILTER, trafficSource, reportingWindow, businessOrdersFilter, PAID_ORDER_FILTER } from "../_lib/reporting.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import crypto from 'node:crypto';
+import { cleanLiveEvent } from '../_lib/playbeatLive.js';
 import { getDb } from "../_lib/mongo.js";
 import { getTrackingConfig, touchTrackingHeartbeat } from "../_lib/trackingConfig.js";
 import {
@@ -23,6 +25,17 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   const parts = url.pathname.split("/").filter(Boolean);
   const pathSegments = parts.slice(2); // drop "api", "analytics"
   const route = pathSegments.join("/").toLowerCase();
+
+  if (route === 'live/event' && req.method === 'POST') {
+    const secret = process.env.LIVE_DASHBOARD_TOKEN;
+    if (!secret) return jsonError(res, 'Live reporting not configured.', 503);
+    const supplied = String(req.headers.authorization || '');
+    const expected = 'Bearer ' + secret;
+    if (supplied.length > 1024 || !crypto.timingSafeEqual(crypto.createHash('sha256').update(supplied).digest(), crypto.createHash('sha256').update(expected).digest())) return jsonError(res, 'Unauthorized.', 401);
+    try { const event = cleanLiveEvent(req.body); if (!event) return jsonOk(res, { success: true, ignored: true });
+      const db = await getDb(); await db.collection('playbeat_live_events').insertOne(event); return jsonOk(res, { success: true });
+    } catch (error: any) { return jsonError(res, error.message || 'Event could not be stored.', 400); }
+  }
 
   // ============ POST /api/analytics (public event recording) ============
   if (!route && req.method === "POST") {
