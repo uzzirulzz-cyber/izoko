@@ -264,7 +264,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
-      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'crm',
+      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'crm', 'chatgpt',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -868,7 +868,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     analytics: 'Analytics & Traffic', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
     gateway: 'Payment Gateway', backup: 'Backup & Vault', messages: 'Messages', support: 'Support',
     'orders-log': 'Orders Log', inventory: 'Inventory', coupons: 'Coupons', campaigns: 'Campaigns',
-    iptv: 'PlayBeat.live', business: 'Business Analytics', crm: 'CRM Workspace', whatsapp: 'WhatsApp Business', profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
+    iptv: 'PlayBeat.live', business: 'Business Analytics', crm: 'CRM Workspace', chatgpt: 'ChatGPT Workspace', whatsapp: 'WhatsApp Business', profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
   }
   const pageTitle = NAV_TITLE_MAP[activeNav] || activeNav.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
   // Revenue sparkline + period delta — from the live /api/admin/revenue-chart series
@@ -1675,6 +1675,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
+                    onClick={() => setActiveNav('chatgpt')}
+                    className={`w-full flex items-center justify-between px-3 py-2 ${activeNav === 'chatgpt' ? 'pa-nav-item--active' : 'pa-nav-item'}`}
+                    aria-label="Open ChatGPT inside the admin"
+                    title="ChatGPT workspace"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Sparkles className="w-4 h-4 text-violet-400" />
+                      {!sidebarCollapsed && <span>ChatGPT</span>}
+                    </div>
+                    {!sidebarCollapsed && <span className="px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-mono text-[10px] font-semibold">AI</span>}
+                  </button>
+
+                  <button
                     onClick={() => setActiveNav('messages')}
                     className={`w-full flex items-center justify-between px-3 py-2 ${
                       activeNav === 'messages' ? 'pa-nav-item--active' : 'pa-nav-item'
@@ -1967,18 +1980,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <span>Storefront</span>
               </button>
 
-              {/* Open the full ChatGPT product from the admin */}
-              <a
-                href="https://chatgpt.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Open ChatGPT"
-                title="Open the full ChatGPT experience"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 hover:border-violet-300 text-xs font-semibold text-violet-800 transition"
+              {/* Open ChatGPT tools within this admin workspace */}
+              <button
+                onClick={() => setActiveNav('chatgpt')}
+                aria-label="Open ChatGPT inside the admin"
+                title="Open ChatGPT workspace"
+                className="flex items-center gap-2 px-3 py-2 rounded-md bg-violet-50 hover:bg-violet-100 border border-violet-200 text-xs font-semibold text-violet-800 transition"
               >
                 <Sparkles className="w-4 h-4 text-violet-700" />
                 <span>ChatGPT</span>
-              </a>
+              </button>
 
               {/* Direct shortcut to the PlayBeat Live deployment project */}
               <a
@@ -2305,6 +2316,26 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <CRMApp embedded onExit={() => setActiveNav('dashboard')} />
               </section>
             )}
+            {activeNav === 'chatgpt' && (
+              <section aria-label="ChatGPT workspace" className="max-w-4xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-violet-100 text-violet-700"><Sparkles className="h-5 w-5" /></div>
+                  <div><h1 className="text-xl font-semibold text-slate-900">ChatGPT Workspace</h1><p className="text-sm text-slate-500">OpenAI assistant tools inside the PlayBeat admin</p></div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700"><Sparkles className="h-4 w-4" /></div>
+                    <div className="space-y-2">
+                      <h2 className="font-semibold text-slate-900">Assistant connection needs setup</h2>
+                      <p className="text-sm leading-6 text-slate-600">The ChatGPT website cannot run inside this dashboard as an embedded page. To provide an in-admin assistant, this app must call the OpenAI API from a protected server endpoint.</p>
+                      <p className="text-sm leading-6 text-slate-600">Add an OpenAI API key as a server-side Vercel environment variable, then connect the endpoint here. API usage is billed separately from any ChatGPT subscription.</p>
+                      <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">OPENAI_API_KEY · Vercel Project → Settings → Environment Variables</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
