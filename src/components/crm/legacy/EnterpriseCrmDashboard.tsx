@@ -125,7 +125,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
   // New Task Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskType, setNewTaskType] = useState<'CALL' | 'EMAIL' | 'MEETING' | 'DEMO' | 'PROPOSAL' | 'FOLLOW_UP'>('CALL');
-  const [newTaskDueDate, setNewTaskDueDate] = useState('Tomorrow');
+  const [newTaskDueDate, setNewTaskDueDate] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [newTaskDueTime, setNewTaskDueTime] = useState('02:00 PM');
   const [newTaskPriority, setNewTaskPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('HIGH');
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState('SDR Seat 1');
@@ -362,7 +362,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
 
   return (
     <div className="space-y-5 w-full max-w-full min-w-0">
-      {/* 2025 MultiPurpose Enterprise Header Banner */}
+      {/* PlayBeat Enterprise CRM */}
       <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -372,7 +372,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
             <div className="flex items-center space-x-2.5 mb-1.5">
               <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-yellow-400" />
-                <span>2025 ENTERPRISE CRM DASHBOARD</span>
+                <span>2026 ENTERPRISE CRM DASHBOARD</span>
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
                 SALES & LEAD TRACKING
@@ -381,7 +381,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight flex items-center gap-2">
               <span>Executive Sales Operations Desk</span>
               <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono font-medium border border-slate-700">
-                v2025.4
+                Main CRM
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
@@ -478,7 +478,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
           </div>
         </div>
 
-        {/* 2025 Executive KPI Metrics Grid */}
+        {/* Live CRM KPI Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 mt-6 pt-5 border-t border-slate-800/80">
           {/* Total Active Pipeline */}
           <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-3.5 hover:border-cyan-500/40 transition-all group">
@@ -542,7 +542,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
             </div>
             <div className="flex items-center text-[10px] text-emerald-400 font-semibold mt-1 space-x-1">
               <ArrowUpRight className="w-3 h-3" />
-              <span>+3.8% above 2025 target</span>
+              <span>CRM data from recorded deals</span>
             </div>
           </div>
 
@@ -577,7 +577,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-            <span>CRM Hq Admin 2025</span>
+            <span>PlayBeat CRM</span>
             <span className="px-1.5 py-0.2 text-[9px] rounded-full font-mono font-bold bg-white/20 text-white border border-white/30">
               HQ
             </span>
@@ -693,7 +693,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
       </div>
 
       {/* ======================================================================= */}
-      {/* 0. MULTIPURPOSE THEMES 2025 CRM HQ ADMIN TEMPLATE (Flagship Centerpiece) */}
+      {/* 0. SOURCE CRM DASHBOARD */}
       {/* ======================================================================= */}
       {crmView === 'multipurpose' && (
         <div className="w-full">
@@ -992,7 +992,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
-                  <span>2025 Revenue Realization & Forecast Horizon</span>
+                  <span>Current Pipeline Snapshot</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Actual closed ARR revenue versus active weighted pipeline projection
