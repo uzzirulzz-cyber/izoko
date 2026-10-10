@@ -358,7 +358,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
           status: "OPEN", createdAt: new Date(), updatedAt: new Date(),
         };
         const result = await db.collection("crm_tasks").insertOne(task);
-        return jsonOk(res, { task: serializeTask({ ...task, _id: result.insertedId }) }, 201);
+        return jsonOk(res, { success: true, task: serializeTask({ ...task, _id: result.insertedId }) }, 201);
       }
       if (req.method === "PATCH" && crmSegs[1] && crmSegs[2] === "toggle") {
         const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
