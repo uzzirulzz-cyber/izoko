@@ -114,7 +114,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
   const [newDealTitle, setNewDealTitle] = useState('');
   const [newDealValue, setNewDealValue] = useState('35000');
   const [newDealStage, setNewDealStage] = useState<PipelineStageId>('inbound');
-  const [newDealSeat, setNewDealSeat] = useState('seat-1');
+  const [newDealSeat, setNewDealSeat] = useState(seats[0]?.id || 'seat-1');
   const [newDealPriority, setNewDealPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'>('HIGH');
   const [newDealContact, setNewDealContact] = useState('');
   const [newDealEmail, setNewDealEmail] = useState('');
@@ -223,7 +223,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
     if (!newDealCompany.trim()) return;
 
     try {
-      const rep = reps.find(r => r.seatId === newDealSeat);
+      const rep = seats.find(r => r.id === newDealSeat);
       const payload: Partial<CrmDeal> = {
         companyName: newDealCompany.trim(),
         dealName: newDealTitle.trim() || `${newDealCompany.trim()} - Commercial Opportunity`,
@@ -237,7 +237,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
         contactPhone: newDealPhone,
         notes: newDealNotes,
         leadId: selectedLeadIdToConvert || undefined,
-        source: selectedLeadIdToConvert ? 'Converted From Verified Lead' : 'Direct CRM Entry'
+        source: selectedLeadIdToConvert ? 'PlayBeat customer conversion' : 'Direct CRM Entry'
       };
 
       const res = await axios.post('/api/messages/crm/deals', payload);
@@ -293,7 +293,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
       setNewDealContact(lead.contactPerson?.name || '');
       setNewDealEmail(lead.email || '');
       setNewDealPhone(lead.phone || '');
-      setNewDealNotes(`Converted from verified directory. Industry: ${lead.industry || 'Real Estate'}, City: ${lead.city || 'Pakistan'}`);
+      setNewDealNotes(`Converted from PlayBeat customer records. Industry: ${lead.industry || 'Real Estate'}, City: ${lead.city || 'Pakistan'}`);
       if (lead.assignedSeatId) {
         setNewDealSeat(lead.assignedSeatId);
       }
@@ -1309,14 +1309,14 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
             <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-3">
               <label className="block text-[11px] font-semibold text-cyan-400 mb-1 flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-yellow-400" />
-                <span>Or Convert from Verified Leads Explorer ({leads.length} available):</span>
+                <span>Or Convert from CRM contacts ({leads.length} available):</span>
               </label>
               <select
                 value={selectedLeadIdToConvert}
                 onChange={e => handleSelectLeadToConvert(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
               >
-                <option value="">-- Choose lead from verified crawler database --</option>
+                <option value="">-- Choose a CRM contact --</option>
                 {leads.slice(0, 100).map(l => (
                   <option key={l.id} value={l.id}>
                     {l.companyName} ({l.city || 'Pakistan'}) - {l.emailVerified ? 'VERIFIED' : 'ACTIVE'}
