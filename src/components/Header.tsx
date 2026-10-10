@@ -663,7 +663,8 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* ============ Row 2 — Category pill nav ============ */}
-      <nav className="mx-4 sm:mx-6 lg:mx-10 mb-2 hidden lg:flex flex-wrap gap-1.5 items-center p-2 border border-[#172a57] rounded-3xl bg-gradient-to-b from-[#0b183a] to-[#08122d]">
+      <div className="mx-4 sm:mx-6 lg:mx-10 mb-2 hidden lg:block rounded-3xl border border-[#172a57] bg-gradient-to-b from-[#0b183a] to-[#08122d] shadow-[0_12px_32px_rgba(0,0,0,0.22)]">
+        <nav aria-label="Store categories" className="flex flex-wrap gap-1.5 items-center p-2 border-b border-[#172a57]">
         {HERO_NAV.map((item) => {
           const Icon = item.icon
           // Active state: Home pill on the untouched storefront, All Products
@@ -690,9 +691,10 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )
         })}
-        {/* Right actions group — wraps as ONE unit so Trending/Deals/Best
-            Value/Business Solutions never split across nav rows */}
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-1.5 min-w-fit">
+        </nav>
+
+        {/* ============ Row 3 — Featured storefront links ============ */}
+        <nav aria-label="Featured storefront links" className="flex flex-wrap items-center justify-end gap-1.5 p-2">
         <button
           onClick={() => (onOpenTrending ? onOpenTrending() : onOpenBrowseCategories())}
           className="flex items-center justify-center gap-2 min-w-[92px] px-3.5 py-2.5 rounded-full border border-[#2a3c6e] bg-[#0a1634] text-[13.5px] font-semibold text-[#ff6a2b] hover:bg-[#13275a] transition whitespace-nowrap"
@@ -789,8 +791,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
