@@ -1930,6 +1930,17 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 {isFullscreen ? <KitMin className="w-4 h-4" /> : <KitMax className="w-4 h-4" />}
               </button>
 
+              {activeNav === 'crm' && (
+                <span
+                  aria-label="CRM section"
+                  title="Current section: CRM"
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-xs font-bold text-amber-900"
+                >
+                  <Briefcase className="w-4 h-4 text-amber-700" />
+                  <span>CRM</span>
+                </span>
+              )}
+
               {/* Back to Live Storefront */}
               <button
                 id="admin-storefront-btn"
