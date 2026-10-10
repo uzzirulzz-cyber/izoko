@@ -129,6 +129,7 @@ import { ProfileSettingsPanel } from './admin/ProfileSettingsPanel'
 import { SeoPanel } from './admin/SeoPanel'
 import { ProductEditorPage } from './admin/ProductEditorPage'
 import { SeoControlCenter } from './admin/SeoControlCenter'
+import { CRMApp } from './crm/CRMApp'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -263,7 +264,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
-      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live',
+      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'crm',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -867,7 +868,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
     analytics: 'Analytics & Traffic', cms: 'CMS', seo: 'SEO Control Center', staff: 'Staff & Roles',
     gateway: 'Payment Gateway', backup: 'Backup & Vault', messages: 'Messages', support: 'Support',
     'orders-log': 'Orders Log', inventory: 'Inventory', coupons: 'Coupons', campaigns: 'Campaigns',
-    iptv: 'PlayBeat.live', business: 'Business Analytics', whatsapp: 'WhatsApp Business', profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
+    iptv: 'PlayBeat.live', business: 'Business Analytics', crm: 'CRM Workspace', whatsapp: 'WhatsApp Business', profile: 'Profile & Settings', health: 'System Health', 'audit-log': 'Audit Log', vault: 'License Vault',
   }
   const pageTitle = NAV_TITLE_MAP[activeNav] || activeNav.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
   // Revenue sparkline + period delta — from the live /api/admin/revenue-chart series
@@ -1659,6 +1660,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
+                    onClick={() => setActiveNav('crm')}
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'crm' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    aria-label="Open CRM workspace"
+                    title="CRM workspace"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Briefcase className="w-4 h-4 text-blue-400" />
+                      {!sidebarCollapsed && <span>CRM Workspace</span>}
+                    </div>
+                    {!sidebarCollapsed && <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-700 font-mono text-[10px] font-semibold">CRM</span>}
+                  </button>
+
+                  <button
                     onClick={() => setActiveNav('messages')}
                     className={`w-full flex items-center justify-between px-3 py-2 ${
                       activeNav === 'messages' ? 'pa-nav-item--active' : 'pa-nav-item'
@@ -2284,6 +2300,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               />
             ) : (
             <>
+            {activeNav === 'crm' && (
+              <section aria-label="CRM workspace" className="min-h-[65vh] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                <CRMApp embedded onExit={() => setActiveNav('dashboard')} />
+              </section>
+            )}
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
