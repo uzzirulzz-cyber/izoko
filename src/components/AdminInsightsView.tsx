@@ -1940,6 +1940,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <span>Storefront</span>
               </button>
 
+              {/* Direct shortcut to the PlayBeat Live deployment project */}
+              <a
+                href="https://vercel.com/playbeatdigital-techs-projects/playbeat-live"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Manage PlayBeat Live on Vercel"
+                title="Manage the PlayBeat Live Vercel project"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-500/10 hover:bg-violet-500/15 border border-violet-300/20 hover:border-violet-300/40 text-xs font-semibold text-violet-100 transition"
+              >
+                <ExternalLink className="w-4 h-4 text-violet-300" />
+                <span className="hidden sm:inline">Vercel</span>
+              </a>
+
               {/* Quick Add Button */}
               <div className="relative">
                 <button
