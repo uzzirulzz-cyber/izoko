@@ -968,14 +968,24 @@ function CustomersView() {
 }
 function TasksView() {
   const [tasks, setTasks] = useState<any[]>([])
-  useEffect(() => { api('/api/messages/crm/tasks?status=OPEN').then((r:any) => setTasks(r.tasks||[])).catch(() => {}) }, [])
+  const [error, setError] = useState('')
+  const load = useCallback(() => api('/api/messages/crm/tasks?status=OPEN').then((r:any) => setTasks(r.tasks||[])).catch((e:any) => setError(e.message || 'Could not load tasks.')), [])
+  useEffect(() => { load() }, [load])
+  const completeTask = async (task: any) => {
+    setError('')
+    try {
+      await api(`/api/messages/crm/tasks/${task._id}`, { method: 'PUT', body: JSON.stringify({ status: 'COMPLETED' }) })
+      setTasks(current => current.filter(item => item._id !== task._id))
+    } catch (e: any) { setError(e.message || 'Could not complete task.') }
+  }
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-semibold text-[#070B12] flex items-center gap-2"><CheckSquare className="w-5 h-5" /> Tasks</h1>
+      {error && <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
       {tasks.length === 0 ? <div className="text-center py-12 text-slate-400"><CheckSquare className="w-10 h-10 mx-auto opacity-30 mb-2" /><p className="text-sm">No open tasks.</p></div> :
         <div className="space-y-2">{tasks.map(t => (
           <div key={t._id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center gap-3">
-            <div className="w-4 h-4 rounded border-2 border-slate-300" />
+            <button type="button" aria-label={`Complete task: ${t.title}`} onClick={() => completeTask(t)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-slate-300 text-white hover:border-emerald-600 hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"><Check className="h-3 w-3" /></button>
             <div className="flex-1"><div className="font-medium text-sm text-[#070B12]">{t.title}</div><div className="text-xs text-slate-500">{t.priority} • {t.employeeName}</div></div>
           </div>
         ))}</div>}
