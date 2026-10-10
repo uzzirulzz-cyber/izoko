@@ -251,7 +251,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
       });
     });
 
-    // 2. Live Verified Leads from Database
+    // 2. Live CRM contacts from PlayBeat customer records
     leads.forEach((lead, idx) => {
       const key = String(lead.companyName || '').toLowerCase().trim();
       if (!key || !seenNames.has(key)) {
@@ -355,7 +355,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
         title: `Inbox Reply to ${selectedInboxContact.name} (${selectedInboxContact.company})`,
         type: 'EMAIL',
         companyName: selectedInboxContact.company,
-        assignedTo: 'SDR Seat 1',
+        assignedTo: seats[0]?.name || currentUser?.name || 'CRM Admin',
         priority: 'HIGH'
       });
       fetchCrmData();
@@ -981,7 +981,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                         <span className="text-slate-500 font-medium">Weighted:</span>
                         <span className="font-bold text-slate-900 dark:text-white font-mono">
-                          {formatMoney(kpis.weightedForecastValue || Math.round((kpis.totalPipelineValue || 1) * 0.42))}
+                          {formatMoney(kpis.weightedForecastValue || 0)}
                         </span>
                       </div>
                       <div className="flex items-center space-x-1.5">
@@ -1466,7 +1466,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                   <div>
                     <span className="text-xs text-slate-400 font-bold uppercase">Quarter Target</span>
                     <div className="text-2xl font-black text-slate-900 dark:text-white">
-                      {formatMoney(kpis.weightedForecastValue || Math.round((kpis.totalPipelineValue || 1) * 0.42))}
+                      {formatMoney(kpis.weightedForecastValue || 0)}
                     </div>
                     <span className="text-[10px] text-emerald-500 font-bold">Weighted forecast volume</span>
                   </div>
@@ -2117,8 +2117,8 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     dealName: `${company} - CRM Opportunity`,
                     value,
                     stage,
-                    assignedSeatId: 'seat-1',
-                    assignedRepName: 'SDR Seat 1',
+                    assignedSeatId: seats[0]?.id || 'seat-1',
+                    assignedRepName: seats[0]?.name || currentUser?.name || 'CRM Admin',
                     priority: 'HIGH'
                   });
                   setShowNewDealModal(false);
