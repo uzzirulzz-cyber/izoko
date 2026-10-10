@@ -183,120 +183,43 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
 
   // Opportunities by User - Calculated dynamically from live pipeline deals and database leads
   const opportunitiesSplineData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    const totalPipeline = pipelineDeals.reduce((sum, d) => sum + (d.value || 0), 0) || (leads.length * 2800);
-    const totalWeighted = pipelineDeals.reduce((sum, d) => sum + ((d.value || 0) * (d.probability || 30)) / 100, 0) || (leads.length * 1200);
-    const dealCount = pipelineDeals.length || Math.max(1, Math.round(leads.length * 0.15));
-
-    return months.map((month, idx) => {
-      const progression = 0.5 + 0.5 * ((idx + 1) / months.length);
-      const cyclic = 0.85 + 0.15 * Math.sin(idx * 1.1);
-      const amount = Math.round((totalPipeline * (0.12 + 0.08 * (idx / months.length))) * cyclic);
-      const weighted = Math.round((totalWeighted * (0.12 + 0.08 * (idx / months.length))) * cyclic);
-      const count = Math.round((dealCount * progression * 2.2) * 1000);
-      return { month, amount, weighted, count };
-    });
-  }, [pipelineDeals, leads]);
-
-  // Lead Source Donut 1 - Dynamically aggregated from actual database leads
-  const leadSourceShareholderData = useMemo(() => {
-    if (!leads || leads.length === 0) {
-      return [
-        { name: 'Google Maps Crawler', value: 45, color: '#2563eb' },
-        { name: 'Corporate Registry', value: 28, color: '#06b6d4' },
-        { name: 'Website Scraper', value: 17, color: '#10b981' },
-        { name: 'Direct Inbound', value: 10, color: '#f97316' }
-      ];
-    }
-
-    const counts: Record<string, number> = {
-      'Google Maps': 0,
-      'Corporate Registry': 0,
-      'Web Scraper': 0,
-      'Direct Verified': 0
-    };
-
-    leads.forEach(l => {
-      let rawSource = '';
-      if (typeof l.sourceCategory === 'string' && l.sourceCategory) {
-        rawSource = l.sourceCategory;
-      } else if (typeof l.discoverySource === 'string' && l.discoverySource) {
-        rawSource = l.discoverySource;
-      } else if (typeof l.locationSource === 'string' && l.locationSource) {
-        rawSource = l.locationSource;
-      } else if (Array.isArray(l.sources) && l.sources.length > 0) {
-        const first = l.sources[0];
-        if (typeof first === 'string') {
-          rawSource = first;
-        } else if (first && typeof first === 'object') {
-          rawSource = (first as any).sourceName || (first as any).source || (first as any).field || '';
-        }
-      }
-      const src = String(rawSource || '').toLowerCase();
-      if (src.includes('map') || src.includes('osm') || src.includes('location')) counts['Google Maps']++;
-      else if (src.includes('zameen') || src.includes('registry') || src.includes('directory') || src.includes('corporate') || src.includes('chamber')) counts['Corporate Registry']++;
-      else if (src.includes('web') || src.includes('crawl') || src.includes('scraper')) counts['Web Scraper']++;
-      else counts['Direct Verified']++;
-    });
-
-    const total = leads.length || 1;
-    return [
-      { name: 'Google Maps', value: Math.max(5, Math.round((counts['Google Maps'] / total) * 100)), color: '#2563eb' },
-      { name: 'Corporate Registry', value: Math.max(5, Math.round((counts['Corporate Registry'] / total) * 100)), color: '#06b6d4' },
-      { name: 'Web Scraper', value: Math.max(5, Math.round((counts['Web Scraper'] / total) * 100)), color: '#10b981' },
-      { name: 'Direct Verified', value: Math.max(5, Math.round((counts['Direct Verified'] / total) * 100)), color: '#f97316' }
-    ];
-  }, [leads]);
-
-  // Lead Source Donut 2 - Dynamically aggregated from actual deal pipeline stages
-  const leadSourceProspectingData = useMemo(() => {
-    if (!pipelineDeals || pipelineDeals.length === 0) {
-      return [
-        { name: 'Inbound', value: 45, color: '#2563eb' },
-        { name: 'Proposal', value: 25, color: '#06b6d4' },
-        { name: 'Negotiation', value: 18, color: '#f97316' },
-        { name: 'Qualified', value: 12, color: '#10b981' }
-      ];
-    }
-
-    const stageMap: Record<string, number> = {
-      'Inbound': 0,
-      'Proposal': 0,
-      'Negotiation': 0,
-      'Qualified': 0
-    };
-
-    pipelineDeals.forEach(d => {
-      if (d.stage === 'inbound' || d.stage === 'contacted') stageMap['Inbound']++;
-      else if (d.stage === 'proposal') stageMap['Proposal']++;
-      else if (d.stage === 'demo') stageMap['Negotiation']++;
-      else stageMap['Qualified']++;
-    });
-
-    const total = pipelineDeals.length || 1;
-    return [
-      { name: 'Inbound', value: Math.max(5, Math.round((stageMap['Inbound'] / total) * 100)), color: '#2563eb' },
-      { name: 'Proposal', value: Math.max(5, Math.round((stageMap['Proposal'] / total) * 100)), color: '#06b6d4' },
-      { name: 'Negotiation', value: Math.max(5, Math.round((stageMap['Negotiation'] / total) * 100)), color: '#f97316' },
-      { name: 'Qualified', value: Math.max(5, Math.round((stageMap['Qualified'] / total) * 100)), color: '#10b981' }
-    ];
+    const totalPipeline = pipelineDeals.reduce((sum, deal) => sum + (Number(deal.value) || 0), 0);
+    const totalWeighted = pipelineDeals.reduce((sum, deal) => sum + ((Number(deal.value) || 0) * (Number(deal.probability) || 0)) / 100, 0);
+    const wonValue = pipelineDeals.filter((deal) => deal.stage === 'won').reduce((sum, deal) => sum + (Number(deal.value) || 0), 0);
+    return pipelineDeals.length ? [{ month: 'Current', amount: totalPipeline, weighted: totalWeighted, count: pipelineDeals.length, won: wonValue }] : [];
   }, [pipelineDeals]);
 
-  // Sales Funnel Monthly Grouped Bar Chart (Calculated dynamically)
-  const salesFunnelBarData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    const totalLeads = leads.length || 30;
-    const totalDeals = pipelineDeals.length || 10;
-
-    return months.map((month, idx) => {
-      const growth = 0.5 + (idx / months.length) * 0.7;
-      return {
-        month,
-        prospecting: Math.max(10, Math.round((totalLeads * 0.35) * growth)),
-        qualification: Math.max(6, Math.round((totalLeads * 0.22) * growth)),
-        negotiation: Math.max(4, Math.round((totalDeals * 0.45) * growth))
-      };
+  const leadSourceShareholderData = useMemo(() => {
+    const counts = new Map<string, number>();
+    leads.forEach((lead) => {
+      const source = String(lead.sourceCategory || lead.discoverySource || 'Other / storefront').trim();
+      counts.set(source, (counts.get(source) || 0) + 1);
     });
+    const colors = ['#2563eb', '#06b6d4', '#10b981', '#f97316', '#8b5cf6', '#64748b'];
+    return [...counts.entries()].map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }));
+  }, [leads]);
+
+  const leadSourceProspectingData = useMemo(() => {
+    const counts = new Map<string, number>();
+    pipelineDeals.forEach((deal) => {
+      const stage = String(deal.stage || 'inbound');
+      counts.set(stage, (counts.get(stage) || 0) + 1);
+    });
+    const stageLabels: Record<string, string> = { inbound: 'Inbound', contacted: 'Contacted', qualified: 'Qualified', demo: 'Demo', proposal: 'Proposal', won: 'Closed won', lost: 'Closed lost' };
+    const colors = ['#2563eb', '#06b6d4', '#f97316', '#10b981', '#8b5cf6', '#64748b'];
+    return [...counts.entries()].map(([stage, value], index) => ({ name: stageLabels[stage] || stage, value, color: colors[index % colors.length] }));
+  }, [pipelineDeals]);
+
+  const salesFunnelBarData = useMemo(() => {
+    if (!leads.length && !pipelineDeals.length) return [];
+    const statuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED'];
+    return [{
+      month: 'Current',
+      prospecting: leads.filter((lead) => lead.status === 'NEW').length,
+      qualification: leads.filter((lead) => lead.status === 'QUALIFIED').length,
+      negotiation: pipelineDeals.filter((deal) => ['demo', 'proposal'].includes(deal.stage)).length,
+      closed: pipelineDeals.filter((deal) => deal.stage === 'won').length,
+    }];
   }, [leads, pipelineDeals]);
 
   // Sales Analytics Table records (100% Real Live Leads & Pipeline Deals)
@@ -333,17 +256,17 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
       const key = String(lead.companyName || '').toLowerCase().trim();
       if (!key || !seenNames.has(key)) {
         if (key) seenNames.add(key);
-        const hasVerifiedEmail = Boolean(lead.email && typeof lead.email === 'string' && lead.email.trim() !== '');
+        const isQualified = lead.status === 'QUALIFIED' || lead.status === 'CONVERTED';
         records.push({
           id: `lead-${lead.id}`,
           leadId: lead.id,
           account: lead.companyName || 'Verified Account',
           type: lead.industry || lead.primaryCategory || 'Commercial Sales',
-          status: hasVerifiedEmail || lead.categoryVerified ? 'Active' : 'New',
-          statusVariant: hasVerifiedEmail || lead.categoryVerified ? 'active' : 'new',
+          status: isQualified ? 'Active' : lead.status === 'CONTACTED' ? 'Contacted' : 'New',
+          statusVariant: isQualified ? 'active' : lead.status === 'CONTACTED' ? 'contacted' : 'new',
           priority: (lead.qualityScores?.overallScore || lead.leadScore || 0) >= 75 ? 'High' : 'Normal',
           owner: lead.assignedSeatId ? `Seat ${lead.assignedSeatId.replace('seat-', '')}` : 'SDR Seat 1',
-          value: 25000 + (idx % 6) * 8500,
+          value: 0,
           contact: lead.email || lead.phone || 'Enterprise Lead',
           phone: lead.phone || 'N/A',
           city: lead.city || 'Pakistan',
@@ -508,7 +431,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     <span className={`font-black text-sm tracking-tight ${textTitle}`}>Hq Admin</span>
                   </div>
                   <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold block">
-                    2025 ENTERPRISE
+                    2026 ENTERPRISE
                   </span>
                 </div>
               )}
@@ -716,13 +639,13 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
             <div className="relative z-10">
               <div className="flex items-center space-x-1.5 mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-                <span className="text-[11px] font-black tracking-wider uppercase">CRM HQ 2025</span>
+                <span className="text-[11px] font-black tracking-wider uppercase">CRM HQ 2026</span>
               </div>
               <p className="text-[11px] text-blue-100 font-medium leading-relaxed">
-                Streamline sales, leads, and team performance in 2025.
+                Streamline sales, leads, and team performance in 2026.
               </p>
               <div className="mt-2.5 flex items-center justify-between">
-                <span className="text-[10px] font-mono text-cyan-200">v2025.4 Pro</span>
+                <span className="text-[10px] font-mono text-cyan-200">v2026.4 Pro</span>
                 <button
                   type="button"
                   onClick={() => setShowNewDealModal(true)}
@@ -999,7 +922,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                       Proposals & Contracts
                     </div>
                     <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                      {(pipelineDeals.filter(d => d.stage === 'won' || d.stage === 'proposal').length || Math.max(1, Math.round(pipelineDeals.length * 0.4))).toLocaleString()}
+                      {pipelineDeals.filter(d => d.stage === 'won' || d.stage === 'proposal').length.toLocaleString()}
                     </div>
                     <div className="flex items-center text-[11px] font-bold text-emerald-500 mt-1">
                       <span>{pipelineDeals.filter(d => d.stage === 'won').length} Closed Won</span>
@@ -1019,7 +942,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                       {kpis.overallConversionRate > 0
                         ? `${kpis.overallConversionRate}%`
-                        : `${Math.round((pipelineDeals.filter(d => d.stage === 'won').length / Math.max(1, pipelineDeals.length)) * 100) || 48}%`}
+                         : `${pipelineDeals.length ? Math.round((pipelineDeals.filter(d => d.stage === 'won').length / pipelineDeals.length) * 100) : 0}%`}
                     </div>
                     <div className="flex items-center text-[11px] font-bold text-emerald-500 mt-1">
                       <span>Qualified Lead Ratio</span>
@@ -1569,7 +1492,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                   <div>
                     <span className="text-xs text-slate-400 font-bold uppercase">Average Deal Size</span>
                     <div className="text-2xl font-black text-slate-900 dark:text-white">
-                      {formatMoney(Math.round((kpis.totalPipelineValue || 35000) / Math.max(1, pipelineDeals.length)))}
+                      {formatMoney(pipelineDeals.length ? Math.round((kpis.totalPipelineValue || 0) / pipelineDeals.length) : 0)}
                     </div>
                     <span className="text-[10px] text-emerald-500 font-bold">Per Qualified Account</span>
                   </div>
@@ -1749,7 +1672,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     <Award className="w-4 h-4" />
                   </div>
                   <div className="text-3xl font-black font-mono">
-                    {Math.round(leads.reduce((s, l) => s + (l.qualityScores?.overallScore || l.leadScore || 85), 0) / Math.max(1, leads.length))}%
+                    {Math.round(leads.reduce((s, l) => s + (l.qualityScores?.overallScore || l.leadScore || 0), 0) / Math.max(1, leads.length))}%
                   </div>
                   <div className="text-[10px] text-rose-200 mt-1">Average verification score</div>
                 </div>
@@ -2193,7 +2116,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                 try {
                   await axios.post('/api/messages/crm/deals', {
                     companyName: company,
-                    dealName: `${company} - 2025 Contract`,
+                    dealName: `${company} - CRM Opportunity`,
                     value,
                     stage,
                     assignedSeatId: 'seat-1',
