@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import axios from './http';
 import {
   TrendingUp,
   DollarSign,
