@@ -6,7 +6,7 @@ export async function liveDashboardSummary(db: any, rawDays: unknown) {
   const { days, start, end } = reportingWindow(rawDays);
   const filter = { createdAt: { $gte: start, $lt: end } };
   const col = db.collection('playbeat_live_events');
-  const [views, sessions, plays, sources, daily, tracking, upstream] = await Promise.all([
+  const [views, sessions, plays, sources, daily, tracking, upstream, observation] = await Promise.all([
     col.countDocuments({ ...filter, type: 'page_view' }),
     col.distinct('sessionId', { ...filter, type: 'page_view' }),
     col.countDocuments({ ...filter, type: 'play_request' }),
@@ -21,20 +21,22 @@ export async function liveDashboardSummary(db: any, rawDays: unknown) {
         const data = JSON.parse(text); if (data.schemaVersion !== 1) throw new Error('Unexpected schema');
         return { connected: true, ...data }; } catch { return { connected: false, error: 'Live source could not be reached. Retry to refresh.' }; }
     })(),
+    col.findOne({type:'tracking_status'},{sort:{createdAt:-1},projection:{tracking:1,createdAt:1,_id:0}}),
   ]);
   const first = await col.findOne({}, { sort: { createdAt: 1 }, projection: { createdAt: 1 } });
   return { fetchedAt: new Date(), days, timezone: 'UTC', autoRefreshSeconds: 60, source: upstream,
     traffic: { connected: Boolean(first), startedAt: first?.createdAt || null, views, sessions: sessions.filter(Boolean).length, playRequests: plays, sources: sources.map((s: any) => ({ source: s._id || '(direct)', count: s.count })), daily },
-    google: { ga4: tracking.config.ga4MeasurementId, gtm: tracking.config.gtmContainerId, adsense: tracking.config.adsenseClientId, adsEnabled: tracking.config.adsEnabled, source: 'PlayBeat Digital central settings', ga4ReportsConnected: false, adsenseRevenueConnected: false },
+    google: { ga4: tracking.config.ga4MeasurementId, gtm: tracking.config.gtmContainerId, adsense: tracking.config.adsenseClientId, adsEnabled: tracking.config.adsEnabled, source: 'PlayBeat Digital central settings', ga4ReportsConnected: false, adsenseRevenueConnected: false, liveInstallation:(upstream as any).google||null, observation:observation ? {at:observation.createdAt,...observation.tracking}:null },
     commerce: { connected: false, reason: 'PlayBeat.live checkout is not connected yet; Digital orders remain separate.' },
     inquiries: { connected: false, reason: 'No PlayBeat.live inquiry or messaging source is connected yet.' },
     rule: 'Digital is the main admin. Refresh latest Live release/settings and real activity automatically; never substitute Digital figures for Live reports.' };
 }
 export function cleanLiveEvent(body: any) {
-  if (!['page_view', 'play_request'].includes(body?.type) || typeof body.sessionId !== 'string' || !/^[\w-]{8,80}$/.test(body.sessionId)) throw new Error('Invalid Live event.');
+  if (!['page_view', 'play_request','tracking_status'].includes(body?.type) || typeof body.sessionId !== 'string' || !/^[\w-]{8,80}$/.test(body.sessionId)) throw new Error('Invalid Live event.');
   const path = typeof body.path === 'string' ? body.path.split(/[?#]/)[0].slice(0,300) : '/';
   if (/^\/(?:admin|crm)(?:\/|$)/i.test(path)) return null;
   let source = trafficSource(typeof body.referrer === 'string' ? body.referrer : '');
   if (source === 'playbeat.live') source = '(internal)';
-  return { type: body.type, sessionId: body.sessionId, path, source, channelId: typeof body.channelId === 'string' ? body.channelId.slice(0,120) : undefined, createdAt: new Date() };
+  const campaign = Object.fromEntries(['utm_source','utm_medium','utm_campaign'].map(key=>[key,typeof body.campaign?.[key]==='string'?body.campaign[key].replace(/[^\w .-]/g,'').slice(0,160):'']));
+  return { type: body.type, sessionId: body.sessionId, path, source, campaign, tracking:body.type==='tracking_status'?{ga4:body.tracking?.ga4===true,adsense:body.tracking?.adsense===true}:undefined, channelId: typeof body.channelId === 'string' ? body.channelId.slice(0,120) : undefined, createdAt: new Date() };
 }

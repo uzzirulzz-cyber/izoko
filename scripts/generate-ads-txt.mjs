@@ -11,14 +11,17 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT = resolve(__dirname, '../public/ads.txt')
 
-const raw = String(process.env.ADSENSE_CLIENT_ID || '').trim()
+// The central runtime config may live in MongoDB rather than a build variable.
+// Preserve a validated committed publisher record when no build override exists.
+const prior = existsSync(OUT) ? readFileSync(OUT, 'utf8').match(/^google\.com,\s*(pub-\d{16}),\s*DIRECT,\s*f08c47fec0942fa0\s*$/m)?.[1] || '' : ''
+const raw = String(process.env.ADSENSE_CLIENT_ID || prior).trim()
 const pub = raw.replace(/^ca-/, '') // ads.txt wants the bare pub- id
 
 const HEADER = [
   '# ads.txt — Authorized Digital Sellers for playbeat.digital',
   '# Managed automatically at build time (scripts/generate-ads-txt.mjs).',
-  '# Set ADSENSE_CLIENT_ID in Vercel (or the admin Business Analytics panel,',
-  '# then redeploy) to update the record below.',
+  '# Build override: ADSENSE_CLIENT_ID; otherwise preserves the committed record.',
+  '# Keep this publisher consistent with the central Business Analytics settings.',
 ]
 
 let lines = [...HEADER]

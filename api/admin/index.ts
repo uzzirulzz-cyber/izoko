@@ -115,6 +115,7 @@ import {
   sanitizeOAuthPatch,
 } from "../_lib/oauthConfig.js";
 import { getMetaCapiStatus } from "../_lib/metaCapi.js";
+import { growthStatus } from '../_lib/growthStatus.js';
 import { createRapidPayment } from "../_lib/rapidClient.js";
 import { CMS_DEFAULTS } from "../cms/index.js";
 import { sitemapStats } from "../_lib/sitemap.js";
@@ -450,6 +451,12 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
 
   let db;
   try { db = await getDb(); } catch { return jsonError(res, "Database unavailable. Please retry.", 503); }
+
+  if (route === 'growth-status' && req.method === 'GET') {
+    if (!requirePermission(req,res,'inventory')) return;
+    try { return jsonOk(res,{success:true,dashboard:await growthStatus(db)}); }
+    catch { return jsonError(res,'Growth status could not be loaded.',503); }
+  }
 
   if (route === 'playbeat-live' && req.method === 'GET') {
     if (!requirePermission(req, res, 'inventory')) return;

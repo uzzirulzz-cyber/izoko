@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { PlaybeatLivePanel } from './admin/PlaybeatLivePanel'
+import { GrowthStatusPanel } from './admin/GrowthStatusPanel'
 import {
   LayoutDashboard,
   Globe,
@@ -2237,6 +2238,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {activeNav === 'dashboard' && (
               <div className="space-y-6">
                 <PlaybeatLivePanel compact onNavigate={setActiveNav} />
+                <GrowthStatusPanel />
                 {/* Top Row: Cards 01 to 04 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   {/* ========================================================================= */}

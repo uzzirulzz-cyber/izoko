@@ -64,7 +64,9 @@ export const PlaybeatLivePanel: React.FC<{ compact?: boolean; onNavigate: (nav: 
           </div>
           <div className="rounded-xl border border-white/10 p-4 space-y-2"><h4 className="font-semibold text-sm text-white">Google & advertising settings</h4>
             <p className="text-xs text-zinc-400">Central configuration: {data.google.ga4 || 'GA4 not configured'} · {data.google.gtm || 'GTM not configured'} · {data.google.adsense || 'AdSense not configured'}</p>
-            <p className="text-xs text-amber-300">GA4 reports and AdSense revenue are not connected. Configured IDs do not confirm that tags ran on Live.</p>
+            <p className="text-xs text-zinc-300">Live loader: {data.google.liveInstallation?.installation || 'Not verified'} · ads.txt: {data.google.liveInstallation?.adsTxt || 'Not verified'}</p>
+            <p className="text-xs text-zinc-400">Latest browser observation: {data.google.observation ? `GA4 ${data.google.observation.ga4 ? 'loaded' : 'not loaded'} · AdSense ${data.google.observation.adsense ? 'loaded' : 'not loaded'} · ${stamp(data.google.observation.at)}` : 'No tag-loader observation received yet'}. Script load does not confirm Google collection.</p>
+            <p className="text-xs text-amber-300">GA4 reports and AdSense revenue are not connected. AdSense approval is not verified.</p>
             <button className="pa-btn px-3 py-2 text-xs inline-flex gap-2 items-center" onClick={() => onNavigate('business')}><Settings2 size={14} />Manage central Google settings</button>
           </div>
         </div>
