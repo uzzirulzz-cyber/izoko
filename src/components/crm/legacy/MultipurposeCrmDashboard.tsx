@@ -212,7 +212,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
 
   const salesFunnelBarData = useMemo(() => {
     if (!leads.length && !pipelineDeals.length) return [];
-    const statuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED'];
+    
     return [{
       month: 'Current',
       prospecting: leads.filter((lead) => lead.status === 'NEW').length,
@@ -1602,21 +1602,21 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     <div className="relative z-10 flex flex-col justify-between h-36">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-600 text-white">
-                          LIVE BRIEFING
+                          TRAINING RESOURCE
                         </span>
-                        <span className="text-xs text-slate-300">03:45</span>
+                        <span className="text-xs text-slate-300">Unavailable</span>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <button
+                        <span
                           type="button"
                           disabled aria-label="Training video is not configured"
-                          className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                          aria-hidden="true" className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
                         >
                           <Play className="w-5 h-5 ml-0.5 fill-white" />
-                        </button>
+                        </span>
                         <div>
-                          <div className="text-xs font-bold text-white">Executive Sales Strategy</div>
-                          <div className="text-[11px] text-slate-300">Multipurpose CRM Team</div>
+                          <div className="text-xs font-bold text-white">Training video unavailable</div>
+                          <div className="text-[11px] text-slate-300">Add a configured training video to enable playback</div>
                         </div>
                       </div>
                     </div>
