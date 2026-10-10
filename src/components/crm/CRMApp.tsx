@@ -44,13 +44,13 @@ const NAV: { key: CRMView; label: string; icon: any }[] = [
   { key: 'employees', label: 'Employees', icon: IdCard },
 ]
 
-export function CRMApp({ onExit }: { onExit: () => void }) {
+export function CRMApp({ onExit, embedded = false }: { onExit: () => void; embedded?: boolean }) {
   const [view, setView] = useState<CRMView>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [search, setSearch] = useState('')
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC]">
+    <div className={`pb-crm-embedded flex w-full bg-[#F8FAFC] ${embedded ? "min-h-[65vh]" : "h-screen"}`}>
       {/* Sidebar — enterprise navy */}
       <aside className="w-60 shrink-0 flex flex-col bg-[#070B12] text-[#AAB4C3] border-r border-[rgba(255,255,255,0.08)]">
         <div className="h-14 px-4 flex items-center gap-2.5 border-b border-[rgba(255,255,255,0.08)]">
@@ -78,7 +78,7 @@ export function CRMApp({ onExit }: { onExit: () => void }) {
         </nav>
         <div className="border-t border-[rgba(255,255,255,0.08)] p-3">
           <button onClick={onExit} className="flex items-center gap-2 text-xs text-[#6B7689] hover:text-white px-2 py-1.5">
-            <ArrowLeft className="w-3 h-3" /> Back to Storefront
+            <ArrowLeft className="w-3 h-3" /> {embedded ? "Back to Admin" : "Back to Storefront"}
           </button>
         </div>
       </aside>
