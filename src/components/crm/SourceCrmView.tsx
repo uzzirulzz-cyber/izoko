@@ -87,7 +87,7 @@ export function SourceCrmView({ onNavigate }: { onNavigate?: (view: 'leads' | 'w
         targetLeads: 0,
         assignedLeadsCount: 0,
         specialization: 'GENERAL',
-        status: person.status === 'SUSPENDED' ? 'INACTIVE' : 'ACTIVE',
+        status: person.status === 'SUSPENDED' ? 'PAUSED' : 'ACTIVE',
       })))
     }).catch((e: any) => { if (active) setError(e.message || 'Could not load PlayBeat customer records.') })
       .finally(() => { if (active) setLoading(false) })
