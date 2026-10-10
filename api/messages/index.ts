@@ -126,33 +126,60 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const crmPath = pathSegments.slice(1).join("/").toLowerCase();
     const crmSegs = crmPath.split("/").filter(Boolean);
 
-    // DEAL PIPELINE — persistent CRM deals used by the embedded enterprise CRM
-    const dealStages = [
-      { id: "inbound", name: "New inbound", probability: 15 },
-      { id: "contacted", name: "Contacted", probability: 30 },
-      { id: "qualified", name: "Qualified", probability: 55 },
-      { id: "demo", name: "Pitch / demo", probability: 75 },
-      { id: "proposal", name: "Proposal", probability: 90 },
-      { id: "won", name: "Closed won", probability: 100 },
-      { id: "lost", name: "Closed lost", probability: 0 },
+    // DEAL PIPELINE — persistent CRM deals used by both embedded CRM views
+    const dealStages: any[] = [
+      { id: "inbound", name: "New Inbound", color: "#38bdf8", badgeBg: "bg-sky-500/15 text-sky-700 border-sky-500/30", probability: 15, description: "Newly added prospect accounts" },
+      { id: "contacted", name: "Contacted", color: "#06b6d4", badgeBg: "bg-cyan-500/15 text-cyan-700 border-cyan-500/30", probability: 30, description: "Outreach is in progress" },
+      { id: "qualified", name: "Qualified", color: "#6366f1", badgeBg: "bg-indigo-500/15 text-indigo-700 border-indigo-500/30", probability: 55, description: "Buying need and contact have been confirmed" },
+      { id: "demo", name: "Pitch / Demo", color: "#a855f7", badgeBg: "bg-purple-500/15 text-purple-700 border-purple-500/30", probability: 75, description: "A product discussion or demo is scheduled" },
+      { id: "proposal", name: "Proposal", color: "#f59e0b", badgeBg: "bg-amber-500/15 text-amber-700 border-amber-500/30", probability: 90, description: "A commercial proposal is under review" },
+      { id: "won", name: "Closed Won", color: "#10b981", badgeBg: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30", probability: 100, description: "The customer has accepted the agreement" },
+      { id: "lost", name: "Closed Lost", color: "#f43f5e", badgeBg: "bg-rose-500/15 text-rose-700 border-rose-500/30", probability: 0, description: "The opportunity did not close" },
     ];
+    const serializeDeal = (deal: any) => ({ ...deal, id: String(deal._id || deal.id), _id: String(deal._id || deal.id) });
+    const serializeTask = (task: any) => ({
+      ...task, id: String(task._id || task.id), _id: String(task._id || task.id),
+      completed: task.status === "COMPLETED" || task.completed === true,
+      assignedTo: task.assignedTo || task.employeeName || "",
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : "",
+    });
+    const logDealActivity = async (activity: any) => {
+      await db.collection("crm_activities").insertOne({ ...activity, timestamp: new Date() });
+    };
     if (crmSegs[0] === "pipeline" && req.method === "GET") {
       const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
-      const deals = await db.collection("crm_deals").find({}).sort({ updatedAt: -1 }).limit(500).toArray();
-      const active = deals.filter((d: any) => !["won", "lost"].includes(d.stage));
-      const won = deals.filter((d: any) => d.stage === "won");
-      const totalPipelineValue = active.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
-      const weightedForecastValue = active.reduce((sum: number, d: any) => sum + (Number(d.value) || 0) * (Number(d.probability) || 0) / 100, 0);
-      const wonRevenue = won.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+      const [rawDeals, rawTasks, activities] = await Promise.all([
+        db.collection("crm_deals").find({}).sort({ updatedAt: -1 }).limit(500).toArray(),
+        db.collection("crm_tasks").find({}).sort({ updatedAt: -1 }).limit(300).toArray(),
+        db.collection("crm_activities").find({}).sort({ timestamp: -1 }).limit(100).toArray(),
+      ]);
+      const deals = rawDeals.map(serializeDeal);
+      const tasks = rawTasks.map(serializeTask);
+      const active = deals.filter((deal: any) => !["won", "lost"].includes(deal.stage));
+      const won = deals.filter((deal: any) => deal.stage === "won");
+      const totalPipelineValue = active.reduce((sum: number, deal: any) => sum + (Number(deal.value) || 0), 0);
+      const weightedForecastValue = active.reduce((sum: number, deal: any) => sum + (Number(deal.value) || 0) * (Number(deal.probability) || 0) / 100, 0);
+      const wonRevenue = won.reduce((sum: number, deal: any) => sum + (Number(deal.value) || 0), 0);
+      const repMap = new Map<string, any>();
+      deals.forEach((deal: any) => {
+        const name = deal.assignedRepName || "Unassigned";
+        const rep = repMap.get(name) || { seatId: deal.assignedSeatId || name, name, role: "CRM team member", avatarBg: "bg-slate-100 text-slate-700", assignedDeals: 0, wonDeals: 0, pipelineValue: 0, wonValue: 0, quotaAttainment: 0, conversionRate: 0, callsCount: 0 };
+        rep.assignedDeals++;
+        if (deal.stage === "won") { rep.wonDeals++; rep.wonValue += Number(deal.value) || 0; }
+        else if (deal.stage !== "lost") rep.pipelineValue += Number(deal.value) || 0;
+        rep.conversionRate = rep.assignedDeals ? Math.round(rep.wonDeals / rep.assignedDeals * 1000) / 10 : 0;
+        repMap.set(name, rep);
+      });
       return jsonOk(res, {
-        stages: dealStages,
-        deals,
+        stages: dealStages, deals, tasks, activities,
+        reps: [...repMap.values()],
         kpis: {
           totalPipelineValue, weightedForecastValue, wonRevenue,
           activeDealsCount: active.length, wonDealsCount: won.length,
           averageDealSize: deals.length ? Math.round((totalPipelineValue + wonRevenue) / deals.length) : 0,
           overallConversionRate: deals.length ? Math.round(won.length / deals.length * 1000) / 10 : 0,
+          avgSalesCycleDays: 0,
         },
       });
     }
@@ -170,26 +197,33 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       const now = new Date();
       const deal = {
         dealName, companyName, value, currency: body.currency === "PKR" ? "PKR" : "USD",
-        stage, probability, contactPerson: String(body.contactPerson || ""),
-        contactEmail: String(body.contactEmail || ""), contactPhone: String(body.contactPhone || ""),
-        expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
-        assignedRepName: user.name || user.email, assignedSeatId: null,
-        source: "Admin CRM", priority: "MEDIUM", tags: [], notes: "",
-        createdBy: user.id, createdAt: now, updatedAt: now,
+        stage, probability, leadId: body.leadId ? String(body.leadId) : undefined,
+        contactPerson: String(body.contactPerson || ""), contactEmail: String(body.contactEmail || ""),
+        contactPhone: String(body.contactPhone || ""), expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
+        assignedRepName: body.assignedRepName || user.name || user.email,
+        assignedSeatId: body.assignedSeatId || null, source: body.source || "Admin CRM",
+        priority: body.priority || "MEDIUM", tags: Array.isArray(body.tags) ? body.tags : [],
+        notes: String(body.notes || ""), createdBy: user.id, createdAt: now, updatedAt: now,
+        lastActivity: "Deal created in PlayBeat CRM",
       };
       const result = await db.collection("crm_deals").insertOne(deal);
-      return jsonOk(res, { success: true, deal: { ...deal, _id: result.insertedId } }, 201);
+      await logDealActivity({ actor: deal.assignedRepName, action: `Created deal: ${deal.dealName}`, dealName, value, type: "DEAL_CREATED" });
+      return jsonOk(res, { success: true, deal: serializeDeal({ ...deal, _id: result.insertedId }) }, 201);
     }
     if (crmSegs[0] === "deals" && crmSegs.length === 2 && req.method === "PATCH") {
       const user = await verifyCrmAuth(req);
       if (!user) return jsonError(res, "Unauthorized", 401);
       if (!ObjectId.isValid(crmSegs[1])) return jsonError(res, "Invalid deal id", 400);
+      const id = new ObjectId(crmSegs[1]);
+      const before = await db.collection("crm_deals").findOne({ _id: id });
+      if (!before) return jsonError(res, "Deal not found", 404);
       const body = req.body || {};
       const update: any = { updatedAt: new Date() };
       if (body.stage !== undefined) {
         const stage = dealStages.find((item) => item.id === body.stage);
         if (!stage) return jsonError(res, "Invalid deal stage", 400);
         update.stage = stage.id; update.probability = stage.probability;
+        update.lastActivity = `Stage changed from ${before.stage} to ${stage.id}`;
       }
       if (body.dealName !== undefined) update.dealName = String(body.dealName).trim();
       if (body.companyName !== undefined) update.companyName = String(body.companyName).trim();
@@ -198,10 +232,37 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
         if (!Number.isFinite(value) || value < 0) return jsonError(res, "Deal value must be a valid non-negative number", 400);
         update.value = value;
       }
-      const result = await db.collection("crm_deals").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
-      if (!result.matchedCount) return jsonError(res, "Deal not found", 404);
-      const deal = await db.collection("crm_deals").findOne({ _id: new ObjectId(crmSegs[1]) });
-      return jsonOk(res, { success: true, deal });
+      await db.collection("crm_deals").updateOne({ _id: id }, { $set: update });
+      if (update.stage && update.stage !== before.stage) {
+        await logDealActivity({ actor: before.assignedRepName || user.name, action: `Moved ${before.dealName} to ${update.stage}`, dealName: before.dealName, stageFrom: before.stage, stageTo: update.stage, value: before.value, type: update.stage === "won" ? "DEAL_WON" : "STAGE_CHANGE" });
+      }
+      const deal = await db.collection("crm_deals").findOne({ _id: id });
+      return jsonOk(res, { success: true, deal: serializeDeal(deal) });
+    }
+    if (crmSegs[0] === "convert-lead" && req.method === "POST") {
+      const user = await verifyCrmAuth(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const body = req.body || {};
+      const lead = body.lead || {};
+      const companyName = String(lead.companyName || body.companyName || "").trim();
+      const dealName = String(body.dealName || (companyName ? `${companyName} - Enterprise Contract` : "")).trim();
+      const value = Number(body.value);
+      if (!lead.id || !companyName || !dealName || !Number.isFinite(value) || value < 0) return jsonError(res, "A valid lead, deal name, and deal value are required", 400);
+      const stage = dealStages[0];
+      const now = new Date();
+      const deal = {
+        leadId: String(lead.id), dealName, companyName, value, currency: "USD",
+        stage: stage.id, probability: stage.probability, contactPerson: lead.contactPerson?.name || "",
+        contactEmail: lead.email || "", contactPhone: lead.phone || "", expectedCloseDate: null,
+        assignedRepName: lead.assignedEmployeeName || user.name || user.email,
+        assignedSeatId: lead.assignedSeatId || null, source: lead.discoverySource || lead.sourceCategory || "Lead conversion",
+        priority: lead.emailVerified || lead.isVerifiedMatch ? "HIGH" : "MEDIUM", tags: [],
+        notes: "Converted from the embedded lead and customer workspace.",
+        createdBy: user.id, createdAt: now, updatedAt: now, lastActivity: "Lead converted to deal",
+      };
+      const result = await db.collection("crm_deals").insertOne(deal);
+      await logDealActivity({ actor: deal.assignedRepName, action: `Converted lead to deal: ${dealName}`, dealName, value, type: "DEAL_CREATED" });
+      return jsonOk(res, { success: true, deal: serializeDeal({ ...deal, _id: result.insertedId }) }, 201);
     }
 
     // CALLS: list
@@ -274,31 +335,54 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       }
     }
 
-    // TASKS
+    // TASKS — shared by the current CRM and the embedded source CRM
     if (crmSegs[0] === "tasks") {
       if (req.method === "GET") {
         const filter: any = {}; const leadId = url.searchParams.get("leadId"); const status = url.searchParams.get("status");
         if (leadId) filter.leadId = leadId; if (status) filter.status = status;
-        const tasks = await db.collection("crm_tasks").find(filter).sort({ dueDate: 1, createdAt: -1 }).limit(200).toArray();
-        return jsonOk(res, { tasks });
+        const tasks = await db.collection("crm_tasks").find(filter).sort({ dueDate: 1, createdAt: -1 }).limit(300).toArray();
+        return jsonOk(res, { tasks: tasks.map(serializeTask) });
       }
       if (req.method === "POST") {
         const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
-        const { title, description, leadId, dueDate, priority } = req.body || {}; if (!title) return jsonError(res, "title required", 400);
-        const task = { title, description: description||null, leadId: leadId||null, employeeId: user.id, employeeName: user.name||user.email, dueDate: dueDate ? new Date(dueDate) : null, priority: priority||"NORMAL", status: "OPEN", createdAt: new Date(), updatedAt: new Date() };
+        const body = req.body || {}; const title = String(body.title || "").trim();
+        if (!title) return jsonError(res, "title required", 400);
+        const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+        if (dueDate && Number.isNaN(dueDate.getTime())) return jsonError(res, "Invalid dueDate", 400);
+        const task = {
+          title, description: body.description || null, type: body.type || "FOLLOW_UP",
+          leadId: body.leadId ? String(body.leadId) : null, dealId: body.dealId ? String(body.dealId) : null,
+          companyName: body.companyName || null, assignedTo: body.assignedTo || user.name || user.email,
+          employeeId: user.id, employeeName: user.name || user.email,
+          dueDate, dueTime: body.dueTime || null, priority: body.priority || "NORMAL",
+          status: "OPEN", createdAt: new Date(), updatedAt: new Date(),
+        };
         const result = await db.collection("crm_tasks").insertOne(task);
-        return jsonOk(res, { task: { ...task, _id: result.insertedId } });
+        return jsonOk(res, { task: serializeTask({ ...task, _id: result.insertedId }) }, 201);
+      }
+      if (req.method === "PATCH" && crmSegs[1] && crmSegs[2] === "toggle") {
+        const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        if (!ObjectId.isValid(crmSegs[1])) return jsonError(res, "Invalid task id", 400);
+        const id = new ObjectId(crmSegs[1]); const task = await db.collection("crm_tasks").findOne({ _id: id });
+        if (!task) return jsonError(res, "Task not found", 404);
+        const status = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
+        await db.collection("crm_tasks").updateOne({ _id: id }, { $set: { status, updatedAt: new Date(), completedAt: status === "COMPLETED" ? new Date() : null } });
+        if (status === "COMPLETED") await logDealActivity({ actor: task.assignedTo || task.employeeName || user.name, action: `Completed task: ${task.title}`, dealName: task.companyName || "Sales task", type: "TASK_COMPLETED" });
+        const updated = await db.collection("crm_tasks").findOne({ _id: id });
+        return jsonOk(res, { success: true, task: serializeTask(updated) });
       }
       if (req.method === "PUT" && crmSegs[1]) {
         const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        if (!ObjectId.isValid(crmSegs[1])) return jsonError(res, "Invalid task id", 400);
         const update: any = { updatedAt: new Date() };
-        for (const k of ["title","description","status","priority"]) { if ((req.body||{})[k] !== undefined) update[k] = req.body[k] }
-        if ((req.body||{}).dueDate !== undefined) update.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
+        for (const key of ["title", "description", "status", "priority"]) if ((req.body || {})[key] !== undefined) update[key] = (req.body || {})[key];
+        if ((req.body || {}).dueDate !== undefined) update.dueDate = (req.body || {}).dueDate ? new Date((req.body || {}).dueDate) : null;
         await db.collection("crm_tasks").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
         return jsonOk(res, { ok: true });
       }
       if (req.method === "DELETE" && crmSegs[1]) {
         const user = await verifyCrmAuth(req); if (!user) return jsonError(res, "Unauthorized", 401);
+        if (!ObjectId.isValid(crmSegs[1])) return jsonError(res, "Invalid task id", 400);
         await db.collection("crm_tasks").deleteOne({ _id: new ObjectId(crmSegs[1]) });
         return jsonOk(res, { ok: true });
       }
