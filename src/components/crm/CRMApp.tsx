@@ -4,7 +4,7 @@ import {
   CheckSquare, CalendarClock, BarChart3, IdCard, Search, Bell, LogOut,
   Menu, X, ChevronLeft, PhoneIncoming, PhoneOutgoing, Zap, Plus, Minus,
   Mic, MicOff, Volume2, VolumeX, Pause, Square, Star, Clock, Send,
-  Tag, MapPin, Mail, Globe, Briefcase, StickyNote, TrendingUp, AlertCircle,
+  Tag, MapPin, Mail, Globe, Briefcase, Target, StickyNote, TrendingUp, AlertCircle,
   CheckCircle, ArrowLeft, ArrowRight, RotateCw
 } from 'lucide-react'
 
