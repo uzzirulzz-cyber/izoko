@@ -1953,6 +1953,19 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <span>Live Vercel</span>
               </a>
 
+              {/* Cloudflare worker serving PlayBeat Live crawler rules */}
+              <a
+                href="https://dash.cloudflare.com/1f230ccf421d89de0f68562da95f005d/workers/services/view/playbeat-storefront/production"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open PlayBeat Live ChatGPT crawler Worker on Cloudflare"
+                title="Open playbeat-storefront Worker — serves ChatGPT and OpenAI crawler access rules"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 hover:border-emerald-300 text-xs font-semibold text-emerald-800 transition"
+              >
+                <MessageCircle className="w-4 h-4 text-emerald-700" />
+                <span>ChatGPT Worker</span>
+              </a>
+
               {/* Quick Add Button */}
               <div className="relative">
                 <button
