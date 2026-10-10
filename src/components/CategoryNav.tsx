@@ -200,6 +200,10 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
   const countFor = (name: string, regCount?: number) =>
     regCount != null ? regCount : products.filter((p) => p.category === name).length
 
+  const visibleCategories = displayCategories.filter((cat) =>
+    countFor(cat.name, (cat as any).count) > 0
+  )
+
   return (
     <section id="shop-by-category" className="w-full py-10 bg-gradient-to-b from-[#050814] via-[#060B1E] to-[#050814] relative overflow-hidden">
       {/* Ambient premium glow */}
@@ -233,7 +237,7 @@ export const CategoryNav: React.FC<CategoryNavProps & CategoryNavProps2> = ({
         {/* Category quick-strip — single dark card, hairline cell dividers,
             uniform white icons (design PDF). DB registry still drives items. */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px rounded-3xl overflow-hidden border border-white/[0.08] bg-white/[0.06] shadow-[0_0_40px_-14px_rgba(59,130,246,0.35)]">
-          {displayCategories.map((cat) => {
+          {visibleCategories.map((cat) => {
             const acc = CATEGORY_ACCENTS[cat.name] || { icon: Layers }
             const Icon = acc.icon
             const isSelected = selectedCategory === cat.name
