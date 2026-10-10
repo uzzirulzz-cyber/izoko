@@ -29,10 +29,11 @@ async function api(path: string, opts: RequestInit = {}) {
   return data
 }
 
-type CRMView = 'dashboard' | 'inbox' | 'whatsapp' | 'calls' | 'dialer' | 'leads' | 'customers' | 'tasks' | 'followups' | 'employees'
+type CRMView = 'dashboard' | 'pipeline' | 'inbox' | 'whatsapp' | 'calls' | 'dialer' | 'leads' | 'customers' | 'tasks' | 'followups' | 'employees'
 
 const NAV: { key: CRMView; label: string; icon: any }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'pipeline', label: 'Deals & Pipeline', icon: Briefcase },
   { key: 'inbox', label: 'Inbox', icon: Inbox },
   { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
   { key: 'calls', label: 'Calls', icon: PhoneCall },
@@ -105,6 +106,7 @@ export function CRMApp({ onExit, embedded = false }: { onExit: () => void; embed
 
         <main className="flex-1 overflow-auto">
           {view === 'dashboard' && <DashboardView />}
+          {view === 'pipeline' && <PipelineView />}
           {view === 'inbox' && <InboxView />}
           {view === 'whatsapp' && <WhatsAppView />}
           {view === 'calls' && <CallsView />}
@@ -158,6 +160,113 @@ export function CRMApp({ onExit, embedded = false }: { onExit: () => void; embed
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────
+
+const PIPELINE_STAGES = [
+  { id: 'inbound', label: 'New inbound', tone: 'sky' },
+  { id: 'contacted', label: 'Contacted', tone: 'cyan' },
+  { id: 'qualified', label: 'Qualified', tone: 'indigo' },
+  { id: 'demo', label: 'Pitch / demo', tone: 'violet' },
+  { id: 'proposal', label: 'Proposal', tone: 'amber' },
+  { id: 'won', label: 'Closed won', tone: 'emerald' },
+  { id: 'lost', label: 'Closed lost', tone: 'rose' },
+] as const
+
+function PipelineView() {
+  const [deals, setDeals] = useState<any[]>([])
+  const [kpis, setKpis] = useState<any>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState({ dealName: '', companyName: '', value: '', currency: 'USD', stage: 'inbound', contactEmail: '' })
+  const money = (value: number, currency = 'USD') => new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 0 }).format(Number(value) || 0)
+  const load = useCallback(async () => {
+    setError('')
+    try {
+      const result = await api('/api/messages/crm/pipeline')
+      setDeals(result.deals || [])
+      setKpis(result.kpis || {})
+    } catch (e: any) {
+      setError(e.message || 'Could not load the pipeline.')
+    } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
+  const moveDeal = async (deal: any, stage: string) => {
+    setSaving(true); setError('')
+    try {
+      await api(`/api/messages/crm/deals/${deal._id}`, { method: 'PATCH', body: JSON.stringify({ stage }) })
+      await load()
+    } catch (e: any) { setError(e.message || 'Could not update this deal.') }
+    finally { setSaving(false) }
+  }
+  const createDeal = async (event: React.FormEvent) => {
+    event.preventDefault(); setSaving(true); setError('')
+    try {
+      await api('/api/messages/crm/deals', { method: 'POST', body: JSON.stringify({ ...form, value: Number(form.value) }) })
+      setForm({ dealName: '', companyName: '', value: '', currency: 'USD', stage: 'inbound', contactEmail: '' })
+      setShowCreate(false)
+      await load()
+    } catch (e: any) { setError(e.message || 'Could not create the deal.') }
+    finally { setSaving(false) }
+  }
+  const summary = [
+    ['Open pipeline', money(kpis.totalPipelineValue || 0), TrendingUp],
+    ['Weighted forecast', money(kpis.weightedForecastValue || 0), Target],
+    ['Won revenue', money(kpis.wonRevenue || 0), CheckCircle],
+    ['Active deals', String(kpis.activeDealsCount || 0), Briefcase],
+  ] as const
+  return (
+    <div className="p-5 md:p-6 space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-slate-500">Sales workspace</p><h1 className="mt-1 text-2xl font-semibold text-[#070B12]">Deals &amp; Pipeline</h1><p className="mt-1 text-sm text-slate-500">Track opportunities from first contact through close.</p></div>
+        <div className="flex gap-2">
+          <button onClick={() => { setLoading(true); load() }} disabled={loading || saving} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RotateCw className="mr-2 inline h-4 w-4" />Refresh</button>
+          <button onClick={() => setShowCreate(true)} className="rounded-md bg-[#070B12] px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"><Plus className="mr-1 inline h-4 w-4" />New deal</button>
+        </div>
+      </div>
+      {error && <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{summary.map(([label, value, Icon]) => <div key={label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-slate-500"><span>{label}</span><Icon className="h-4 w-4 text-[#B28A00]" /></div><div className="mt-3 text-2xl font-semibold text-[#070B12]">{value}</div></div>)}</div>
+      {loading ? <div className="rounded-lg border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">Loading pipeline…</div> : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+          {PIPELINE_STAGES.map((stage, stageIndex) => {
+            const stageDeals = deals.filter(d => d.stage === stage.id)
+            const total = stageDeals.reduce((sum, d) => sum + (Number(d.value) || 0), 0)
+            return <section key={stage.id} aria-label={stage.label} className="min-h-56 rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <div className="mb-3 flex items-start justify-between gap-2"><div><h2 className="text-sm font-semibold text-slate-800">{stage.label}</h2><p className="mt-0.5 text-xs text-slate-500">{stageDeals.length} deals · {money(total, stageDeals[0]?.currency || 'USD')}</p></div><span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">{stageDeals.length}</span></div>
+              <div className="space-y-2">
+                {stageDeals.map(deal => <article key={deal._id} className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-900">{deal.dealName}</h3><p className="mt-1 text-xs text-slate-500">{deal.companyName}</p>
+                  <p className="mt-2 text-base font-semibold text-slate-900">{money(deal.value, deal.currency || 'USD')}</p>
+                  {deal.contactEmail && <p className="mt-1 truncate text-xs text-slate-500"><Mail className="mr-1 inline h-3 w-3" />{deal.contactEmail}</p>}
+                  <div className="mt-3 flex items-center justify-between gap-1">
+                    <span className="text-[11px] text-slate-400">{deal.assignedRepName || 'Unassigned'}</span>
+                    <div className="flex gap-1">
+                      {stageIndex > 0 && <button title={`Move to ${PIPELINE_STAGES[stageIndex - 1].label}`} aria-label={`Move ${deal.dealName} to previous stage`} disabled={saving} onClick={() => moveDeal(deal, PIPELINE_STAGES[stageIndex - 1].id)} className="rounded border border-slate-200 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"><ArrowLeft className="h-3.5 w-3.5" /></button>}
+                      {stageIndex < PIPELINE_STAGES.length - 1 && <button title={`Move to ${PIPELINE_STAGES[stageIndex + 1].label}`} aria-label={`Move ${deal.dealName} to next stage`} disabled={saving} onClick={() => moveDeal(deal, PIPELINE_STAGES[stageIndex + 1].id)} className="rounded border border-slate-200 px-1.5 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40"><ArrowRight className="h-3.5 w-3.5" /></button>}
+                    </div>
+                  </div>
+                </article>)}
+                {!stageDeals.length && <div className="rounded-md border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-400">No deals in this stage</div>}
+              </div>
+            </section>
+          })}
+        </div>
+      )}
+      {showCreate && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setShowCreate(false) }}>
+        <form onSubmit={createDeal} className="w-full max-w-lg space-y-4 rounded-xl bg-white p-5 shadow-2xl">
+          <div><h2 className="text-lg font-semibold text-slate-900">Create a deal</h2><p className="text-sm text-slate-500">Add an opportunity to the sales pipeline.</p></div>
+          <label className="block text-sm font-medium text-slate-700">Deal name<input required value={form.dealName} onChange={e => setForm({ ...form, dealName: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" /></label>
+          <label className="block text-sm font-medium text-slate-700">Company<input required value={form.companyName} onChange={e => setForm({ ...form, companyName: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" /></label>
+          <div className="grid grid-cols-2 gap-3"><label className="block text-sm font-medium text-slate-700">Value<input type="number" min="0" step="1" required value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" /></label><label className="block text-sm font-medium text-slate-700">Currency<select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal"><option value="USD">USD</option><option value="PKR">PKR</option></select></label></div>
+          <label className="block text-sm font-medium text-slate-700">Contact email<input type="email" value={form.contactEmail} onChange={e => setForm({ ...form, contactEmail: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" /></label>
+          <label className="block text-sm font-medium text-slate-700">Initial stage<select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value })} className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal">{PIPELINE_STAGES.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onClick={() => setShowCreate(false)} className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700">Cancel</button><button disabled={saving} className="rounded-md bg-[#070B12] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Create deal'}</button></div>
+        </form>
+      </div>}
+    </div>
+  )
+}
+
 function DashboardView() {
   const [stats, setStats] = useState<any>(null)
   useEffect(() => {
