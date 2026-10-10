@@ -126,6 +126,84 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const crmPath = pathSegments.slice(1).join("/").toLowerCase();
     const crmSegs = crmPath.split("/").filter(Boolean);
 
+    // DEAL PIPELINE — persistent CRM deals used by the embedded enterprise CRM
+    const dealStages = [
+      { id: "inbound", name: "New inbound", probability: 15 },
+      { id: "contacted", name: "Contacted", probability: 30 },
+      { id: "qualified", name: "Qualified", probability: 55 },
+      { id: "demo", name: "Pitch / demo", probability: 75 },
+      { id: "proposal", name: "Proposal", probability: 90 },
+      { id: "won", name: "Closed won", probability: 100 },
+      { id: "lost", name: "Closed lost", probability: 0 },
+    ];
+    if (crmSegs[0] === "pipeline" && req.method === "GET") {
+      const user = await verifyCrmAuth(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const deals = await db.collection("crm_deals").find({}).sort({ updatedAt: -1 }).limit(500).toArray();
+      const active = deals.filter((d: any) => !["won", "lost"].includes(d.stage));
+      const won = deals.filter((d: any) => d.stage === "won");
+      const totalPipelineValue = active.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+      const weightedForecastValue = active.reduce((sum: number, d: any) => sum + (Number(d.value) || 0) * (Number(d.probability) || 0) / 100, 0);
+      const wonRevenue = won.reduce((sum: number, d: any) => sum + (Number(d.value) || 0), 0);
+      return jsonOk(res, {
+        stages: dealStages,
+        deals,
+        kpis: {
+          totalPipelineValue, weightedForecastValue, wonRevenue,
+          activeDealsCount: active.length, wonDealsCount: won.length,
+          averageDealSize: deals.length ? Math.round((totalPipelineValue + wonRevenue) / deals.length) : 0,
+          overallConversionRate: deals.length ? Math.round(won.length / deals.length * 1000) / 10 : 0,
+        },
+      });
+    }
+    if (crmSegs[0] === "deals" && crmSegs.length === 1 && req.method === "POST") {
+      const user = await verifyCrmAuth(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      const body = req.body || {};
+      const dealName = String(body.dealName || "").trim();
+      const companyName = String(body.companyName || "").trim();
+      const value = Number(body.value);
+      if (!dealName || !companyName) return jsonError(res, "Deal and company names are required", 400);
+      if (!Number.isFinite(value) || value < 0) return jsonError(res, "Deal value must be a valid non-negative number", 400);
+      const stage = dealStages.find((item) => item.id === body.stage)?.id || "inbound";
+      const probability = dealStages.find((item) => item.id === stage)?.probability || 0;
+      const now = new Date();
+      const deal = {
+        dealName, companyName, value, currency: body.currency === "PKR" ? "PKR" : "USD",
+        stage, probability, contactPerson: String(body.contactPerson || ""),
+        contactEmail: String(body.contactEmail || ""), contactPhone: String(body.contactPhone || ""),
+        expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
+        assignedRepName: user.name || user.email, assignedSeatId: null,
+        source: "Admin CRM", priority: "MEDIUM", tags: [], notes: "",
+        createdBy: user.id, createdAt: now, updatedAt: now,
+      };
+      const result = await db.collection("crm_deals").insertOne(deal);
+      return jsonOk(res, { success: true, deal: { ...deal, _id: result.insertedId } }, 201);
+    }
+    if (crmSegs[0] === "deals" && crmSegs.length === 2 && req.method === "PATCH") {
+      const user = await verifyCrmAuth(req);
+      if (!user) return jsonError(res, "Unauthorized", 401);
+      if (!ObjectId.isValid(crmSegs[1])) return jsonError(res, "Invalid deal id", 400);
+      const body = req.body || {};
+      const update: any = { updatedAt: new Date() };
+      if (body.stage !== undefined) {
+        const stage = dealStages.find((item) => item.id === body.stage);
+        if (!stage) return jsonError(res, "Invalid deal stage", 400);
+        update.stage = stage.id; update.probability = stage.probability;
+      }
+      if (body.dealName !== undefined) update.dealName = String(body.dealName).trim();
+      if (body.companyName !== undefined) update.companyName = String(body.companyName).trim();
+      if (body.value !== undefined) {
+        const value = Number(body.value);
+        if (!Number.isFinite(value) || value < 0) return jsonError(res, "Deal value must be a valid non-negative number", 400);
+        update.value = value;
+      }
+      const result = await db.collection("crm_deals").updateOne({ _id: new ObjectId(crmSegs[1]) }, { $set: update });
+      if (!result.matchedCount) return jsonError(res, "Deal not found", 404);
+      const deal = await db.collection("crm_deals").findOne({ _id: new ObjectId(crmSegs[1]) });
+      return jsonOk(res, { success: true, deal });
+    }
+
     // CALLS: list
     if (crmSegs[0] === "calls" && crmSegs.length === 1 && req.method === "GET") {
       const filter: any = {};
