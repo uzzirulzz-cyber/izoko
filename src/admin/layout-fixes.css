@@ -223,3 +223,40 @@
   .pbadmin[data-pb-theme="enterprise-light"] .pa-main { padding: 1rem; }
   .pbadmin[data-pb-theme="enterprise-light"] .pa-topbar { padding-inline: 1rem; }
 }
+
+
+/* CRM embedded in the admin uses the same Bootstrap/SB Admin shell. */
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded {
+  height: 100%;
+  min-height: 65vh;
+  color: #212529;
+  background: #f8f9fa;
+  font-family: inherit;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded > aside {
+  background: #212529 !important;
+  border-color: rgba(255,255,255,.1) !important;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded > aside nav button {
+  border-radius: .375rem;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded > aside nav button[class*="bg-[#F5C542]"] {
+  color: #fff !important;
+  background: #0d6efd !important;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded > div > header {
+  min-height: 56px;
+  border-color: #dee2e6;
+  box-shadow: 0 1px 2px rgba(33,37,41,.04);
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded button[class*="bg-[#F5C542]"] {
+  color: #fff !important;
+  background: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded :is(button, input, select, textarea) {
+  border-radius: .375rem;
+}
+.pbadmin[data-pb-theme="enterprise-light"] .pb-crm-embedded :is(.rounded-lg, .rounded-xl) {
+  border-radius: .5rem;
+}
