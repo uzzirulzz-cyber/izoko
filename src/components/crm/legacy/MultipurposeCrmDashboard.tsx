@@ -446,6 +446,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
     try {
       const res = await axios.post('/api/messages/crm/convert-lead', {
         leadId,
+        lead: leads.find((item) => item.id === leadId),
         dealName: `${companyName} - Enterprise Contract`,
         value
       });
