@@ -149,6 +149,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
 
   const currentPrice = effectiveVariant ? effectiveVariant.price : product.price
   const originalPrice = effectiveVariant?.originalPrice || product.originalPrice
+  const discountPercent = originalPrice && originalPrice > currentPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+    : undefined
 
   const handleCopySku = () => {
     navigator.clipboard.writeText(product.sku)
@@ -239,9 +242,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 className="w-full h-full object-cover opacity-90"
               />
               <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                {product.discountPercent && (
+                {discountPercent && (
                   <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-yellow-400 text-slate-950 shadow-md">
-                    -{product.discountPercent}%
+                    -{discountPercent}%
                   </span>
                 )}
                 {product.isHot && (
