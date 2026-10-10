@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { SourceCrmView } from './SourceCrmView'
 import {
   LayoutDashboard, Inbox, MessageCircle, PhoneCall, Phone, Users, UserCircle2,
   CheckSquare, CalendarClock, BarChart3, IdCard, Search, Bell, LogOut,
@@ -29,11 +30,12 @@ async function api(path: string, opts: RequestInit = {}) {
   return data
 }
 
-type CRMView = 'dashboard' | 'pipeline' | 'inbox' | 'whatsapp' | 'calls' | 'dialer' | 'leads' | 'customers' | 'tasks' | 'followups' | 'employees'
+type CRMView = 'dashboard' | 'pipeline' | 'source-crm' | 'inbox' | 'whatsapp' | 'calls' | 'dialer' | 'leads' | 'customers' | 'tasks' | 'followups' | 'employees'
 
 const NAV: { key: CRMView; label: string; icon: any }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'pipeline', label: 'Deals & Pipeline', icon: Briefcase },
+  { key: 'source-crm', label: 'Lead Generation CRM', icon: Users },
   { key: 'inbox', label: 'Inbox', icon: Inbox },
   { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
   { key: 'calls', label: 'Calls', icon: PhoneCall },
@@ -107,6 +109,7 @@ export function CRMApp({ onExit, embedded = false }: { onExit: () => void; embed
         <main className="flex-1 overflow-auto">
           {view === 'dashboard' && <DashboardView />}
           {view === 'pipeline' && <PipelineView />}
+          {view === 'source-crm' && <SourceCrmView onNavigate={(target) => setView(target)} />}
           {view === 'inbox' && <InboxView />}
           {view === 'whatsapp' && <WhatsAppView />}
           {view === 'calls' && <CallsView />}
