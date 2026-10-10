@@ -121,11 +121,11 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
   const [pipelineDeals, setPipelineDeals] = useState<CrmDeal[]>([]);
   const [pipelineStages, setPipelineStages] = useState<PipelineStageConfig[]>([]);
   const [kpis, setKpis] = useState({
-    totalPipelineValue: 456200,
-    weightedForecastValue: 245125,
-    wonRevenue: 184500,
-    wonDealsCount: 16,
-    overallConversionRate: 70
+    totalPipelineValue: 0,
+    weightedForecastValue: 0,
+    wonRevenue: 0,
+    wonDealsCount: 0,
+    overallConversionRate: 0
   });
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -904,10 +904,10 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                       Pipeline Volume
                     </div>
                     <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                      {formatMoney(kpis.wonRevenue > 0 ? kpis.wonRevenue : (kpis.totalPipelineValue || pipelineDeals.reduce((s, d) => s + (d.value || 0), 0)))}
+                      {formatMoney(kpis.wonRevenue || 0)}
                     </div>
                     <div className="flex items-center text-[11px] font-bold text-emerald-500 mt-1">
-                      <span>Forecast: {formatMoney(kpis.weightedForecastValue || Math.round((kpis.totalPipelineValue || 1) * 0.42))}</span>
+                      <span>Forecast: {formatMoney(kpis.weightedForecastValue || 0)}</span>
                     </div>
                   </div>
                   <div className="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800/50 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shadow-sm shrink-0">
@@ -942,7 +942,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                     <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
                       {kpis.overallConversionRate > 0
                         ? `${kpis.overallConversionRate}%`
-                         : `${pipelineDeals.length ? Math.round((pipelineDeals.filter(d => d.stage === 'won').length / pipelineDeals.length) * 100) : 0}%`}
+                        : `${pipelineDeals.length ? Math.round((pipelineDeals.filter(d => d.stage === 'won').length / pipelineDeals.length) * 100) : 0}%`}
                     </div>
                     <div className="flex items-center text-[11px] font-bold text-emerald-500 mt-1">
                       <span>Qualified Lead Ratio</span>
@@ -1608,9 +1608,7 @@ export const MultipurposeCrmDashboard: React.FC<MultipurposeCrmProps> = ({
                       </div>
                       <div className="flex items-center space-x-3">
                         <span
-                          type="button"
-                          disabled aria-label="Training video is not configured"
-                          aria-hidden="true" className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
+                          aria-hidden="true" className="w-12 h-12 rounded-full bg-blue-600/70 text-white flex items-center justify-center shadow-lg"
                         >
                           <Play className="w-5 h-5 ml-0.5 fill-white" />
                         </span>
