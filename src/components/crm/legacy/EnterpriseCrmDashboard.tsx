@@ -76,8 +76,8 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
   onSelectLead,
   onNavigateToOutreach
 }) => {
-  // View mode - defaults to the 2025 MultipurposeThemes CRM Hq Admin template
-  const [crmView, setCrmView] = useState<'multipurpose' | 'pipeline' | 'analytics' | 'reps' | 'tasks' | 'feed'>('multipurpose');
+  // View mode - defaults to the 2026 MultipurposeThemes CRM Hq Admin template
+  const [crmView, setCrmView] = useState<'multipurpose' | 'pipeline' | 'analytics' | 'reps' | 'tasks' | 'feed'>('pipeline');
 
   // Pipeline Data State
   const [stages, setStages] = useState<PipelineStageConfig[]>([]);
@@ -93,7 +93,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
     wonRevenue: 0,
     averageDealSize: 0,
     overallConversionRate: 0,
-    avgSalesCycleDays: 6.4
+    avgSalesCycleDays: 0
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -102,7 +102,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterSeat, setFilterSeat] = useState<string>('ALL');
   const [filterPriority, setFilterPriority] = useState<string>('ALL');
-  const [timeframe, setTimeframe] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'Q3_2025'>('MONTH');
+  const [timeframe, setTimeframe] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>('MONTH');
 
   // Modals & Sliders
   const [showNewDealModal, setShowNewDealModal] = useState<boolean>(false);
@@ -300,27 +300,29 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
     }
   };
 
-  // Filtered Deals
+  // Filter deals by text, owner, priority, and the selected real date range.
   const filteredDeals = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date(now);
+    if (timeframe === 'TODAY') cutoff.setHours(0, 0, 0, 0);
+    else if (timeframe === 'WEEK') cutoff.setDate(cutoff.getDate() - 7);
+    else if (timeframe === 'MONTH') cutoff.setDate(1);
     return deals.filter(deal => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const match =
-          deal.companyName.toLowerCase().includes(q) ||
-          deal.dealName.toLowerCase().includes(q) ||
-          (deal.contactPerson && deal.contactPerson.toLowerCase().includes(q)) ||
-          (deal.source && deal.source.toLowerCase().includes(q));
+          String(deal.companyName || '').toLowerCase().includes(q) ||
+          String(deal.dealName || '').toLowerCase().includes(q) ||
+          String(deal.contactPerson || '').toLowerCase().includes(q) ||
+          String(deal.source || '').toLowerCase().includes(q);
         if (!match) return false;
       }
-      if (filterSeat !== 'ALL' && deal.assignedSeatId !== filterSeat) {
-        return false;
-      }
-      if (filterPriority !== 'ALL' && deal.priority !== filterPriority) {
-        return false;
-      }
+      if (filterSeat !== 'ALL' && deal.assignedSeatId !== filterSeat) return false;
+      if (filterPriority !== 'ALL' && deal.priority !== filterPriority) return false;
+      if (timeframe !== 'ALL' && deal.createdAt && new Date(deal.createdAt) < cutoff) return false;
       return true;
     });
-  }, [deals, searchQuery, filterSeat, filterPriority]);
+  }, [deals, searchQuery, filterSeat, filterPriority, timeframe]);
 
   // Funnel Analytics Aggregation
   const funnelData = useMemo(() => {
@@ -338,33 +340,23 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
     });
   }, [stages, deals]);
 
-  // Monthly Velocity Data for Chart
-  const velocityTrendData = useMemo(() => {
-    return [
-      { month: 'Apr', dealsClosed: 4, revenueWon: 74000, pipelineProjected: 160000 },
-      { month: 'May', dealsClosed: 6, revenueWon: 112000, pipelineProjected: 220000 },
-      { month: 'Jun', dealsClosed: 9, revenueWon: 168000, pipelineProjected: 290000 },
-      { month: 'Jul', dealsClosed: 11, revenueWon: 215000, pipelineProjected: 340000 },
-      { month: 'Aug', dealsClosed: 14, revenueWon: 284000, pipelineProjected: 410000 },
-      { month: 'Sep (2025)', dealsClosed: kpis.wonDealsCount || 16, revenueWon: kpis.wonRevenue || 345000, pipelineProjected: kpis.totalPipelineValue || 460000 }
-    ];
-  }, [kpis]);
+  // Data-backed snapshots. Historical revenue is not reported until the CRM has history to calculate it.
+  const velocityTrendData = useMemo(() => deals.length ? [{
+    month: 'Current',
+    dealsClosed: kpis.wonDealsCount || 0,
+    revenueWon: kpis.wonRevenue || 0,
+    pipelineProjected: kpis.totalPipelineValue || 0,
+  }] : [], [deals.length, kpis]);
 
-  // Lead Acquisition Source Breakdown
   const leadSourceData = useMemo(() => {
-    const counts: Record<string, number> = {
-      'Google Maps & Places': 6,
-      'Direct Business Crawl': 4,
-      'Chamber of Commerce': 3,
-      'OpenCorporates Registry': 2,
-      'WhatsApp Inbound': 2
-    };
-    return Object.entries(counts).map(([name, value], idx) => ({
-      name,
-      value,
-      color: ['#38bdf8', '#06b6d4', '#6366f1', '#a855f7', '#10b981'][idx % 5]
-    }));
-  }, []);
+    const counts = new Map<string, number>();
+    leads.forEach((lead) => {
+      const source = lead.sourceCategory || lead.discoverySource || 'PlayBeat customer records';
+      counts.set(source, (counts.get(source) || 0) + 1);
+    });
+    const colors = ['#38bdf8', '#06b6d4', '#6366f1', '#a855f7', '#10b981'];
+    return [...counts.entries()].map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }));
+  }, [leads]);
 
   const STAGE_ORDER: PipelineStageId[] = ['inbound', 'contacted', 'qualified', 'demo', 'proposal', 'won'];
 
@@ -446,10 +438,10 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setTimeframe('Q3_2025')}
-                className={`px-2.5 py-1.5 rounded-lg cursor-pointer ${timeframe === 'Q3_2025' ? 'bg-slate-800 text-cyan-300' : 'hover:text-slate-200'}`}
+                onClick={() => setTimeframe('ALL')}
+                className={`px-2.5 py-1.5 rounded-lg cursor-pointer ${timeframe === 'ALL' ? 'bg-slate-800 text-cyan-300' : 'hover:text-slate-200'}`}
               >
-                Q3 2025
+                All Time
               </button>
             </div>
 
@@ -1064,7 +1056,7 @@ export const EnterpriseCrmDashboard: React.FC<EnterpriseCrmDashboardProps> = ({
                 </p>
               </div>
               <span className="text-xs font-mono font-bold text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-950/70 border border-emerald-500/30">
-                TEAM QUOTA ATTAINMENT: 90%
+                Based on recorded CRM deals
               </span>
             </div>
 
