@@ -125,7 +125,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }
 
-  const handleSocialAuth = (provider: 'Google' | 'Facebook' | 'Instagram') => {
+  const handleSocialAuth = (provider: 'Google' | 'Facebook') => {
     // REAL OAuth sign-up/sign-in — full-page redirect to the backend start route,
     // which 302s to the provider's consent screen. On approval the provider
     // returns to /api/auth/oauth/:provider/callback where the REAL profile is
