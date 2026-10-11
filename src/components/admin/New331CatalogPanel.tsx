@@ -15,6 +15,8 @@ export const New331CatalogPanel: React.FC = () => {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<StorefrontCategory>('All')
   const [tier, setTier] = useState<TierFilter>('All')
+  const [importing, setImporting] = useState(false)
+  const [importStatus, setImportStatus] = useState('')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -28,6 +30,80 @@ export const New331CatalogPanel: React.FC = () => {
       return categoryMatch && tierMatch && textMatch
     })
   }, [query, category, tier])
+
+  const importToCms = async () => {
+    setImporting(true)
+    setImportStatus('')
+    try {
+      const token = localStorage.getItem('playbeat_admin_token')
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      }
+      const existingResponse = await fetch('/api/admin/services', { credentials: 'include', headers })
+      const existingData = await existingResponse.json().catch(() => null)
+      if (!existingResponse.ok || !existingData?.success) {
+        throw new Error(existingResponse.status === 401 ? 'Admin session expired. Sign in again.' : (existingData?.error || 'Could not read the services CMS.'))
+      }
+      const existingSlugs = new Set((existingData.services || []).map((item: any) => item.slug))
+      const categoryMap: Record<string, string> = {
+        'Business Websites': 'development',
+        'E-Commerce': 'business',
+        'CRM & Automation': 'business',
+        'Lead Generation': 'business',
+        'Real Estate': 'business',
+        'Education': 'advanced',
+        'FinTech': 'business',
+        'Admin Systems': 'development',
+        'Custom Web Apps': 'advanced',
+      }
+      let added = 0
+      let failed = 0
+      for (const [index, item] of SERVICES_CATALOG.entries()) {
+        const slug = item.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        if (existingSlugs.has(slug)) continue
+        const response = await fetch('/api/admin/services', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({
+            title: item.name,
+            slug,
+            category: categoryMap[item.storefrontGroup] || 'development',
+            icon: 'Sparkles',
+            tagline: item.packageLevel + ' · ' + item.deliveryTime,
+            shortDescription: item.shortDescription,
+            ctaLabel: 'Request this Service',
+            displayOrder: index + 1,
+            featured: Boolean(item.isFlagshipFeatured),
+            published: false,
+            seoTitle: item.name,
+            seoDescription: item.shortDescription.slice(0, 160),
+            features: item.deliverables,
+            sections: [{
+              heading: 'Package details',
+              body: item.packageLevel + ' package · ' + item.deliveryTime + ' · ' + formatPkr(item.recommendedPkr, item.isStartingFrom) + ' · ' + formatUsd(item.optionalUsd, item.isStartingFrom),
+              items: item.deliverables,
+            }],
+          }),
+        })
+        const result = await response.json().catch(() => null)
+        if (response.ok && result?.success) {
+          added += 1
+          existingSlugs.add(slug)
+        } else if (response.status === 401) {
+          throw new Error('Admin session expired. Sign in again.')
+        } else {
+          failed += 1
+        }
+      }
+      setImportStatus('Imported ' + added + ' draft service(s)' + (failed ? '; ' + failed + ' could not be added' : '') + '. Existing slugs were skipped; nothing was published.')
+    } catch (error) {
+      setImportStatus(error instanceof Error ? error.message : 'Import failed. Try again.')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const exportCsv = () => {
     const rows = [
@@ -52,12 +128,17 @@ export const New331CatalogPanel: React.FC = () => {
         <div>
           <h2 className="h5 font-weight-bold text-white mb-1">new331 Services Catalog</h2>
           <p className="small text-muted mb-0">
-            Embedded catalog records from the new331 source. Service editing and publication remain connected to izoko’s first-party CMS.
+            Embedded catalog records from the new331 source. Import them into the local Services CMS as unpublished drafts.
           </p>
         </div>
-        <button type="button" className="btn btn-outline-primary btn-sm mt-2 mt-md-0" onClick={exportCsv}>
-          Export filtered CSV
-        </button>
+        <div className="d-flex flex-wrap align-items-center mt-2 mt-md-0">
+          <button type="button" className="btn btn-outline-primary btn-sm mr-2 mb-2 mb-md-0" onClick={exportCsv}>
+            Export filtered CSV
+          </button>
+          <button type="button" className="btn btn-primary btn-sm mb-2 mb-md-0" onClick={() => void importToCms()} disabled={importing}>
+            {importing ? 'Importing drafts…' : 'Import catalog as CMS drafts'}
+          </button>
+        </div>
       </div>
 
       <div className="row mb-3">
@@ -84,6 +165,8 @@ export const New331CatalogPanel: React.FC = () => {
           </select>
         </div>
       </div>
+
+      {importStatus && <div className="alert alert-info py-2 small" role="status">{importStatus}</div>}
 
       <div className="row mb-3">
         <div className="col-12 col-sm-4"><div className="card border-0 shadow-sm h-100"><div className="card-body py-3"><div className="small text-muted">Catalog services</div><div className="h4 font-weight-bold text-dark mb-0">{filtered.length} <small className="text-muted">/ {SERVICES_CATALOG.length}</small></div></div></div></div>
