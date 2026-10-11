@@ -10,6 +10,7 @@ import {
 } from '../../data/new331ServicesCatalog'
 
 type TierFilter = 'All' | PackageLevel
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
 
 export const New331CatalogPanel: React.FC = () => {
   const [query, setQuery] = useState('')
@@ -40,7 +41,7 @@ export const New331CatalogPanel: React.FC = () => {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: 'Bearer ' + token } : {}),
       }
-      const existingResponse = await fetch('/api/admin/services', { credentials: 'include', headers })
+      const existingResponse = await fetch(API_BASE + '/api/admin/services', { credentials: 'include', headers })
       const existingData = await existingResponse.json().catch(() => null)
       if (!existingResponse.ok || !existingData?.success) {
         throw new Error(existingResponse.status === 401 ? 'Admin session expired. Sign in again.' : (existingData?.error || 'Could not read the services CMS.'))
