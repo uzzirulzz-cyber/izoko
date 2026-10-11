@@ -60,7 +60,7 @@ export const New331CatalogPanel: React.FC = () => {
         </button>
       </div>
 
-      <div className="row g-2 mb-3">
+      <div className="row mb-3">
         <div className="col-12 col-md-5">
           <label className="sr-only" htmlFor="new331-catalog-search">Search catalog</label>
           <input
@@ -85,7 +85,7 @@ export const New331CatalogPanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="row g-3 mb-3">
+      <div className="row mb-3">
         <div className="col-12 col-sm-4"><div className="card border-0 shadow-sm h-100"><div className="card-body py-3"><div className="small text-muted">Catalog services</div><div className="h4 font-weight-bold text-dark mb-0">{filtered.length} <small className="text-muted">/ {SERVICES_CATALOG.length}</small></div></div></div></div>
         <div className="col-12 col-sm-4"><div className="card border-0 shadow-sm h-100"><div className="card-body py-3"><div className="small text-muted">Flagship blueprints</div><div className="h4 font-weight-bold text-dark mb-0">{FEATURED_FLAGSHIP_SERVICES.length}</div></div></div></div>
         <div className="col-12 col-sm-4"><div className="card border-0 shadow-sm h-100"><div className="card-body py-3"><div className="small text-muted">Source</div><div className="h6 font-weight-bold text-dark mb-0">new331 · embedded in izoko</div></div></div></div>
