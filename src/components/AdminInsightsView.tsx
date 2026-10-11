@@ -87,7 +87,7 @@ import '../admin/themes.css'
 import '../admin/layout-fixes.css'
 import {
   useAdminPrefs, prefsToRootProps, adminToast, AdminToastHost,
-  CommandPalette, ThemeStudioLauncher, QuickActionsFAB, MetricCard, Funnel, RangeChips,
+  CommandPalette, ThemePicker, QuickActionsFAB, MetricCard, Funnel, RangeChips,
   SkeletonKPIs, EmptyState, ErrorState, StatusBadge, exportCsv,
   type CmdkAction, type QuickAction,
   LayoutDashboard as KitDashboard, Package as KitPackage, ShoppingBag as KitOrders,
@@ -1968,7 +1968,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               </button>
 
               {/* Theme Studio — presets, custom builder, appearance mode */}
-              <ThemeStudioLauncher prefs={prefs} onChange={updatePrefs} />
+              <ThemePicker prefs={prefs} onChange={updatePrefs} />
 
               {/* Fullscreen */}
               <button className="pa-iconbtn p-2 hidden sm:flex" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
@@ -2359,15 +2359,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
             {/* VIEW 1: DASHBOARD OVERVIEW (8-CARD BENTO MATRIX MATCHING SCREENSHOT 1) */}
             {activeNav === 'dashboard' && (
-              <div className="space-y-6">
+              <div className="pa-dashboard space-y-6">
                 <PlaybeatLivePanel compact onNavigate={setActiveNav} />
                 <GrowthStatusPanel />
                 {/* Top Row: Cards 01 to 04 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="row g-4">
                   {/* ========================================================================= */}
                   {/* CARD 01: DASHBOARD OVERVIEW */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--blue pa-card--hover pa-rise p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--blue pa-card--hover pa-rise p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 01 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -2566,7 +2566,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 02: REVENUE ANALYTICS */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--gold pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--gold pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 02 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -2848,7 +2848,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 03: ORDER & TRAFFIC INSIGHTS */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--purple pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--purple pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 03 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -2986,7 +2986,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 04: TOP SELLING PRODUCTS */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--rose pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--rose pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 04 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -3068,11 +3068,11 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 </div>
 
                 {/* Bottom Row: Cards 05 to 08 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="row g-4">
                   {/* ========================================================================= */}
                   {/* CARD 05: RECENT ORDERS */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--emerald pa-card--hover pa-rise pa-rise-1 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--emerald pa-card--hover pa-rise pa-rise-1 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 05 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -3163,7 +3163,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 06: SYSTEM HEALTH */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--teal pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--teal pa-card--hover pa-rise pa-rise-2 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 06 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -3281,7 +3281,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 07: QUICK ACTIONS & SHORTCUTS */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--amber pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--amber pa-card--hover pa-rise pa-rise-3 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 07 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">
@@ -3428,7 +3428,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   {/* ========================================================================= */}
                   {/* CARD 08: SMART ADMIN EXPERIENCE */}
                   {/* ========================================================================= */}
-                  <div className="pa-card pa-card--sky pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="col-12 col-md-6 col-xl-3 pa-card pa-card--sky pa-card--hover pa-rise pa-rise-4 p-5 space-y-4 flex flex-col justify-between">
                     {/* Header Bar with 08 Badge */}
                     <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/5">
                       <div className="flex items-center gap-2.5">

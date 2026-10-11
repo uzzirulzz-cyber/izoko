@@ -886,6 +886,7 @@ export const ThemePicker: React.FC<{
   prefs: AdminPrefs; onChange: (patch: Partial<AdminPrefs>) => void
 }> = ({ prefs, onChange }) => {
   const [open, setOpen] = useState(false)
+  const [studioOpen, setStudioOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -893,47 +894,65 @@ export const ThemePicker: React.FC<{
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
+  useEffect(() => {
+    const onStudio = () => { setOpen(false); setStudioOpen(true) }
+    window.addEventListener('pb:theme-studio', onStudio)
+    return () => window.removeEventListener('pb:theme-studio', onStudio)
+  }, [])
   return (
-    <div className="relative" ref={wrapRef}>
-      <button
-        className="pa-iconbtn p-2" title="Appearance — themes & density" aria-label="Appearance settings"
-        aria-expanded={open} onClick={() => setOpen((v) => !v)}
-      ><Palette className="w-4 h-4" /></button>
-      {open && (
-        <div className="pb-themepop">
-          <div className="pb-themepop-title">Appearance</div>
-          <div className="pb-themegrid">
-            {ADMIN_THEMES.map((t) => {
-              const on = prefs.theme === t.id
-              return (
-                <button key={t.id} className={`pb-themecard ${on ? 'pb-themecard--on' : ''}`} onClick={() => onChange({ theme: t.id })} aria-pressed={on} title={t.desc}>
-                  <div className="pb-themecard-prev" style={{ background: t.canvas }}>
-                    <div className="pb-themecard-side" style={{ background: t.side }} />
-                    <div className="pb-themecard-main">
-                      <span className="pb-themecard-line" style={{ width: '72%', background: t.line }} />
-                      <span className="pb-themecard-line" style={{ width: '52%', background: t.line, opacity: 0.55 }} />
-                      <span className="pb-themecard-dot" style={{ background: t.accent }} />
+    <>
+      <div className="relative" ref={wrapRef}>
+        <button
+          className="pa-iconbtn p-2 flex items-center gap-2" title="Choose admin theme and display density" aria-label="Choose admin theme"
+          aria-expanded={open} onClick={() => setOpen((v) => !v)}
+        >
+          <Palette className="w-4 h-4" />
+          <span className="hidden sm:inline text-xs font-semibold">Theme</span>
+        </button>
+        {open && (
+          <div className="pb-themepop">
+            <div className="pb-themepop-title">Admin theme</div>
+            <div className="pb-themegrid">
+              {ADMIN_THEMES.map((t) => {
+                const on = prefs.theme === t.id
+                return (
+                  <button key={t.id} className={`pb-themecard ${on ? 'pb-themecard--on' : ''}`} onClick={() => onChange({ theme: t.id })} aria-pressed={on} title={t.desc}>
+                    <div className="pb-themecard-prev" style={{ background: t.canvas }}>
+                      <div className="pb-themecard-side" style={{ background: t.side }} />
+                      <div className="pb-themecard-main">
+                        <span className="pb-themecard-line" style={{ width: '72%', background: t.line }} />
+                        <span className="pb-themecard-line" style={{ width: '52%', background: t.line, opacity: 0.55 }} />
+                        <span className="pb-themecard-dot" style={{ background: t.accent }} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="pb-themecard-name">
-                    {t.name}
-                    {on && <Check className="w-3.5 h-3.5 pb-themecard-check" />}
-                  </div>
+                    <div className="pb-themecard-name">
+                      {t.name}
+                      {on && <Check className="w-3.5 h-3.5 pb-themecard-check" />}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="pb-themepop-title" style={{ marginTop: 13 }}>Display density</div>
+            <div className="pb-density">
+              {(['comfortable', 'compact', 'dense'] as Density[]).map((d) => (
+                <button key={d} className={prefs.density === d ? 'pb-density--on' : ''} onClick={() => onChange({ density: d })} aria-pressed={prefs.density === d}>
+                  {d[0].toUpperCase() + d.slice(1)}
                 </button>
-              )
-            })}
+              ))}
+            </div>
+            <button
+              className="w-full mt-3 px-3 py-2 rounded-lg border text-xs font-semibold"
+              style={{ borderColor: 'var(--pa-line)', color: 'var(--pa-ink)' }}
+              onClick={() => { setOpen(false); setStudioOpen(true) }}
+            >
+              Open Theme Studio
+            </button>
           </div>
-          <div className="pb-themepop-title" style={{ marginTop: 13 }}>Display density</div>
-          <div className="pb-density">
-            {(['comfortable', 'compact', 'dense'] as Density[]).map((d) => (
-              <button key={d} className={prefs.density === d ? 'pb-density--on' : ''} onClick={() => onChange({ density: d })} aria-pressed={prefs.density === d}>
-                {d[0].toUpperCase() + d.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+      <ThemeStudio open={studioOpen} onClose={() => setStudioOpen(false)} prefs={prefs} onChange={onChange} />
+    </>
   )
 }
 
