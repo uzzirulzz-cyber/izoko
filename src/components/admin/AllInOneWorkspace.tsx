@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
-import { Activity, Boxes, BriefcaseBusiness, ClipboardList, Radio, ShoppingBag, Sparkles, Star, Tags } from 'lucide-react'
+import { Activity, Boxes, Briefcase, ClipboardList, Radio, ShoppingBag, Sparkles, Star, Tags } from 'lucide-react'
 import { PlaybeatLivePanel } from './PlaybeatLivePanel'
 import { ServicesPanel } from './ServicesPanel'
 import { ServiceRequestsPanel } from './ServiceRequestsPanel'
 import { InventoryPanel, CouponCodesPanel, ReviewsModerationPanel, HomepageBuilderPanel } from './OpsPanels'
 import { CRMApp } from '../crm/CRMApp'
+import { New331CatalogPanel } from './New331CatalogPanel'
 
 type WorkspaceTab =
   | 'overview'
   | 'crm'
   | 'live'
   | 'services'
+  | 'new331'
   | 'requests'
   | 'inventory'
   | 'promotions'
@@ -25,9 +27,10 @@ interface AllInOneWorkspaceProps {
 
 const tabs: Array<{ id: WorkspaceTab; label: string; icon: React.ReactNode }> = [
   { id: 'overview', label: 'Overview', icon: <Activity size={15} /> },
-  { id: 'crm', label: 'Lead Pulse CRM', icon: <BriefcaseBusiness size={15} /> },
+  { id: 'crm', label: 'Lead Pulse CRM', icon: <Briefcase size={15} /> },
   { id: 'live', label: 'PlayBeat.live', icon: <Radio size={15} /> },
-  { id: 'services', label: 'Digital Services', icon: <Sparkles size={15} /> },
+  { id: 'services', label: 'Digital Services CMS', icon: <Sparkles size={15} /> },
+  { id: 'new331', label: 'new331 Catalog', icon: <ShoppingBag size={15} /> },
   { id: 'requests', label: 'Requests', icon: <ClipboardList size={15} /> },
   { id: 'inventory', label: 'Inventory', icon: <Boxes size={15} /> },
   { id: 'promotions', label: 'Promotions', icon: <Tags size={15} /> },
@@ -55,6 +58,8 @@ export const AllInOneWorkspace: React.FC<AllInOneWorkspaceProps> = ({
         return <PlaybeatLivePanel onNavigate={onNavigate} />
       case 'services':
         return <ServicesPanel onToast={onToast} />
+      case 'new331':
+        return <New331CatalogPanel />
       case 'requests':
         return <ServiceRequestsPanel onToast={onToast} onChanged={onChanged} />
       case 'inventory':
@@ -100,6 +105,15 @@ export const AllInOneWorkspace: React.FC<AllInOneWorkspaceProps> = ({
                   <span className="badge badge-primary mb-2">Digital catalog</span>
                   <h2 className="h6 font-weight-bold text-dark">Services & portfolio CMS</h2>
                   <p className="small text-muted mb-0">Edit first-party services, portfolio entries and their publication status in izoko.</p>
+                </div>
+              </button>
+            </div>
+            <div className="col-12 col-md-6">
+              <button type="button" className="card border-0 shadow-sm h-100 w-100 text-left" onClick={() => setTab('new331')}>
+                <div className="card-body">
+                  <span className="badge badge-primary mb-2">new331 source</span>
+                  <h2 className="h6 font-weight-bold text-dark">Embedded services catalog</h2>
+                  <p className="small text-muted mb-0">Browse, filter and export the source catalog in this admin. Edit and publish through the local CMS tab.</p>
                 </div>
               </button>
             </div>
