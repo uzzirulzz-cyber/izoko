@@ -87,7 +87,7 @@ import '../admin/themes.css'
 import '../admin/layout-fixes.css'
 import {
   useAdminPrefs, prefsToRootProps, adminToast, AdminToastHost,
-  CommandPalette, ThemeStudioLauncher, QuickActionsFAB, MetricCard, Funnel, RangeChips,
+  CommandPalette, ThemePicker, QuickActionsFAB, MetricCard, Funnel, RangeChips,
   SkeletonKPIs, EmptyState, ErrorState, StatusBadge, exportCsv,
   type CmdkAction, type QuickAction,
   LayoutDashboard as KitDashboard, Package as KitPackage, ShoppingBag as KitOrders,
@@ -1968,7 +1968,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               </button>
 
               {/* Theme Studio — presets, custom builder, appearance mode */}
-              <ThemeStudioLauncher prefs={prefs} onChange={updatePrefs} />
+              <ThemePicker prefs={prefs} onChange={updatePrefs} />
 
               {/* Fullscreen */}
               <button className="pa-iconbtn p-2 hidden sm:flex" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
