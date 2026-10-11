@@ -1975,14 +1975,6 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 {isFullscreen ? <KitMin className="w-4 h-4" /> : <KitMax className="w-4 h-4" />}
               </button>
 
-              {activeNav === 'all-in-one' && (
-              <AllInOneWorkspace
-                onToast={(message) => triggerToast(message)}
-                onChanged={fetchSvcStats}
-                onNavigate={setActiveNav}
-              />
-            )}
-
             {activeNav === 'crm' && (
                 <span
                   aria-label="CRM section"
@@ -2333,6 +2325,13 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
               />
             ) : (
             <>
+            {activeNav === 'all-in-one' && (
+              <AllInOneWorkspace
+                onToast={(message) => triggerToast(message)}
+                onChanged={fetchSvcStats}
+                onNavigate={setActiveNav}
+              />
+            )}
             {activeNav === 'crm' && (
               <section aria-label="CRM workspace" className="min-h-[65vh] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <CRMApp embedded onExit={() => setActiveNav('dashboard')} />
