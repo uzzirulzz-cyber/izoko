@@ -1977,7 +1977,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
 
               {activeNav === 'all-in-one' && (
               <AllInOneWorkspace
-                onToast={(message, kind) => triggerToast(message, kind)}
+                onToast={(message) => triggerToast(message)}
                 onChanged={fetchSvcStats}
                 onNavigate={setActiveNav}
               />
