@@ -72,7 +72,7 @@ export const AllInOneWorkspace: React.FC<AllInOneWorkspaceProps> = ({
         return <HomepageBuilderPanel onToast={onToast} />
       default:
         return (
-          <div className="row g-3">
+          <div className="row">
             <div className="col-12 col-xl-7">
               <div className="card border-0 shadow-sm h-100">
                 <div className="card-header bg-white border-bottom py-3">
