@@ -130,6 +130,7 @@ import { SeoPanel } from './admin/SeoPanel'
 import { ProductEditorPage } from './admin/ProductEditorPage'
 import { SeoControlCenter } from './admin/SeoControlCenter'
 import { CRMApp } from './crm/CRMApp'
+import { AllInOneWorkspace } from './admin/AllInOneWorkspace'
 
 interface AdminInsightsViewProps {
   products: Product[]
@@ -264,7 +265,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
-      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'crm', 'chatgpt',
+      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'all-in-one', 'crm', 'chatgpt',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -1660,6 +1661,21 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   </button>
 
                   <button
+                    onClick={() => setActiveNav('all-in-one')}
+                    className={`w-full flex items-center justify-between px-3 py-2 ${
+                      activeNav === 'all-in-one' ? 'pa-nav-item--active' : 'pa-nav-item'
+                    }`}
+                    aria-label="Open all-in-one PlayBeat workspace"
+                    title="CRM, Live, services and store operations in one workspace"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Boxes className="w-4 h-4 text-violet-400" />
+                      {!sidebarCollapsed && <span>All-in-One Workspace</span>}
+                    </div>
+                    {!sidebarCollapsed && <span className="px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-700 font-mono text-[10px] font-semibold">ONE</span>}
+                  </button>
+
+                  <button
                     onClick={() => setActiveNav('crm')}
                     className={`w-full flex items-center justify-between px-3 py-2 ${
                       activeNav === 'crm' ? 'pa-nav-item--active' : 'pa-nav-item'
@@ -1959,7 +1975,15 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 {isFullscreen ? <KitMin className="w-4 h-4" /> : <KitMax className="w-4 h-4" />}
               </button>
 
-              {activeNav === 'crm' && (
+              {activeNav === 'all-in-one' && (
+              <AllInOneWorkspace
+                onToast={(message, kind) => triggerToast(message, kind)}
+                onChanged={fetchSvcStats}
+                onNavigate={setActiveNav}
+              />
+            )}
+
+            {activeNav === 'crm' && (
                 <span
                   aria-label="CRM section"
                   title="Current section: CRM"
@@ -1991,18 +2015,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                 <span>ChatGPT</span>
               </button>
 
-              {/* Direct shortcut to the PlayBeat Live deployment project */}
-              <a
-                href="https://vercel.com/playbeatdigital-techs-projects/playbeat-live"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Manage PlayBeat Live on Vercel"
-                title="Manage the PlayBeat Live Vercel project"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 hover:border-violet-300 text-xs font-semibold text-violet-800 transition"
+              <button
+                type="button"
+                onClick={() => setActiveNav('all-in-one')}
+                aria-label="Open the integrated PlayBeat workspace"
+                title="Manage CRM, Live and Digital operations in this admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-xs font-semibold text-violet-800 transition"
               >
-                <ExternalLink className="w-4 h-4 text-violet-300" />
-                <span>Live Vercel</span>
-              </a>
+                <Boxes className="w-4 h-4 text-violet-700" />
+                <span>All-in-One</span>
+              </button>
 
               {/* Cloudflare worker serving PlayBeat Live crawler rules */}
               <a
