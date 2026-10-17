@@ -588,6 +588,29 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     });
   }
 
+  if (route === "admin/executive-pin" && req.method === "POST") {
+    res.setHeader("Cache-Control", "no-store");
+    const profiles: Record<string, string> = { qazi: "QAZI", creed: "CREED", mahbuba: "MAHBUBA" };
+    const id = String(req.body?.profile || "").toLowerCase().trim();
+    const supplied = String(req.body?.pin || "");
+    const suffix = profiles[id];
+    if (!suffix || !/^\\d{5}$/.test(supplied)) return jsonError(res, "Invalid profile or PIN.", 401);
+    try {
+      const db = await getDb();
+      const gate = await mongoRateLimit(db, "admin-exec:" + id + ":" + clientIp(req as any), 5, 900);
+      if (!gate.allowed) return jsonError(res, "Too many attempts. Try again later.", 429);
+      const expected = String(process.env["EXEC_PIN_" + suffix] || "");
+      const aa = Buffer.from(supplied);
+      const bb = Buffer.from(expected);
+      if (aa.length !== bb.length || !timingSafeEqual(aa, bb)) return jsonError(res, "Invalid profile or PIN.", 401);
+      const email = "executive-" + id + "@playbeat.digital";
+      const name = id === "qazi" ? "Qazi" : id === "creed" ? "Creed" : "Mahbuba";
+      const token = signAdminToken({ email, name });
+      setCookie(res, "adminToken", token, { maxAge: 12 * 60 * 60 });
+      return jsonOk(res, { success: true, token, admin: { email, name, role: "admin" } });
+    } catch { return jsonError(res, "Authentication unavailable.", 503); }
+  }
+
   // ============ /api/auth/admin/login ============
   // Accepts EITHER the super administrator env credentials OR an employee/staff
   // account created by the super admin in the admin panel (bcrypt-verified).
