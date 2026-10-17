@@ -126,6 +126,21 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
       <main className="pb-al-stage" style={{ backgroundImage: 'url(/admin_login_design.webp)' }}>
         <h1 className="sr-only">PlayBeat Digital Admin Panel — Sign In</h1>
 
+        {/* Executive profile selection. Authentication stays server-verified. */}
+        <section aria-label="Executive profiles" style={{ position: 'absolute', top: '11%', left: '11%', right: '11%', zIndex: 3, display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {([
+            { id: 'qazi', name: 'Qazi', title: 'CEO' },
+            { id: 'creed', name: 'Creed', title: 'Founder' },
+            { id: 'mahbuba', name: 'Mahbuba', title: 'Director' },
+          ] as const).map((profile) => (
+            <button key={profile.id} type="button" onClick={() => { setUsername(profile.id); setMessage('Enter your authorized admin credentials to continue.'); }}
+              aria-label={`Select ${profile.name}, ${profile.title}`}
+              style={{ background: username === profile.id ? '#163b73' : '#0c1934', color: '#fff', border: '1px solid #3f75bb', borderRadius: 14, padding: '10px 16px', minWidth: 110, cursor: 'pointer' }}>
+              <span style={{ display: 'block', fontWeight: 700 }}>{profile.name}</span>
+              <span style={{ display: 'block', fontSize: 11, opacity: 0.75 }}>{profile.title}</span>
+            </button>
+          ))}
+        </section>
         <form noValidate onSubmit={handleSubmit}>
           {/* Username overlay */}
           <div className={`pb-al-fld pb-al-u ${errField === 'user' ? 'pb-al-err' : ''}`}>
