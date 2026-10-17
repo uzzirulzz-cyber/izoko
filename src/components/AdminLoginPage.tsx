@@ -53,7 +53,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
   return <main className="min-h-screen bg-[#050b1c] text-white flex items-center justify-center px-4 py-10">
     <div className="w-full max-w-3xl rounded-[28px] border border-blue-300/20 bg-[linear-gradient(145deg,#132440,#091329_85%)] p-6 sm:p-12 shadow-[0_35px_110px_rgba(0,0,0,.58),inset_0_1px_rgba(255,255,255,.07)]">
       <div className="text-center mb-8">
-        <div className="text-sm font-bold tracking-[.2em] text-blue-300">PLAYBEAT DIGITAL</div>
+        <div className="text-sm font-bold tracking-[.2em] text-blue-300">PLAYBEAT DIGITAL</div><div className="relative mx-auto my-4 h-28 w-28 grid place-items-center"><img src="/playbeat-logo-800.webp" alt="PlayBeat Digital" className="h-24 w-24 object-contain drop-shadow-[0_0_18px_rgba(100,160,255,.25)]"/><span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border-2 border-transparent border-t-amber-400 border-r-sky-400 animate-[spin_6s_linear_infinite] motion-reduce:animate-none"/></div>
         <h1 className="text-3xl font-bold mt-3">Select your profile</h1>
         <p className="text-slate-400 mt-2">Executive dashboard · Secure PIN access</p>
       </div>
