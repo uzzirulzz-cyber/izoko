@@ -594,7 +594,7 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     const id = String(req.body?.profile || "").toLowerCase().trim();
     const supplied = String(req.body?.pin || "");
     const suffix = profiles[id];
-    if (!suffix || !/^\\d{5}$/.test(supplied)) return jsonError(res, "Invalid profile or PIN.", 401);
+    if (!suffix || !/^\d{5}$/.test(supplied)) return jsonError(res, "Invalid profile or PIN.", 401);
     try {
       const db = await getDb();
       const gate = await mongoRateLimit(db, "admin-exec:" + id + ":" + clientIp(req as any), 5, 900);
