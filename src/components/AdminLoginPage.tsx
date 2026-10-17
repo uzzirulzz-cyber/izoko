@@ -1,221 +1,83 @@
-import React, { useRef, useState, useEffect } from 'react'
-
-/**
- * AdminLoginPage — "PlayBeat Digital — Admin Login" design implementation.
- * The page is ONE pixel-perfect artwork (1536×1024, webp) with the real
- * username/password fields, status line and login button overlaid at the
- * design's exact coordinates. Wired to the production admin auth API
- * (POST /api/auth/admin/login) with the same hardening as AdminLogin:
- * 5-attempt lockout (60s), password scrub, token-only persistence.
- */
+import React, { useState } from 'react'
 
 interface AdminLoginPageProps {
   onSuccess: (admin: { email: string; name: string }) => void
   onCancel: () => void
 }
-
 const API_BASE = (import.meta as any).env?.VITE_API_BASE || ''
+const PROFILES = [
+  { id: 'qazi', name: 'Qazi', title: 'CEO' },
+  { id: 'creed', name: 'Creed', title: 'Founder' },
+  { id: 'mahbuba', name: 'Mahbuba', title: 'Director' },
+] as const
 
 export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCancel }) => {
-  const [username, setUsername] = useState('playbeat.digital')
-  const [selectedExecutive, setSelectedExecutive] = useState<string | null>(null)
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [message, setMessage] = useState('')
-  const [messageOk, setMessageOk] = useState(false)
-  const [errField, setErrField] = useState<'' | 'user' | 'pass'>('')
+  const [profile, setProfile] = useState<string>('')
+  const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [attempts, setAttempts] = useState(0)
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
-  const usernameRef = useRef<HTMLInputElement>(null)
-  const passwordRef = useRef<HTMLInputElement>(null)
-
-  // Lockout countdown
-  useEffect(() => {
-    if (!lockedUntil) return
-    const t = setInterval(() => {
-      if (Date.now() >= lockedUntil) {
-        setLockedUntil(null)
-        setAttempts(0)
-      }
-    }, 1000)
-    return () => clearInterval(t)
-  }, [lockedUntil])
-
-  // Scrub typed values on unmount
-  useEffect(() => {
-    return () => {
-      if (passwordRef.current) passwordRef.current.value = ''
-    }
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setMessage('')
-    setMessageOk(false)
-
-    if (lockedUntil && Date.now() < lockedUntil) {
-      const secs = Math.ceil((lockedUntil - Date.now()) / 1000)
-      setMessage(`Too many failed attempts. Try again in ${secs}s.`)
-      return
-    }
-
-    const email = username.trim()
-    if (!email || !password) {
-      setErrField(!email ? 'user' : 'pass')
-      setMessage('Enter your username and password.')
-      return
-    }
-
-    setLoading(true)
+  const [lockedUntil, setLockedUntil] = useState(0)
+  const selected = PROFILES.find(x => x.id === profile)
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selected || !/^\\d{5}$/.test(pin)) { setError('Select a profile and enter the five-digit PIN.'); return }
+    if (Date.now() < lockedUntil) { setError('Too many attempts. Try again later.'); return }
+    setLoading(true);setError('')
     try {
-      const res = await fetch(`${API_BASE}/api/auth/admin/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
+      const response = await fetch(`${API_BASE}/api/auth/admin/executive-pin`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile, pin })
       })
-      const data = await res.json().catch(() => null)
-
-      // Always scrub the password, whatever the outcome
-      setPassword('')
-      if (passwordRef.current) passwordRef.current.value = ''
-
-      if (!res.ok || !data?.success) {
-        const next = attempts + 1
-        setAttempts(next)
-        if (next >= 5) {
-          setLockedUntil(Date.now() + 60_000)
-          setMessage('Maximum login attempts exceeded. Account locked for 60 seconds.')
-        } else {
-          setMessage(data?.error || 'Invalid credentials or server unavailable.')
-        }
+      const result = await response.json().catch(() => null)
+      setPin('')
+      if (!response.ok || !result?.success || !result?.token) {
+        const count = attempts + 1
+        setAttempts(count)
+        if (count >= 5) setLockedUntil(Date.now() + 15 * 60_000)
+        setError(result?.error || 'Incorrect PIN or server unavailable.')
         return
       }
-
-      // Persist token + session (never the password)
-      if (data.token) localStorage.setItem('playbeat_admin_token', data.token)
-      localStorage.setItem(
-        'playbeat_admin_session',
-        JSON.stringify({
-          email: data.admin?.email || email,
-          name: data.admin?.name || 'Super Administrator',
-          ts: Date.now(),
-        })
-      )
-      if (usernameRef.current) usernameRef.current.value = ''
-
-      setMessageOk(true)
-      setMessage('Access granted. Redirecting…')
-      onSuccess({
-        email: data.admin?.email || email,
-        name: data.admin?.name || 'PlayBeat Super Administrator',
-      })
-    } catch (err: any) {
-      setPassword('')
-      if (passwordRef.current) passwordRef.current.value = ''
-      setMessage(err?.message || 'Invalid credentials or server unavailable.')
-    } finally {
-      setLoading(false)
-    }
+      localStorage.setItem('playbeat_admin_token', result.token)
+      localStorage.setItem('playbeat_admin_session', JSON.stringify({
+        email: result.admin.email, name: result.admin.name, ts: Date.now()
+      }))
+      onSuccess({ email: result.admin.email, name: result.admin.name })
+    } catch {
+      setPin('')
+      setError('Authentication service unavailable.')
+    } finally { setLoading(false) }
   }
-
-  const isLocked = !!lockedUntil && Date.now() < lockedUntil
-
-  return (
-    <div className="pb-al-min min-h-screen bg-[#020817] overflow-x-hidden">
-      <main className="pb-al-stage" style={{ backgroundImage: 'url(/admin_login_design.webp)' }}>
-        <h1 className="sr-only">PlayBeat Digital Admin Panel — Sign In</h1>
-
-        {/* Executive profile selection. Authentication stays server-verified. */}
-        <section aria-label="Executive profiles" style={{ position: 'absolute', top: '11%', left: '11%', right: '11%', zIndex: 3, display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-          {([
-            { id: 'qazi', name: 'Qazi', title: 'CEO' },
-            { id: 'creed', name: 'Creed', title: 'Founder' },
-            { id: 'mahbuba', name: 'Mahbuba', title: 'Director' },
-          ] as const).map((profile) => (
-            <button key={profile.id} type="button" onClick={() => { setSelectedExecutive(profile.id); setMessage('Enter your existing authorized admin username and password to continue.'); }}
-              aria-label={`Select ${profile.name}, ${profile.title}`}
-              style={{ background: selectedExecutive === profile.id ? '#163b73' : '#0c1934', color: '#fff', border: '1px solid #3f75bb', borderRadius: 14, padding: '10px 16px', minWidth: 110, cursor: 'pointer' }}>
-              <span style={{ display: 'block', fontWeight: 700 }}>{profile.name}</span>
-              <span style={{ display: 'block', fontSize: 11, opacity: 0.75 }}>{profile.title}</span>
-            </button>
-          ))}
-        </section>
-        <form noValidate onSubmit={handleSubmit}>
-          {/* Username overlay */}
-          <div className={`pb-al-fld pb-al-u ${errField === 'user' ? 'pb-al-err' : ''}`}>
-            <input
-              ref={usernameRef}
-              type="text"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value)
-                setErrField('')
-                setMessage('')
-              }}
-              onFocus={(e) => e.currentTarget.select()}
-              aria-label="Username or email"
-              autoComplete="username"
-              spellCheck={false}
-            />
-          </div>
-
-          {/* Password overlay + eye toggle */}
-          <div className={`pb-al-fld pb-al-p ${errField === 'pass' ? 'pb-al-err' : ''}`}>
-            <input
-              ref={passwordRef}
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setErrField('')
-                setMessage('')
-              }}
-              placeholder="Enter your password"
-              aria-label="Password"
-              autoComplete="current-password"
-            />
-            <button
-              type="button"
-              className="pb-al-eye"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              onClick={() => setShowPassword((s) => !s)}
-            >
-              {showPassword ? (
-                <svg viewBox="0 0 24 24">
-                  <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24">
-                  <path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          {/* Status line */}
-          <div className={`pb-al-msg ${messageOk ? 'pb-al-msg-ok' : ''}`} role="alert">
-            {message}
-          </div>
-
-          {/* Login button — transparent while idle so the baked "→ Login"
-              label shows through; opaque gradient covers it while loading/locked */}
-          <button
-            className={`pb-al-go ${loading || isLocked ? 'pb-al-go-ld' : ''}`}
-            type="submit"
-            aria-label="Login"
-            disabled={loading || isLocked}
-          >
-            <i />
-            <span>{loading ? 'Signing in…' : isLocked ? 'Locked' : ''}</span>
-          </button>
-        </form>
-
-        {/* Footer link back to the storefront */}
-        <button type="button" className="pb-al-lnk" aria-label="playbeat.digital" onClick={onCancel} />
-      </main>
+  return <main className="min-h-screen bg-[#050b1c] text-white flex items-center justify-center px-4 py-10">
+    <div className="w-full max-w-2xl rounded-3xl border border-blue-400/20 bg-[#0a1530] p-6 sm:p-10 shadow-2xl">
+      <div className="text-center mb-8">
+        <div className="text-sm font-bold tracking-[.2em] text-blue-300">PLAYBEAT DIGITAL</div>
+        <h1 className="text-3xl font-bold mt-3">Select your profile</h1>
+        <p className="text-slate-400 mt-2">Executive dashboard · Secure PIN access</p>
+      </div>
+      <section aria-label="Select executive profile" className="grid grid-cols-3 gap-3 sm:gap-5 mb-8">
+        {PROFILES.map(person => <button key={person.id} type="button" onClick={() => { setProfile(person.id);setPin('');setError('') }}
+          aria-pressed={profile === person.id}
+          className={`rounded-2xl border p-3 sm:p-5 text-center transition ${profile === person.id ? 'border-sky-400 bg-blue-500/20 ring-2 ring-sky-400/40' : 'border-slate-600/60 bg-[#101f3f] hover:border-blue-400'}`}>
+          <img src={`/executives/${person.id}.jpg`} alt={person.name} className="mx-auto h-16 w-16 sm:h-24 sm:w-24 rounded-full object-cover bg-slate-700 border-2 border-white/15"
+            onError={e => { e.currentTarget.style.opacity = '0.2' }} />
+          <span className="block font-bold mt-3 text-sm sm:text-lg">{person.name}</span>
+          <span className="block text-slate-400 text-xs sm:text-sm">{person.title}</span>
+        </button>)}
+      </section>
+      {selected && <form onSubmit={submit} className="max-w-xs mx-auto">
+        <label htmlFor="admin-pin" className="block text-sm text-slate-300 mb-2">{selected.name} — Enter PIN</label>
+        <input id="admin-pin" autoFocus type="password" inputMode="numeric" pattern="[0-9]{5}" autoComplete="off" required maxLength={5} value={pin}
+          onChange={e => setPin(e.target.value.replace(/\\D/g,'').slice(0,5))}
+          className="w-full rounded-xl border border-blue-400/40 bg-[#050d21] px-4 py-4 text-center text-2xl tracking-[.6em] outline-none focus:border-sky-400"
+          placeholder="•••••" aria-label="Five-digit PIN" />
+        {error && <p className="text-rose-300 text-sm mt-3" role="alert">{error}</p>}
+        <button type="submit" disabled={loading || pin.length !== 5 || Date.now() < lockedUntil}
+          className="mt-4 w-full rounded-xl bg-blue-600 px-5 py-3 font-semibold hover:bg-blue-500 disabled:opacity-50">
+          {loading ? 'Verifying…' : 'Unlock dashboard'}
+        </button>
+      </form>}
+      <button type="button" onClick={onCancel} className="block mx-auto mt-7 text-sm text-slate-400 hover:text-white">Back to store</button>
     </div>
-  )
+  </main>
 }
