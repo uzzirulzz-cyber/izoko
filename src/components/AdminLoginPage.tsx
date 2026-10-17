@@ -51,17 +51,17 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
     } finally { setLoading(false) }
   }
   return <main className="min-h-screen bg-[#050b1c] text-white flex items-center justify-center px-4 py-10">
-    <div className="w-full max-w-2xl rounded-3xl border border-blue-400/20 bg-[#0a1530] p-6 sm:p-10 shadow-2xl">
+    <div className="w-full max-w-3xl rounded-[28px] border border-blue-300/20 bg-[linear-gradient(145deg,#132440,#091329_85%)] p-6 sm:p-12 shadow-[0_35px_110px_rgba(0,0,0,.58),inset_0_1px_rgba(255,255,255,.07)]">
       <div className="text-center mb-8">
         <div className="text-sm font-bold tracking-[.2em] text-blue-300">PLAYBEAT DIGITAL</div>
         <h1 className="text-3xl font-bold mt-3">Select your profile</h1>
         <p className="text-slate-400 mt-2">Executive dashboard · Secure PIN access</p>
       </div>
-      <section aria-label="Select executive profile" className="grid grid-cols-3 gap-3 sm:gap-5 mb-8">
+      <section aria-label="Select executive profile" className="grid grid-cols-3 gap-3 sm:gap-6 mb-9">
         {PROFILES.map(person => <button key={person.id} type="button" onClick={() => { setProfile(person.id);setPin('');setError('') }}
           aria-pressed={profile === person.id}
           className={`rounded-2xl border p-3 sm:p-5 text-center transition ${profile === person.id ? 'border-sky-400 bg-blue-500/20 ring-2 ring-sky-400/40' : 'border-slate-600/60 bg-[#101f3f] hover:border-blue-400'}`}>
-          <img src={EXEC_AVATARS[person.id]} alt={person.name} className="mx-auto h-16 w-16 sm:h-24 sm:w-24 rounded-full object-cover bg-slate-700 border-2 border-white/15"
+          <img src={EXEC_AVATARS[person.id]} alt={person.name} className="mx-auto h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover bg-slate-700 border-[3px] border-sky-300/70 ring-[5px] ring-blue-500/10 shadow-lg"
             onError={e => { e.currentTarget.style.opacity = '0.2' }} />
           <span className="block font-bold mt-3 text-sm sm:text-lg">{person.name}</span>
           <span className="block text-slate-400 text-xs sm:text-sm">{person.title}</span>
