@@ -847,7 +847,7 @@ export function App() {
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
   useEffect(() => {
     let cancelled = false
-    if (route === 'admin' && !adminAuthed) {
+    if (route === 'admin' && !adminAuthed && window.location.pathname.replace(/\/+$/, '') !== '/admin') {
       setAdminChecking(true)
       verifyAdminSession()
         .then((ok) => {
