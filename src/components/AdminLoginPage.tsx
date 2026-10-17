@@ -21,7 +21,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
   const selected = PROFILES.find(x => x.id === profile)
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!selected || !/^\\d{5}$/.test(pin)) { setError('Select a profile and enter the five-digit PIN.'); return }
+    if (!selected || !/^\d{5}$/.test(pin)) { setError('Select a profile and enter the five-digit PIN.'); return }
     if (Date.now() < lockedUntil) { setError('Too many attempts. Try again later.'); return }
     setLoading(true);setError('')
     try {
@@ -68,7 +68,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onCan
       {selected && <form onSubmit={submit} className="max-w-xs mx-auto">
         <label htmlFor="admin-pin" className="block text-sm text-slate-300 mb-2">{selected.name} — Enter PIN</label>
         <input id="admin-pin" autoFocus type="password" inputMode="numeric" pattern="[0-9]{5}" autoComplete="off" required maxLength={5} value={pin}
-          onChange={e => setPin(e.target.value.replace(/\\D/g,'').slice(0,5))}
+          onChange={e => setPin(e.target.value.replace(/\D/g,'').slice(0,5))}
           className="w-full rounded-xl border border-blue-400/40 bg-[#050d21] px-4 py-4 text-center text-2xl tracking-[.6em] outline-none focus:border-sky-400"
           placeholder="•••••" aria-label="Five-digit PIN" />
         {error && <p className="text-rose-300 text-sm mt-3" role="alert">{error}</p>}
