@@ -1,3 +1,4 @@
+import {writeAudit} from "./audit.js";
 import { ObjectId,type Db } from 'mongodb';
 import { RecordError } from './organizationRecords.js';
 import type { OrganizationAccount } from './organizationPolicy.js';
@@ -25,5 +26,6 @@ export async function organizationOperation(db:Db,section:string,user:Organizati
  }
  const result=await collection.findOneAndUpdate({_id,...expected,'organizationOperations.id':{$ne:body.operationId}},[{$set:{...change,updatedAt:'$$NOW',organizationOperations:{$slice:[{$concatArrays:[{$ifNull:['$organizationOperations',[]]},[{$literal:event}]]},-100]}}}],{returnDocument:'after',includeResultMetadata:false});
  if(!result)throw new RecordError(409,'The record changed. Refresh before retrying.');
+ await writeAudit(db,{actor:user,action:"organization."+event.action,targetType:inventory?"product":"order",targetId:body.id,meta:{operationId:body.operationId,from:event.from,to:event.to}});
  return {success:true,stock:result.stock,status:result.status};
 }

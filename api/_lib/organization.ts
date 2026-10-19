@@ -1,3 +1,4 @@
+import {businessOrdersFilter} from "./reporting.js";
 import {organizationOperation} from "./organizationOperations.js";
 import {studioAI} from "./organizationStudioAI.js";
 import {RECORDS,RecordError,organizationRecords} from "./organizationRecords.js";
@@ -594,11 +595,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       return res.status(result.status).json(result.body);
     }
+    if(section==="orders"&&req.method==="GET"){
+      const page=Math.max(1,Math.min(10000,Math.floor(Number(req.query.page))||1));
+      const orders=await db.collection("orders").find(businessOrdersFilter()).sort({createdAt:-1,_id:-1}).skip((page-1)*30).limit(31).toArray();
+      return res.json({success:true,page,hasMore:orders.length>30,orders:orders.slice(0,30).map(o=>({id:String(o._id),orderNumber:o.orderNumber,customerName:o.customerName,totalAmount:o.totalAmount,currency:o.currency||"PKR",status:o.status,paymentStatus:o.paymentStatus,createdAt:o.createdAt})),source:{name:"Playbeat Digital orders",checkedAt:new Date().toISOString()}});
+    }
     const routes: Record<string, string> = {
       stats: "/api/admin/stats",
       inventory: "/api/admin/inventory",
       orders: "/api/admin/orders?limit=30",
-      products: "/api/products?limit=30",
+      products: "/api/products?limit=30&page="+Math.max(1,Math.min(10000,Math.floor(Number(req.query.page))||1)),
       live: "/api/admin/playbeat-live",
       devices: "/api/admin/app/devices",
       audit: "/api/admin/audit-logs?limit=50",

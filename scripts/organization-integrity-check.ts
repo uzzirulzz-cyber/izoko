@@ -18,7 +18,7 @@ process.env.ADMIN_PASSWORD = "test-only";
 const norm = (v: any): any =>
   v instanceof ObjectId
     ? v.toHexString()
-    : v instanceof Date
+    : (v instanceof Date || v instanceof RegExp)
       ? v
       : Array.isArray(v)
         ? v.map(norm)
@@ -66,6 +66,8 @@ class Collection {
   find(q: any) {
     let d = this.match(q);
     const c: any = {
+      sort: (p:any) => {d=new Aggregator([{$sort:p}]).run(d);return c;},
+      skip: (n:number) => {d=d.slice(n);return c;},
       project: (p: any) => {
         d = new Aggregator([{ $project: p }]).run(d);
         return c;
@@ -142,7 +144,7 @@ globalThis.fetch = (async (url: any, options: any) => {
   });
 }) as any;
 const { default: handler } = await import("../api/auth/index.js");
-async function request(section: string, token = "", body?: any, id = device) {
+async function request(section: string, token = "", body?: any, id = device, extraQuery:any={}) {
   let status = 200,
     data: any;
   const res: any = {
@@ -160,7 +162,7 @@ async function request(section: string, token = "", body?: any, id = device) {
     {
       url: "/api/organization?section=" + section,
       method: body ? "POST" : "GET",
-      query: { section },
+      query: { section,...extraQuery },
       body,
       headers: {
         "x-playbeat-device": id,
@@ -219,7 +221,10 @@ assert.equal(
   (await request("profile", token, undefined, otherDevice)).status,
   401,
 );
-assert.equal((await request("orders", token)).status, 200);
+for(let i=0;i<31;i++)db.collection("orders").docs.push({_id:new ObjectId().toHexString(),orderNumber:"PB-REAL-"+i,customerName:"Fixture customer",createdAt:new Date(2026,0,i+1),status:"pending",totalAmount:100});
+db.collection("orders").docs.push({_id:new ObjectId().toHexString(),orderNumber:"PB-GWTEST-hidden",isTest:true,createdAt:new Date()});
+const pageOne=await request("orders",token);assert.equal(pageOne.status,200);assert.equal(pageOne.data.orders.length,30);assert.equal(pageOne.data.hasMore,true);assert(pageOne.data.orders.every((o:any)=>!o.orderNumber.startsWith("PB-GWTEST")));
+const pageTwo=await request("orders",token,undefined,device,{page:2});assert.equal(pageTwo.data.orders.length,1);assert.equal(pageTwo.data.hasMore,false);
 const before = reads;
 assert.equal((await request("stats", token)).status, 403);
 assert.equal(reads, before);
