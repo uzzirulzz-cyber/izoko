@@ -27,8 +27,15 @@ export async function getDb(dbName = MONGODB_DB_NAME): Promise<Db> {
   if (!global.__mongoClientP) {
     global.__mongoClientP = createClient();
   }
-  const client = await global.__mongoClientP;
-  return client.db(dbName);
+  const pending = global.__mongoClientP;
+  try {
+    const client = await pending;
+    return client.db(dbName);
+  } catch (error) {
+    // A failed initial connection must not poison every warm invocation.
+    if (global.__mongoClientP === pending) global.__mongoClientP = undefined;
+    throw error;
+  }
 }
 
 // Optional: initialize indexes on first call (best-effort)

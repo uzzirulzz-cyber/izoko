@@ -1,3 +1,7 @@
+import {organizationOperation} from "./organizationOperations.js";
+import {studioAI} from "./organizationStudioAI.js";
+import {RECORDS,RecordError,organizationRecords} from "./organizationRecords.js";
+import {organizationCatalog,type CatalogWorkspace} from "./organizationCatalog.js";
 import {
   organizationAIRoute,
   organizationAIFeatures,
@@ -116,6 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await db
         .collection("organization_rate_limits")
         .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+      await db.collection("organization_workspace_records").createIndex({workspace:1,createdBy:1,updatedAt:-1});
+      await db.collection("organization_ai_runs").createIndex({projectId:1,startedAt:-1});
       indexesReady = true;
     }
     let body = req.body || {};
@@ -289,7 +295,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res
         .status(403)
         .json({ error: "Your assigned role does not permit this action." });
-    if (section !== "heartbeat")
+    const activePlayback = section === "heartbeat" && req.query.playing === "1" && ["stream","live","magxtv"].includes(String(req.query.workspace)) && workspaceScopes(user).includes(String(req.query.workspace));
+    if (section !== "heartbeat" || activePlayback)
       await sessions.updateOne(
         { _id: s._id },
         { $set: { lastSeen: new Date(now) } },
@@ -314,6 +321,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         features: organizationAIFeatures(process.env),
         serverTime: new Date(now).toISOString(),
       });
+    if (["catalog-stream","catalog-live","catalog-magxtv"].includes(section) && req.method === "GET") {
+      try {return res.json(await organizationCatalog(section.slice(8) as CatalogWorkspace,req.query));}
+      catch {return res.status(503).json({error:"This service's channel catalog is unavailable. Its source has not returned a valid playable catalog.",workspace:section.slice(8)});}
+    }
+    if(req.method==="POST"&&["chat","gateway-chat","mystic-run","visual-assist"].includes(section)){
+      const day=await strictLimit(db,"org-ai-day:"+s.email,200,86400);
+      const organizationDay=await strictLimit(db,"org-ai-day:organization",1000,86400);
+      if(!day.allowed||!organizationDay.allowed)return res.status(429).json({error:"The daily organization AI request allowance has been reached."});
+    }
+    if(req.method==="POST"&&section!=="heartbeat"&&!(await strictLimit(db,"org-write:"+s.email,60,60)).allowed)return res.status(429).json({error:"Too many changes. Please wait."});
+    if(["inventory-adjust","order-status"].includes(section)&&req.method==="POST"){
+      try{return res.json(await organizationOperation(db,section,user,body));}
+      catch(error){if(error instanceof RecordError)return res.status(error.status).json({error:error.message});throw error;}
+    }
+    if(section==="mystic-runs"&&req.method==="GET"){
+      const project=await db.collection<any>("organization_workspace_records").findOne({_id:String(req.query.projectId||""),workspace:"mystic",...(user.role==="admin"?{}:{createdBy:String(user.email||"").toLowerCase()})});
+      if(!project)return res.status(404).json({error:"Project unavailable."});
+      const runs=await db.collection<any>("organization_ai_runs").find({projectId:project._id}).sort({startedAt:-1}).limit(30).project({_id:0,prompt:0}).toArray();
+      return res.json({items:runs.map(r=>({...r,status:r.status==="running"&&Date.now()-new Date(r.startedAt).getTime()>120000?"interrupted":r.status}))});
+    }
+    if(["mystic-run","visual-assist"].includes(section)&&req.method==="POST"){
+      if(!(await strictLimit(db,"org-ai:"+s.email,12,60)).allowed)return res.status(429).json({error:"AI request limit reached. Please wait."});
+      try{return res.json(await studioAI(db,section,user,body));}
+      catch(error){if(error instanceof RecordError)return res.status(error.status).json({error:error.message});throw error;}
+    }
+    if(Object.prototype.hasOwnProperty.call(RECORDS,section)){
+      try{return res.json(await organizationRecords(db,section as keyof typeof RECORDS,user,req.method||"GET",req.query,body));}
+      catch(error){if(error instanceof RecordError)return res.status(error.status).json({error:error.message});throw error;}
+    }
     if (section === "people" && req.method === "GET") {
       const people = await db
         .collection("users")
@@ -560,6 +596,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const routes: Record<string, string> = {
       stats: "/api/admin/stats",
+      inventory: "/api/admin/inventory",
       orders: "/api/admin/orders?limit=30",
       products: "/api/products?limit=30",
       live: "/api/admin/playbeat-live",

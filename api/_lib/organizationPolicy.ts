@@ -8,7 +8,7 @@ export interface OrganizationAccount {
 export const WORKSPACES = [
   "magxtv",
   "deals",
-  "asia",
+  "stream",
   "digital",
   "live",
   "mystic",
@@ -19,6 +19,9 @@ export const WORKSPACES = [
 export type Workspace = (typeof WORKSPACES)[number];
 export const DATA_PERMISSIONS: Record<string, string> = {
   stats: "analytics",
+  inventory: "inventory",
+  "inventory-adjust":"inventory",
+  "order-status":"orders",
   orders: "orders",
   products: "products",
   live: "inventory",
@@ -43,9 +46,15 @@ export function canReadSection(
 ): boolean {
   if (section === "profile" || section === "heartbeat")
     return user.role === "admin" || user.role === "staff";
+  const records:Record<string,string>={"deal-records":"deals","mystic-projects":"mystic","visual-designs":"visual","mystic-run":"mystic","mystic-runs":"mystic","visual-assist":"visual"};
+  if(records[section])return (user.role==="admin"||user.role==="staff")&&workspaceScopes(user).includes(records[section]);
+  if (["catalog-stream","catalog-live","catalog-magxtv"].includes(section)) return user.role === "admin" || workspaceScopes(user).includes(section.slice(8));
   if (user.role === "admin")
     return [
       "stats",
+      "inventory",
+      "inventory-adjust",
+      "order-status",
       "orders",
       "products",
       "live",
