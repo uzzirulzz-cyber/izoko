@@ -1,3 +1,7 @@
+import {
+  organizationAIRoute,
+  organizationAIFeatures,
+} from "../api/_lib/organizationAI.js";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { ObjectId } from "mongodb";
@@ -98,6 +102,8 @@ const staff = {
 };
 db.collection("users").docs.push(staff);
 let reads = 0;
+let aiStatus = 200;
+let aiCalls = 0;
 globalThis.fetch = (async (url: any, options: any) => {
   if (new URL(url).pathname.startsWith("/api/auth/")) {
     const c = JSON.parse(options.body);
@@ -108,6 +114,25 @@ globalThis.fetch = (async (url: any, options: any) => {
           ? { id: staffId, ...staff }
           : { email: "owner@example.test", name: "Owner", role: "admin" },
     });
+  }
+  if (new URL(url).hostname === "openrouter.ai") {
+    aiCalls++;
+    assert.equal(
+      options.headers.Authorization,
+      "Bearer local-openrouter-test-key",
+    );
+    const body = JSON.parse(options.body);
+    assert.ok(
+      ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"].includes(body.model),
+    );
+    assert.equal(body.stream, false);
+    assert.equal(body.max_tokens, 1024);
+    return Response.json(
+      aiStatus === 200
+        ? { choices: [{ message: { role: "assistant", content: "OK" } }] }
+        : { error: { message: "No test credits", code: "insufficient_quota" } },
+      { status: aiStatus },
+    );
   }
   reads++;
   return Response.json({
@@ -133,7 +158,7 @@ async function request(section: string, token = "", body?: any, id = device) {
   };
   await handler(
     {
-      url: "/api/organization?section="+section,
+      url: "/api/organization?section=" + section,
       method: body ? "POST" : "GET",
       query: { section },
       body,
@@ -181,7 +206,14 @@ assert.match(token, /^pborg_/);
 assert.equal(JSON.stringify(login.data).includes("legacy-token"), false);
 const session = db.collection("organization_mobile_sessions").docs[0];
 assert.notEqual(session.tokenHash, token);
-session.lastSeen=new Date(Date.now()-60000);const priorSeen=session.lastSeen.getTime();assert.equal((await request("heartbeat",token)).status,200);assert.equal(session.lastSeen.getTime(),priorSeen,"heartbeat must not extend idle expiry");
+session.lastSeen = new Date(Date.now() - 60000);
+const priorSeen = session.lastSeen.getTime();
+assert.equal((await request("heartbeat", token)).status, 200);
+assert.equal(
+  session.lastSeen.getTime(),
+  priorSeen,
+  "heartbeat must not extend idle expiry",
+);
 assert.equal(session.backingToken.includes("legacy-token"), false);
 assert.equal(
   (await request("profile", token, undefined, otherDevice)).status,
@@ -226,7 +258,80 @@ assert.equal(owner.status, 200);
 const ot = owner.data.token,
   people = await request("people", ot);
 assert.equal(people.status, 200);
-assert.equal((await request("staff-create",ot,{name:"Test",email:"test@example.test",password:"short"})).status,400);assert.equal((await request("staff-update",ot,{userId:staffId,permissions:["unapproved"]})).status,400);
+assert.throws(
+  () =>
+    organizationAIRoute("chat", "arbitrary-expensive-model", {
+      OPENROUTER_API_KEY: "test",
+    }),
+  /MODEL_NOT_ALLOWED/,
+);
+assert.equal(
+  organizationAIRoute("chat", "gpt-4.1-mini", {
+    ORGANIZATION_GATEFIT_KEY: "fallback",
+  }).provider,
+  "gatefit",
+);
+process.env.OPENROUTER_API_KEY = " local-openrouter-test-key ";
+assert.equal(organizationAIFeatures(process.env).aiProvider, "openrouter");
+const ai = await request("chat", ot, {
+  model: "gpt-4.1-mini",
+  messages: [{ role: "user", content: "Hello" }],
+});
+assert.equal(ai.status, 200);
+assert.equal(ai.data.playbeat.provider, "openrouter");
+assert.equal(ai.data.playbeat.model, "openai/gpt-4.1-mini");
+assert.equal(
+  JSON.stringify(ai.data).includes("local-openrouter-test-key"),
+  false,
+);
+assert.equal(
+  (
+    await request("gateway-chat", ot, {
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: "Hello" }],
+    })
+  ).status,
+  200,
+);
+const callsBefore = aiCalls;
+assert.equal(
+  (
+    await request("chat", ot, {
+      model: "unapproved-model",
+      messages: [{ role: "user", content: "Hello" }],
+    })
+  ).status,
+  400,
+);
+assert.equal(aiCalls, callsBefore);
+aiStatus = 429;
+const denied = await request("chat", ot, {
+  model: "gpt-4.1-mini",
+  messages: [{ role: "user", content: "Hello" }],
+});
+assert.equal(denied.status, 429);
+assert.equal(denied.data.error.code, "insufficient_quota");
+delete process.env.OPENROUTER_API_KEY;
+
+assert.equal(
+  (
+    await request("staff-create", ot, {
+      name: "Test",
+      email: "test@example.test",
+      password: "short",
+    })
+  ).status,
+  400,
+);
+assert.equal(
+  (
+    await request("staff-update", ot, {
+      userId: staffId,
+      permissions: ["unapproved"],
+    })
+  ).status,
+  400,
+);
 assert.equal(JSON.stringify(people.data).includes("never-return-this"), false);
 assert.equal(
   (

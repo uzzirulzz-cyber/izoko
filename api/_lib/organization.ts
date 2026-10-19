@@ -1,3 +1,7 @@
+import {
+  organizationAIRoute,
+  organizationAIFeatures,
+} from "./organizationAI.js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   createHash,
@@ -240,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           permissions: user.permissions || [],
           workspaces: workspaceScopes(user),
         },
-        features: { gatefit: !!process.env.ORGANIZATION_GATEFIT_KEY },
+        features: organizationAIFeatures(process.env),
         expiresAt: new Date(now.getTime() + HOURS).toISOString(),
       });
     }
@@ -307,7 +311,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           permissions: user.permissions || [],
           workspaces: workspaceScopes(user),
         },
-        features: { gatefit: !!process.env.ORGANIZATION_GATEFIT_KEY },
+        features: organizationAIFeatures(process.env),
         serverTime: new Date(now).toISOString(),
       });
     if (section === "people" && req.method === "GET") {
@@ -407,25 +411,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       )
         return res.status(400).json({ error: "Invalid conversation." });
       const gatefit = section === "chat";
-      if (gatefit && !process.env.ORGANIZATION_GATEFIT_KEY)
+      const requestedModel = String(
+        body.model || (gatefit ? "gpt-4.1-mini" : "gpt-4o-mini"),
+      );
+      let route: ReturnType<typeof organizationAIRoute>;
+      try {
+        route = organizationAIRoute(section, requestedModel, process.env);
+      } catch (error) {
         return res
-          .status(503)
-          .json({ error: "Organization AI service is not provisioned." });
-      const upstreamUrl = gatefit
-        ? "https://gatefit.playbeat.digital/v1/chat/completions"
-        : "https://gateway.playbeat.live/api/v1/chat/completions";
-      const response = await fetch(upstreamUrl, {
+          .status(
+            error instanceof Error && error.message === "MODEL_NOT_ALLOWED"
+              ? 400
+              : 503,
+          )
+          .json({
+            error: "The requested model or AI provider is unavailable.",
+          });
+      }
+      if (
+        body.messages.some(
+          (m: unknown) =>
+            !m ||
+            typeof m !== "object" ||
+            !["user", "assistant", "system"].includes((m as any).role) ||
+            typeof (m as any).content !== "string",
+        )
+      )
+        return res
+          .status(400)
+          .json({ error: "Invalid conversation messages." });
+      const response = await fetch(route.url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(gatefit
-            ? {
-                Authorization: "Bearer " + process.env.ORGANIZATION_GATEFIT_KEY,
-              }
-            : {}),
-        },
+        headers: { "Content-Type": "application/json", ...route.headers },
         body: JSON.stringify({
-          model: String(body.model || "gpt-4.1-mini"),
+          model: route.model,
           messages: body.messages,
           stream: false,
           max_tokens: 1024,
@@ -437,13 +456,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         actor: user,
         action: "organization.ai.request",
         targetType: gatefit ? "gatefit" : "gateway",
-        meta: { model: String(body.model), status: response.status },
+        meta: {
+          model: route.model,
+          provider: route.provider,
+          status: response.status,
+        },
       });
-      return res.status(response.status).json(
-        await response.json().catch(() => ({
-          error: "AI service returned an invalid response.",
-        })),
-      );
+      const payload = await response
+        .json()
+        .catch(() => ({ error: "AI service returned an invalid response." }));
+      return res
+        .status(response.status)
+        .json({
+          ...payload,
+          playbeat: { provider: route.provider, model: route.model },
+        });
     }
     if (
       (section === "staff-create" || section === "staff-update") &&
