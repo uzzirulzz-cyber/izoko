@@ -1,3 +1,4 @@
+import AISection from './AISection'
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { PlaybeatLivePanel } from './admin/PlaybeatLivePanel'
 import { GrowthStatusPanel } from './admin/GrowthStatusPanel'
@@ -2305,6 +2306,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
           {/* CONTENT ROUTER */}
           {/* ========================================================================= */}
           <main className="pa-main p-6 space-y-6 max-w-[1600px] w-full mx-auto">
+            <AISection />
             {adminStats?.testOrdersExcluded > 0 && <p className="text-xs text-amber-300">{adminStats.testOrdersExcluded} identified test orders excluded from business totals. Use “Include test records” in Orders Log to inspect them.</p>}
             {catalogStatus !== 'live' && <div role="status" className="p-3 rounded-xl border border-amber-400/30 text-amber-300 text-sm">{catalogStatus === 'loading' ? 'Loading the live catalog…' : 'Live catalog unavailable. Cached product data may be outdated; reload to retry.'}</div>}
             {Object.keys(dataErrors).length > 0 && <div role="alert" className="p-3 rounded-xl border border-rose-400/30 text-rose-300 text-sm"><p>Some admin data could not be loaded. Previously loaded values may be outdated.</p><ul>{Object.entries(dataErrors).map(([key, error]) => <li key={key}>{key.replace(/^fetch/, '')}: {error}</li>)}</ul><button className="pa-btn mt-2 px-3 py-1" onClick={refreshAllAdminData}>Retry Loading</button></div>}

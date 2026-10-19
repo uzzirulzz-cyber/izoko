@@ -1,0 +1,8 @@
+import React from 'react'
+export default function AISection(){
+ const tools=[['MysticAI','mysticai.playbeat.live','AI workspace','0% 0%'],['Visual','visual.playbeat.live','Creative studio','100% 0%'],['Gateway','gateway.playbeat.live','AI routing','0% 100%'],['Gatefit','gatefit.playbeat.digital','Private AI access','100% 100%']];
+ return <section aria-label="AI section" style={{border:'1px solid #293c56',borderRadius:12,padding:24,marginBottom:24,background:'linear-gradient(130deg,#07101e,#0b172a)',color:'#dce6f5'}}>
+  <div style={{display:'flex',justifyContent:'space-between',gap:16,alignItems:'center',marginBottom:20}}><div><div style={{fontSize:10,letterSpacing:2,color:'#9bacc3',marginBottom:8}}>CENTRAL COMMAND</div><h2 style={{fontSize:22,margin:0,color:'#edf3fb'}}>AI section</h2></div><span style={{fontSize:11,color:'#869bb8'}}>Shared PIN access</span></div>
+  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14}}>{tools.map(([name,domain,description,position])=><a key={domain} href={'https://'+domain+'/'} target="_blank" rel="noopener noreferrer" style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,color:'#dce6f5',textDecoration:'none',padding:'18px 10px',background:'#07101e',border:'1px solid #26374c',borderRadius:9}}><span role="img" aria-label={name+' logo'} style={{display:'block',width:112,height:112,borderRadius:10,backgroundImage:"url('https://gateway.playbeat.live/gateway-ai-logos.webp')",backgroundSize:'200% 200%',backgroundPosition:position}}/><strong style={{fontSize:14,marginTop:8}}>{name} ↗</strong><span style={{fontSize:11,color:'#93a6bf'}}>{description}</span><span style={{fontSize:10,color:'#6f849f',overflowWrap:'anywhere'}}>{domain}</span></a>)}</div>
+ </section>
+}

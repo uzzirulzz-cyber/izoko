@@ -588,6 +588,23 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
     });
   }
 
+  if (route === "admin/shared-pin" && req.method === "POST") {
+    res.setHeader("Cache-Control", "no-store");
+    const supplied=String(req.body?.pin||"");
+    try {
+      const db=await getDb();
+      const gate=await mongoRateLimit(db,"shared-pin:"+clientIp(req as any),5,900);
+      if(!gate.allowed)return jsonError(res,"Too many attempts. Please wait.",429);
+      const expected=String(process.env.PLAYBEAT_SHARED_PIN||"");
+      const a=Buffer.from(supplied),b=Buffer.from(expected);
+      if(!/^\d{6}$/.test(supplied)||!b.length||a.length!==b.length||!timingSafeEqual(a,b))return jsonError(res,"Incorrect PIN.",401);
+      const admin={email:"gateway-operator@playbeat.digital",name:"Gateway Operator",role:"admin"};
+      const token=signAdminToken(admin);
+      setCookie(res,"adminToken",token,{maxAge:12*60*60});
+      return jsonOk(res,{success:true,token,admin});
+    }catch{return jsonError(res,"Authentication unavailable.",503);}
+  }
+
   if (route === "admin/executive-pin" && req.method === "POST") {
     res.setHeader("Cache-Control", "no-store");
     const profiles: Record<string, string> = { qazi: "QAZI", creed: "CREED", mahbuba: "MAHBUBA" };
