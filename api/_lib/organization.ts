@@ -6,19 +6,18 @@ import {
   createDecipheriv,
 } from "node:crypto";
 import { ObjectId } from "mongodb";
-import { getDb } from "../_lib/mongo.js";
-import { MODULE_PERMISSIONS } from "../_lib/auth.js";
-import { SESSION_SECRET } from "../_lib/config.js";
-import { clientIp } from "../_lib/rateLimit.js";
-import { writeAudit } from "../_lib/audit.js";
-import type { OrganizationAccount } from "../_lib/organizationPolicy.js";
+import { getDb } from "./mongo.js";
+import { MODULE_PERMISSIONS } from "./auth.js";
+import { SESSION_SECRET } from "./config.js";
+import { clientIp } from "./rateLimit.js";
+import { writeAudit } from "./audit.js";
+import type { OrganizationAccount } from "./organizationPolicy.js";
 import {
   WORKSPACES,
   workspaceScopes,
   canReadSection,
   validDeviceId,
-} from "../_lib/organizationPolicy.js";
-export const config = { maxDuration: 60 };
+} from "./organizationPolicy.js";
 let indexesReady = false;
 const ORIGIN = "https://playbeat.digital";
 const HOURS = 8 * 60 * 60 * 1000,

@@ -116,7 +116,7 @@ globalThis.fetch = (async (url: any, options: any) => {
     stats: { totalOrders: 0 },
   });
 }) as any;
-const { default: handler } = await import("../api/organization/index.js");
+const { default: handler } = await import("../api/auth/index.js");
 async function request(section: string, token = "", body?: any, id = device) {
   let status = 200,
     data: any;
@@ -133,6 +133,7 @@ async function request(section: string, token = "", body?: any, id = device) {
   };
   await handler(
     {
+      url: "/api/organization?section="+section,
       method: body ? "POST" : "GET",
       query: { section },
       body,
@@ -180,6 +181,7 @@ assert.match(token, /^pborg_/);
 assert.equal(JSON.stringify(login.data).includes("legacy-token"), false);
 const session = db.collection("organization_mobile_sessions").docs[0];
 assert.notEqual(session.tokenHash, token);
+session.lastSeen=new Date(Date.now()-60000);const priorSeen=session.lastSeen.getTime();assert.equal((await request("heartbeat",token)).status,200);assert.equal(session.lastSeen.getTime(),priorSeen,"heartbeat must not extend idle expiry");
 assert.equal(session.backingToken.includes("legacy-token"), false);
 assert.equal(
   (await request("profile", token, undefined, otherDevice)).status,
@@ -224,6 +226,7 @@ assert.equal(owner.status, 200);
 const ot = owner.data.token,
   people = await request("people", ot);
 assert.equal(people.status, 200);
+assert.equal((await request("staff-create",ot,{name:"Test",email:"test@example.test",password:"short"})).status,400);assert.equal((await request("staff-update",ot,{userId:staffId,permissions:["unapproved"]})).status,400);
 assert.equal(JSON.stringify(people.data).includes("never-return-this"), false);
 assert.equal(
   (

@@ -316,7 +316,13 @@ function isProfileComplete(p: ProfileDoc): boolean {
 // Same phone shape the orders API accepts (digits, spaces, dashes).
 const PROFILE_PHONE_RE = /^\+?[\d\s-]{7,20}$/;
 
+export const config = { maxDuration: 60 };
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
+  // Keep mobile organization routes in this existing function (Hobby function quota).
+  if (req.query.organization === "1" || new URL(req.url || "/", "http://localhost").pathname === "/api/organization") {
+    const { default: organization } = await import("../_lib/organization.js");
+    return organization(req, res);
+  }
   if (handleOptions(req, res)) return;
 
   // The catch-all param is `path` (an array). Vercel passes it as req.query.path

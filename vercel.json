@@ -88,6 +88,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/organization",
+      "destination": "/api/auth?organization=1"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/products?pbSitemap=index"
     },
