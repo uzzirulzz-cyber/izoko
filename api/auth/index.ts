@@ -318,6 +318,10 @@ const PROFILE_PHONE_RE = /^\+?[\d\s-]{7,20}$/;
 
 export const config = { maxDuration: 60 };
 export default async function handler(req: AuthenticatedRequest, res: VercelResponse) {
+  if (req.query.streamingCustomer === "1") {
+    const {default: streaming} = await import("../_lib/streamingCustomer.js");
+    return streaming(req, res);
+  }
   // Keep mobile organization routes in this existing function (Hobby function quota).
   if (req.query.organization === "1" || new URL(req.url || "/", "http://localhost").pathname === "/api/organization") {
     const { default: organization } = await import("../_lib/organization.js");

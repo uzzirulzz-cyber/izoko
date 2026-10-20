@@ -39,3 +39,7 @@ export async function organizationCatalog(workspace:CatalogWorkspace,query:Recor
  const page=Math.max(1,Math.min(1000,Math.floor(Number(query.page))||1)),pageSize=Math.max(1,Math.min(100,Math.floor(Number(query.pageSize))||40)),offset=(page-1)*pageSize;
  return {success:true,workspace,total:filtered.length,catalogTotal:entry.channels.length,page,pageSize,hasMore:offset+pageSize<filtered.length,countries,categories,channels:filtered.slice(offset,offset+pageSize),source:entry.source};
 }
+
+export async function catalogChannelsByIds(workspace:CatalogWorkspace,ids:string[]):Promise<NativeChannel[]>{
+ await organizationCatalog(workspace,{pageSize:1});const wanted=new Set(ids.slice(0,7000));return (cache.get(workspace)?.channels||[]).filter(c=>wanted.has(c.id));
+}
