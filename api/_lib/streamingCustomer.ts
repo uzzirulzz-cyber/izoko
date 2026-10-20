@@ -36,14 +36,14 @@ export async function streamingHandler(req:VercelRequest,res:VercelResponse,db:a
    if(action==='register'){
     if(account)throw problem(409,'Unable to create this account. Try signing in.');
     const name=text(body.name,60);if(!name)throw problem(400,'Your name is required.');
-    account={_id:id,entity,email,name,passwordHash:await bcrypt.hash(password,12),createdAt:now,profiles:[{id:randomUUID(),name,avatar:0,favorites:[],playlists:[],history:[]}]};
+    account={_id:id,entity,email,name,authVersion:randomUUID(),passwordHash:await bcrypt.hash(password,12),createdAt:now,profiles:[{id:randomUUID(),name,avatar:0,favorites:[],playlists:[],history:[]}]};
     try{await accounts.insertOne(account);}catch(e:any){if(e.code===11000)throw problem(409,'Unable to create this account. Try signing in.');throw e;}
    }else{
     const valid=await bcrypt.compare(password,account?.passwordHash||'$2b$12$QvvBGhjkW9noHk.4azkgXe9rLSf1BKQNUfHKEqhL9fR6Pfysvbh/i');
     if(!account||!valid)throw problem(401,'Email or password is incorrect.');
    }
    const token=randomBytes(32).toString('base64url'),expiresAt=new Date(Date.now()+30*86400000);
-   await sessions.insertOne({_id:sha(token),entity,accountId:id,device,createdAt:now,expiresAt});
+   await sessions.insertOne({_id:sha(token),entity,accountId:id,device,createdAt:now,expiresAt,...(typeof account.authVersion==='string'?{authVersion:account.authVersion}:{})});
    return res.status(action==='register'?201:200).json({success:true,token,expiresAt,account:accountView(account)});
   }
   const authorization=String(req.headers.authorization||'');
@@ -52,12 +52,19 @@ export async function streamingHandler(req:VercelRequest,res:VercelResponse,db:a
   const session=await sessions.findOne({_id:sha(token),entity,device,expiresAt:{$gt:now}});
   if(!session)throw problem(401,'Your session expired. Please sign in again.');
   const account=await accounts.findOne({_id:session.accountId,entity});if(!account)throw problem(401,'Account unavailable.');
+  // Legacy sessions remain valid only while both documents lack a version. A
+  // password change rotates the account version, invalidating even a login
+  // that finished inserting its old-version session after bulk revocation.
+  const versionMatches=typeof account.authVersion==='string'?session.authVersion===account.authVersion:account.authVersion===undefined&&session.authVersion===undefined;
+  if(!versionMatches)throw problem(401,'Your session expired. Please sign in again.');
   if(action==='me'&&!write)return res.status(200).json({success:true,account:accountView(account)});
   if(action==='logout'&&write){await sessions.deleteOne({_id:session._id});return res.status(200).json({success:true});}
   if(action==='password'&&write){
    if(!await bcrypt.compare(String(body.currentPassword||''),account.passwordHash))throw problem(403,'Current password is incorrect.');
    const p=typeof body.password==='string'?body.password:'';if(p.length<12||Buffer.byteLength(p)>72)throw problem(400,'Use a password of 12–72 bytes.');
-   await accounts.updateOne({_id:account._id},{$set:{passwordHash:await bcrypt.hash(p,12)}});await sessions.deleteMany({accountId:account._id});return res.status(200).json({success:true,signedOut:true});
+   const changed=await accounts.updateOne({_id:account._id,...(typeof account.authVersion==='string'?{authVersion:account.authVersion}:{authVersion:{$exists:false}})},{$set:{passwordHash:await bcrypt.hash(p,12),authVersion:randomUUID()}});
+   if(!changed.matchedCount)throw problem(409,'Your account changed. Please sign in again.');
+   await sessions.deleteMany({accountId:account._id});return res.status(200).json({success:true,signedOut:true});
   }
   if(action==='delete-account'&&write){
    if(!await bcrypt.compare(String(body.password||''),account.passwordHash))throw problem(403,'Password is incorrect.');
@@ -66,7 +73,7 @@ export async function streamingHandler(req:VercelRequest,res:VercelResponse,db:a
   if(action==='profiles'&&write){
    const name=text(body.name,60);if(!name)throw problem(400,'Profile name required.');
    if(body.profileId){
-    const id=text(body.profileId);const out=await accounts.updateOne({_id:account._id,'profiles.id':id},{$set:{'profiles.$.name':name,'profiles.$.avatar':Math.max(0,Math.min(5,Number(body.avatar)||0))}});if(!out.matchedCount)throw problem(404,'Profile not found.');
+    const id=text(body.profileId);const out=await accounts.updateOne({_id:account._id,'profiles.id':id},{$set:{'profiles.$.name':name,'profiles.$.avatar':Math.max(0,Math.min(5,Number(body.avatar)||0))},$inc:{'profiles.$.revision':1}});if(!out.matchedCount)throw problem(404,'Profile not found.');
    }else{
     const out=await accounts.updateOne({_id:account._id,'profiles.4':{$exists:false}},{$push:{profiles:{id:randomUUID(),name,avatar:Math.max(0,Math.min(5,Number(body.avatar)||0)),favorites:[],playlists:[],history:[]}}});if(!out.matchedCount)throw problem(409,'Maximum five profiles.');
    }
