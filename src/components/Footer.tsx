@@ -305,6 +305,32 @@ export const Footer: React.FC<{ cms?: FooterCms | null }> = ({ cms }) => {
             )}
           </div>
 
+          {/* ============ TECHNOLOGY ECOSYSTEM ============ */}
+          <section aria-label="Technology ecosystem" className="mb-10 rounded-2xl border border-amber-400/20 bg-gradient-to-r from-[#0A122E] via-[#101A38] to-[#0A122E] p-5 sm:p-6">
+            <div className="text-center mb-4">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-amber-300">Technology ecosystem</p>
+              <h3 className="mt-1 text-sm sm:text-base font-extrabold text-white">Built with leading cloud and AI technologies</h3>
+              <p className="mt-1 text-[11px] text-slate-400">Technology references — not a claim of sponsorship or partner endorsement.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer" className="group rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center hover:border-amber-300/50 transition">
+                <span className="block text-lg font-black tracking-tight text-white">aws</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300">Amazon Web Services</span>
+                <span className="block mt-1 text-[10px] text-slate-400">Cloud infrastructure</span>
+              </a>
+              <a href="https://aws.amazon.com/bedrock/" target="_blank" rel="noopener noreferrer" className="group rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center hover:border-amber-300/50 transition">
+                <span className="block text-base font-extrabold text-white">Amazon Bedrock</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300">AWS AI platform</span>
+                <span className="block mt-1 text-[10px] text-slate-400">Foundation model access</span>
+              </a>
+              <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" className="group rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center hover:border-amber-300/50 transition">
+                <span className="block text-lg font-black tracking-tight text-white">OpenAI</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-amber-300">AI technology</span>
+                <span className="block mt-1 text-[10px] text-slate-400">AI models and tools</span>
+              </a>
+            </div>
+          </section>
+
           {/* ============ CONTACT PLAYBEAT — complete contact section ============ */}
           <div className="pt-8 pb-6 border-t border-slate-400/10">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
