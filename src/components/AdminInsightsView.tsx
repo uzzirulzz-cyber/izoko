@@ -266,7 +266,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       'media', 'customers', 'subscriptions', 'iptv', 'coupons', 'coupon-codes', 'inventory',
       'reviews-mod', 'homepage-builder', 'audit-log', 'campaigns', 'support', 'seo',
       'messages', 'vault', 'backup', 'staff', 'androidapp', 'mobile-apps', 'profile', 'documents', 'gateway',
-      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'all-in-one', 'crm', 'chatgpt',
+      'services', 'service-requests', 'business', 'whatsapp', 'playbeat-live', 'all-in-one', 'crm', 'chatgpt', 'technology-partners',
     ])
     const applyHash = () => {
       const h = (window.location.hash || '').replace(/^#\/?/, '').toLowerCase()
@@ -902,6 +902,7 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
       nav('cms', 'CMS — Homepage & Banners', <KitCms className="w-4 h-4" />),
       nav('seo', 'SEO Control Center', <Globe className="w-4 h-4" />),
       nav('staff', 'Staff & Roles', <KitStaff className="w-4 h-4" />),
+      nav('technology-partners', 'Technology Partners', <Globe className="w-4 h-4" />),
       nav('profile', 'Settings — Profile', <Settings className="w-4 h-4" />),
       { id: 'add-product', label: 'Add New Product', icon: <KitPlus className="w-4 h-4" />, group: 'Quick Actions', hint: 'Alt+N', run: () => goAdminRef.current('/admin/products/new') },
       { id: 'import-csv', label: 'Import Products (CSV)', icon: <KitCsv className="w-4 h-4" />, group: 'Quick Actions', run: () => setShowCsvImporterModal(true) },
@@ -1263,6 +1264,16 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
                   >
                     <BarChart3 className="w-4 h-4 text-emerald-400" />
                     {!sidebarCollapsed && <span>Analytics & Traffic</span>}
+                  </button>
+
+                  <button
+                    onClick={() => setActiveNav('technology-partners')}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 ${activeNav === 'technology-partners' ? 'pa-nav-item--active' : 'pa-nav-item'}`}
+                    style={activeNav === 'technology-partners' ? ({ '--nav-a': '#fcd34d', '--nav-bg': 'rgba(245,158,11,0.09)', '--nav-edge': 'rgba(245,158,11,0.28)' } as React.CSSProperties) : undefined}
+                    title="Technology ecosystem and partner references"
+                  >
+                    <Globe className="w-4 h-4 text-amber-300" />
+                    {!sidebarCollapsed && <span>Technology Partners</span>}
                   </button>
 
                   <button
@@ -3842,6 +3853,44 @@ export const AdminInsightsView: React.FC<AdminInsightsViewProps> = ({
             {/* PANEL: DOCUMENTS & FILES — secure vault for PDF/Word/Excel/APK/ZIP        */}
             {/* ========================================================================= */}
             {activeNav === 'documents' && <DocumentsPanel onToast={triggerToast} />}
+
+            {/* ========================================================================= */}
+            {/* PANEL: TECHNOLOGY PARTNERS — technology references and verification */}
+            {/* ========================================================================= */}
+            {activeNav === 'technology-partners' && (
+              <section className="space-y-5">
+                <div className="rounded-2xl border border-amber-400/20 bg-gradient-to-r from-[#111827] to-[#0b1020] p-5">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-300">PlayBeat Digital • Ecosystem</p>
+                  <h2 className="mt-1 text-xl font-extrabold text-white">Technology Partners & Platforms</h2>
+                  <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-400">Manage the public technology references shown on the storefront. These entries identify technologies and platforms; they do not represent a certification, sponsorship, or approved-partner status.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'Amazon Web Services', short: 'AWS', category: 'Cloud infrastructure', url: 'https://aws.amazon.com/', status: 'Technology reference' },
+                    { name: 'Amazon Bedrock', short: 'Bedrock', category: 'Managed foundation-model platform', url: 'https://aws.amazon.com/bedrock/', status: 'Technology reference' },
+                    { name: 'OpenAI', short: 'OpenAI', category: 'AI models and tools', url: 'https://openai.com/', status: 'Technology reference' },
+                  ].map((item) => (
+                    <article key={item.name} className="rounded-2xl border border-white/10 bg-[#0c111b] p-5 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-mono uppercase tracking-wider text-amber-300">{item.short}</p>
+                          <h3 className="mt-1 text-base font-bold text-white">{item.name}</h3>
+                        </div>
+                        <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-2 py-1 text-[9px] font-semibold text-sky-300">Reference</span>
+                      </div>
+                      <p className="text-xs text-zinc-400">{item.category}</p>
+                      <div className="border-t border-white/5 pt-3 flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-zinc-500">{item.status}</span>
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold text-amber-300 hover:text-amber-200">Official website ↗</a>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-[11px] leading-relaxed text-zinc-400">
+                  <strong className="text-zinc-200">Badge policy:</strong> Keep these as technology references unless PlayBeat has written authorization to use an official partner, reseller, or certification badge. Agreement IDs and private account credentials should not be published on the storefront.
+                </div>
+              </section>
+            )}
 
             {/* ========================================================================= */}
             {/* PANEL: WEBSITE BUILDER CMS — real editor backed by site_settings */}
