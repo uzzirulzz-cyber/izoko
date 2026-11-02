@@ -172,6 +172,28 @@ export const HeroHeaderStage = forwardRef<HTMLDivElement, HeroHeaderStageProps>(
         >
           {showSrH1 && <h1 className="sr-only">PlayBeat Digital — Your World of Digital Possibilities</h1>}
 
+          {/* ===== Technology logos — compact hero badge row ===== */}
+          <div
+            aria-label="Technology ecosystem: Amazon Web Services, Amazon Bedrock and OpenAI"
+            className="absolute z-20 bottom-[2.1%] left-[2.1%] flex items-center gap-2 sm:gap-3 rounded-xl border border-amber-300/25 bg-[#071329]/90 px-2.5 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.4)] backdrop-blur-md"
+          >
+            <span className="hidden sm:block pr-1 text-[8px] font-bold uppercase tracking-[0.16em] text-amber-200/80">Powered by technology</span>
+            <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer" aria-label="Amazon Web Services official website" title="Amazon Web Services" className="flex items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-white/10">
+              <img src="https://cdn.simpleicons.org/amazonaws/FF9900" alt="" className="h-4 w-4 object-contain" loading="lazy" />
+              <span className="text-[10px] font-extrabold tracking-tight text-white">AWS</span>
+            </a>
+            <span className="h-5 w-px bg-white/15" />
+            <a href="https://aws.amazon.com/bedrock/" target="_blank" rel="noopener noreferrer" aria-label="Amazon Bedrock official website" title="Amazon Bedrock" className="flex items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-white/10">
+              <span className="grid h-4 w-4 place-items-center rounded bg-amber-400/15 text-[10px] font-black text-amber-300">B</span>
+              <span className="text-[10px] font-bold text-white">Bedrock</span>
+            </a>
+            <span className="h-5 w-px bg-white/15" />
+            <a href="https://openai.com/" target="_blank" rel="noopener noreferrer" aria-label="OpenAI official website" title="OpenAI" className="flex items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-white/10">
+              <img src="https://cdn.simpleicons.org/openai/FFFFFF" alt="" className="h-4 w-4 object-contain" loading="lazy" />
+              <span className="text-[10px] font-bold text-white">OpenAI</span>
+            </a>
+          </div>
+
           {/* ===== Search pill overlays (real inputs, design coordinates).
                The artwork bakes the placeholder + "All Categories" labels, so
                the live input/select mask that zone while idle-transparent
