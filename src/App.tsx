@@ -847,7 +847,7 @@ export function App() {
   // If valid, let them in. If not, redirect to admin-login. NO auto-login of users.
   useEffect(() => {
     let cancelled = false
-    if (route === 'admin' && !adminAuthed && window.location.pathname.replace(/\/+$/, '') !== '/admin') {
+    if (route === 'admin' && !adminAuthed) {
       setAdminChecking(true)
       verifyAdminSession()
         .then((ok) => {
@@ -1450,7 +1450,13 @@ export function App() {
         const response = await fetch(`${API_BASE}/api/products?limit=200`, { credentials: 'include' })
         const data = await response.json()
         if (!response.ok || !data.success || !Array.isArray(data.products)) throw new Error('Catalog unavailable')
-        if (!cancelled) { setProducts(data.products.filter((p: Product) => p.active !== false)); setCatalogStatus('live') }
+        if (!cancelled) {
+          const liveProducts = data.products.filter((p: Product) => p.active !== false)
+          // A valid but empty MongoDB collection must not blank the public store.
+          // Keep the curated bundled catalogue visible until the live catalogue is populated.
+          setProducts(liveProducts.length ? liveProducts : INITIAL_PRODUCTS.map(p => ({ ...p, rating: 0, reviewCount: 0 })))
+          setCatalogStatus(liveProducts.length ? 'live' : 'unavailable')
+        }
       } catch { if (!cancelled) setCatalogStatus('unavailable') }
     })()
     return () => { cancelled = true }
@@ -2154,7 +2160,7 @@ export function App() {
           </div>
         ) : (
           <Suspense fallback={ROUTE_FALLBACK}>
-            <AdminLoginPage
+            <AdminLogin
               onSuccess={() => {
                 setAdminAuthed(true)
               }}
@@ -2166,7 +2172,7 @@ export function App() {
 
       {route === 'admin-login' && (
         <Suspense fallback={ROUTE_FALLBACK}>
-          <AdminLoginPage
+          <AdminLogin
             onSuccess={() => {
               setAdminAuthed(true)
               navigate('admin')
