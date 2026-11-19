@@ -12,7 +12,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   // Use uncontrolled inputs with refs to defeat browser autofill/credential managers.
   // We never store the password in React state, never persist it, and clear it from
   // the DOM immediately after submit.
-  const emailRef = useRef<HTMLInputElement>(null)
+  const usernameRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -74,7 +74,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
   // On unmount, scrub any values that might have been typed
   useEffect(() => {
     return () => {
-      if (emailRef.current) emailRef.current.value = ''
+      if (usernameRef.current) usernameRef.current.value = ''
       if (passwordRef.current) passwordRef.current.value = ''
     }
   }, [])
@@ -83,7 +83,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
     e.preventDefault()
     setError('')
 
-    const email = emailRef.current?.value || ''
+    const username = usernameRef.current?.value || ''
     const password = passwordRef.current?.value || ''
 
     if (lockedUntil && Date.now() < lockedUntil) {
@@ -92,8 +92,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
       return
     }
 
-    if (!email.trim() || !password) {
-      setError('Both admin email and password are required.')
+    if (!username.trim() || !password) {
+      setError('Both admin username and password are required.')
       return
     }
 
@@ -103,7 +103,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), password }),
       })
       const data = await res.json()
 
@@ -132,7 +132,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
       localStorage.setItem(
         'playbeat_admin_session',
         JSON.stringify({
-          email: data.admin?.email || email,
+          email: data.admin?.email || username,
           name: data.admin?.name || 'Super Administrator',
           ts: Date.now(),
           // NO password stored anywhere
@@ -140,10 +140,10 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
       )
 
       // Also clear email field for good measure
-      if (emailRef.current) emailRef.current.value = ''
+      if (usernameRef.current) usernameRef.current.value = ''
 
       onSuccess({
-        email: data.admin?.email || email.trim(),
+        email: data.admin?.email || username.trim(),
         name: data.admin?.name || 'PlayBeat Super Administrator',
       })
     } catch (err: any) {
@@ -281,12 +281,12 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
 
               <div>
                 <label className="block text-[11px] font-mono uppercase text-slate-400 mb-1.5 tracking-wider">
-                  Administrator Email
+                  Administrator Username
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    ref={emailRef}
+                    ref={usernameRef}
                     type="text"
                     name={`adm_${fieldNonce}`}
                     autoComplete="off"
@@ -295,7 +295,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onSuccess, onCancel }) =
                     spellCheck={false}
                     autoFocus
                     required
-                    placeholder="playbeat.digital"
+                    placeholder="admin"
                     className="w-full bg-[#0a0f22] border border-blue-400/20 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 transition font-sans"
                   />
                 </div>

@@ -645,11 +645,17 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
   // the super administrator so password changes take real effect.
   if (route === "admin/login" && req.method === "POST") {
     try {
-      const { email, password } = req.body || {};
-      if (!email || !password) {
-        return jsonError(res, "Admin email and password are required.", 400);
+      const { username, email, password } = req.body || {};
+      const usingUsername = typeof username === "string" && username.trim().length > 0;
+      const identifier = String(usingUsername ? username : email || "").trim();
+      if (!identifier || !password) {
+        return jsonError(res, "Admin username and password are required.", 400);
       }
-      const cleanEmail = String(email).toLowerCase().trim();
+      // Username "admin" resolves only to the configured super-admin identity.
+      // Staff accounts continue to authenticate with their own email addresses.
+      const cleanEmail = usingUsername
+        ? ADMIN_EMAIL.toLowerCase().trim()
+        : String(email).toLowerCase().trim();
       const db = await getDb();
       const profilesCol = db.collection("admin_profiles");
       const activityCol = db.collection("admin_activity");
@@ -658,8 +664,8 @@ export default async function handler(req: AuthenticatedRequest, res: VercelResp
       // 1) Super administrator via DB password override or environment credentials
       const superAdminMatch = profileDoc?.passwordOverride
         ? await comparePassword(String(password), profileDoc.passwordOverride)
-        : isAdminCredentials(cleanEmail, String(password));
-      if (profileDoc?.passwordOverride || isAdminCredentials(cleanEmail, String(password))) {
+        : isAdminCredentials(identifier, String(password));
+      if (profileDoc?.passwordOverride || isAdminCredentials(identifier, String(password))) {
         if (!superAdminMatch) {
           return jsonError(res, "Invalid administrative credentials.", 401);
         }

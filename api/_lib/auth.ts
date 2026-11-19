@@ -4,7 +4,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD } from "./config.js";
+import { SESSION_SECRET, ADMIN_EMAIL, ADMIN_USERNAME, ADMIN_PASSWORD } from "./config.js";
 
 export interface AuthenticatedRequest extends VercelRequest {
   user?: any;
@@ -194,11 +194,11 @@ export function signAdminToken(
 }
 
 // Verify admin env credentials
-export function isAdminCredentials(email: string, password: string): boolean {
-  return (
-    email.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim() &&
-    password === ADMIN_PASSWORD
-  );
+export function isAdminCredentials(identifier: string, password: string): boolean {
+  const supplied = identifier.toLowerCase().trim();
+  return Boolean(ADMIN_PASSWORD) &&
+    (supplied === ADMIN_USERNAME.toLowerCase().trim() || supplied === ADMIN_EMAIL.toLowerCase().trim()) &&
+    password === ADMIN_PASSWORD;
 }
 
 // ---------------------------------------------------------------------------
