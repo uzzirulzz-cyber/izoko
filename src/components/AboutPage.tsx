@@ -198,8 +198,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ currency = 'PKR' }) => {
         {/* ============ BUSINESS MODEL ============ */}
         <Section
           icon={<Store className="w-5 h-5 text-yellow-400" />}
-          kicker="Section 1"
-          title="Our business model — what we sell and how we operate"
+title="Our business model — what we sell and how we operate"
         >
           <p>
             {REGISTERED_COMPANY} ("PlayBeat", "we", "us") operates{' '}
@@ -255,8 +254,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ currency = 'PKR' }) => {
         {/* ============ CUSTOMER JOURNEY ============ */}
         <Section
           icon={<Timer className="w-5 h-5 text-yellow-400" />}
-          kicker="Section 2"
-          title="The complete customer journey — from browsing to delivery"
+title="The complete customer journey — from browsing to delivery"
         >
           <p>
             The following is the exact sequence a customer follows when buying on PlayBeat Digital.
@@ -289,8 +287,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ currency = 'PKR' }) => {
         {/* ============ PAYMENT GATEWAY USE CASE ============ */}
         <Section
           icon={<CreditCard className="w-5 h-5 text-yellow-400" />}
-          kicker="Section 3"
-          title="How we use the payment gateway — intended use case"
+title="How we use the payment gateway — intended use case"
         >
           <p>
             Our payment gateway is used for <span className="text-white font-semibold">
@@ -346,8 +343,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ currency = 'PKR' }) => {
         {/* ============ PRICING & CURRENCY ============ */}
         <Section
           icon={<Banknote className="w-5 h-5 text-yellow-400" />}
-          kicker="Section 4"
-          title="Pricing & currency — billed in PKR, viewable worldwide"
+title="Pricing & currency — billed in PKR, viewable worldwide"
         >
           <p>
             All products are priced and billed in{' '}
@@ -382,8 +378,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ currency = 'PKR' }) => {
         {/* ============ OPERATIONS & COMPLIANCE ============ */}
         <Section
           icon={<Landmark className="w-5 h-5 text-yellow-400" />}
-          kicker="Section 5"
-          title="Operations, fulfilment & compliance"
+title="Operations, fulfilment & compliance"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-4 rounded-2xl bg-[#060B1E] border border-slate-400/15 space-y-2">
